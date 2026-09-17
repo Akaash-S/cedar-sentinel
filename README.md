@@ -4,6 +4,7 @@
 
 **Track:** Ship It  
 **Status:** Phase 1 — Setup  
+**Live Dashboard (Amplify):** https://main.d3i4xcsmv7sca9.amplifyapp.com  
 
 ---
 
