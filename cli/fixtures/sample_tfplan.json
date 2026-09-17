@@ -1,0 +1,58 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.15.8",
+  "resource_changes": [
+    {
+      "address": "aws_iam_role_policy.app_service_policy",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_iam_role_policy",
+      "name": "app_service_policy",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "app-service-policy",
+          "name_prefix": null,
+          "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"S3BroadReadWrite\",\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:ListBucket\",\"s3:DeleteObject\"],\"Resource\":[\"arn:aws:s3:::company-app-data\",\"arn:aws:s3:::company-app-data/*\"]},{\"Sid\":\"DynamoDBFullAccess\",\"Effect\":\"Allow\",\"Action\":[\"dynamodb:*\"],\"Resource\":\"arn:aws:dynamodb:ap-south-1:*:table/AppOrders\"}]}",
+          "role": "app-service-production-role"
+        },
+        "after_unknown": {
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": false
+      }
+    },
+    {
+      "address": "aws_iam_policy.read_only_audit",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_iam_policy",
+      "name": "read_only_audit",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "name": "read-only-audit-policy",
+          "name_prefix": null,
+          "description": "Read only policy for security audit",
+          "path": "/",
+          "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"cloudtrail:LookupEvents\",\"logs:GetLogEvents\",\"logs:FilterLogEvents\"],\"Resource\":\"*\"}]}"
+        },
+        "after_unknown": {
+          "arn": true,
+          "id": true
+        },
+        "before_sensitive": false,
+        "after_sensitive": false
+      }
+    }
+  ]
+}

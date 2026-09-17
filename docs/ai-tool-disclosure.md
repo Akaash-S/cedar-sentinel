@@ -1,0 +1,21 @@
+<!-- Intended repo path: docs/ai-tool-disclosure.md -->
+# AI Tool Disclosure Log
+
+Required by the First Commit rules: *"AI coding tools are allowed. Name the ones you used
+in your writeup."* This is the running source of truth — append the same day a tool is
+used. Do not reconstruct this list on submission day.
+
+| Date | Tool | Used for | Notes |
+|---|---|---|---|
+| Sep 11–13, 2026 | Claude (Anthropic) | Project ideation, problem-statement validation, architecture design (including catching and correcting the Cedar/AVP vs. IAM enforcement misconception), AWS rules research, drafting the master blueprint and Phase 1 instructions | Planning phase only, before the event clock started Sep 17 — no event-window code written at this stage |
+| Sep 17, 2026 | Antigravity (agentic IDE) | Phase 1 scaffold implementation: CLI skeleton, SAM infrastructure template, Lambda handler, CloudWatch Logs query verification, Amplify hosting, and test orchestration | Day 1 kickoff / Phase 1 setup |
+| — | — | — | — |
+
+---
+
+## Writeup summary (draft — finalize on submission day)
+
+> "We used Claude for pre-event architecture planning and technical research, and
+> Antigravity as our agentic coding assistant throughout the build for [specific tasks].
+> All core design decisions, AWS service integration, and final code review were done
+> by the team member."

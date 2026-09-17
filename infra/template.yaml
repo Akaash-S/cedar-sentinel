@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Cedar Sentinel — Phase 1 Infrastructure
+  EventBridge EventBus, SQS Queue, EventBridge Rule, Scoped IAM Role, and Lambda Ingestion Processor.
+
+Parameters:
+  EventBusName:
+    Type: String
+    Default: cedar-sentinel-events
+    Description: Name of the EventBridge custom event bus for Cedar Sentinel
+
+Resources:
+  # 1. Custom EventBridge Event Bus
+  CedarSentinelEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Ref EventBusName
+
+  # 2. SQS Queue for Ingesting Terraform Plan Events
+  CedarSentinelQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: cedar-sentinel-pipeline-queue
+      VisibilityTimeout: 60
+      MessageRetentionPeriod: 86400
+
+  # 3. SQS Queue Policy granting EventBridge permission to send messages
+  CedarSentinelQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref CedarSentinelQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowEventBridgeToSendMessages
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt CedarSentinelQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !GetAtt CedarSentinelRule.Arn
+
+  # 4. EventBridge Rule routing events to SQS Queue
+  CedarSentinelRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: cedar-sentinel-plan-analysis-rule
+      Description: Routes Terraform plan analysis events to the SQS processing queue
+      EventBusName: !Ref CedarSentinelEventBus
+      EventPattern:
+        source:
+          - cedar.sentinel.test
+          - cedar.sentinel
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt CedarSentinelQueue.Arn
+          Id: CedarSentinelQueueTarget
+
+  # 5. Scoped IAM Execution Role for Lambda Processor
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "cedar-sentinel-lambda-exec-${AWS::Region}"
+      Description: Scoped execution role for Cedar Sentinel pipeline Lambda
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CedarSentinelLambdaLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/cedar-sentinel-pipeline-processor:*"
+        - PolicyName: CedarSentinelLambdaSQSPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt CedarSentinelQueue.Arn
+
+  # 6. Lambda Pipeline Processor Function
+  CedarSentinelProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: cedar-sentinel-pipeline-processor
+      Description: Ingests and processes Terraform plan analysis events from SQS
+      CodeUri: ../lambda/
+      Handler: handler.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      Timeout: 30
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt CedarSentinelQueue.Arn
+            BatchSize: 10
+            Enabled: true
+
+Outputs:
+  EventBusName:
+    Description: EventBridge Event Bus Name
+    Value: !Ref CedarSentinelEventBus
+    Export:
+      Name: CedarSentinelEventBusName
+
+  EventBusArn:
+    Description: EventBridge Event Bus ARN
+    Value: !GetAtt CedarSentinelEventBus.Arn
+
+  SQSQueueUrl:
+    Description: SQS Pipeline Queue URL
+    Value: !Ref CedarSentinelQueue
+
+  SQSQueueArn:
+    Description: SQS Pipeline Queue ARN
+    Value: !GetAtt CedarSentinelQueue.Arn
+
+  LambdaFunctionName:
+    Description: Lambda Processor Function Name
+    Value: !Ref CedarSentinelProcessorFunction
+
+  LambdaFunctionArn:
+    Description: Lambda Processor Function ARN
+    Value: !GetAtt CedarSentinelProcessorFunction.Arn
