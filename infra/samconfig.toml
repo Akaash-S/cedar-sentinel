@@ -1,4 +1,7 @@
-# SAM Configuration file for Cedar Sentinel Phase 1 Infrastructure
+# SAM Configuration file for Cedar Sentinel Phase 2 Infrastructure
+# NOTE: samconfig.toml is gitignored (may contain account-specific values).
+# Before deploying, replace <YOUR_CLOUDTRAIL_LOG_GROUP> with the real log group name
+# from your .env file (CLOUDWATCH_LOG_GROUP_NAME).
 version = 0.1
 
 [default]
@@ -18,5 +21,5 @@ confirm_changeset = false
 resolve_s3 = true
 stack_name = "cedar-sentinel-infra"
 region = "ap-south-1"
-parameter_overrides = "EventBusName=\"cedar-sentinel-events\""
+parameter_overrides = "EventBusName=\"cedar-sentinel-events\" DynamoDBTableName=\"cedar-sentinel-results\" BedrockModelId=\"global.anthropic.claude-sonnet-4-6\" CloudWatchLogGroupName=\"<YOUR_CLOUDTRAIL_LOG_GROUP>\" AVPPolicyStoreSSMParam=\"/cedar-sentinel/dev/avp-policy-store-id\""
 image_repositories = []

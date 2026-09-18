@@ -37,6 +37,7 @@ venv.bak/
 
 # AWS SAM & Terraform
 .aws-sam/
+samconfig.toml
 samconfig.toml.local
 *.tfstate
 *.tfstate.*

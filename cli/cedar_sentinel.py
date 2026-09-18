@@ -1,16 +1,48 @@
 """
-Cedar Sentinel CLI — Phase 1 Scaffolding
-Reads Terraform plan JSON, extracts IAM policy definitions, and dispatches events.
+Cedar Sentinel CLI — Phase 2: Core Reasoning & Verification
+Reads Terraform plan JSON, extracts IAM policy definitions, dispatches events,
+and polls DynamoDB for the Lambda pipeline result.
 """
 
 import argparse
 import json
 import os
 import sys
+import time
+import uuid
 from typing import Any, Dict, List, Optional
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
+# Ensure Windows terminal stdout does not crash on unicode characters
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+
+# ─────────────────────────────────────────────────────────────────
+# DynamoDB polling config
+# ─────────────────────────────────────────────────────────────────
+POLL_INTERVAL_SECONDS = 2
+POLL_TIMEOUT_SECONDS = 30
+
+
+# ─────────────────────────────────────────────────────────────────
+# Policy extraction helpers (unchanged from Phase 1)
+# ─────────────────────────────────────────────────────────────────
 
 def get_caller_identity(region: Optional[str] = None) -> Dict[str, Any]:
     """Calls sts:GetCallerIdentity and returns identity details."""
@@ -55,7 +87,6 @@ def extract_iam_policies_from_plan(plan_data: Dict[str, Any]) -> List[Dict[str, 
         actions = change.get("actions", [])
         after = change.get("after") or {}
 
-        # Target IAM resources that define permissions
         if res_type in (
             "aws_iam_policy",
             "aws_iam_role_policy",
@@ -80,7 +111,6 @@ def extract_iam_policies_from_plan(plan_data: Dict[str, Any]) -> List[Dict[str, 
                 )
 
         elif res_type == "aws_iam_role":
-            # Extract inline policies or assume_role_policy if defined
             assume_role_policy = after.get("assume_role_policy")
             if assume_role_policy:
                 extracted_policies.append(
@@ -93,7 +123,6 @@ def extract_iam_policies_from_plan(plan_data: Dict[str, Any]) -> List[Dict[str, 
                         "policy_document": parse_policy_field(assume_role_policy),
                     }
                 )
-            # Check for inline_policy array on role if present
             inline_policies = after.get("inline_policy")
             if isinstance(inline_policies, list):
                 for inline in inline_policies:
@@ -130,6 +159,258 @@ def publish_event(
     response = events_client.put_events(Entries=[entry])
     return response
 
+
+# ─────────────────────────────────────────────────────────────────
+# DynamoDB polling
+# ─────────────────────────────────────────────────────────────────
+
+def poll_results_table(
+    table_name: str,
+    request_id: str,
+    region: Optional[str] = None,
+    timeout: int = POLL_TIMEOUT_SECONDS,
+    interval: int = POLL_INTERVAL_SECONDS,
+) -> Optional[Dict[str, Any]]:
+    """
+    Polls the DynamoDB results table every `interval` seconds until the item's
+    status leaves 'PROCESSING', or until `timeout` seconds have elapsed.
+    Returns the item dict, or None on timeout.
+    """
+    ddb = boto3.resource("dynamodb", region_name=region)
+    table = ddb.Table(table_name)
+    deadline = time.time() + timeout
+
+    print(f"\nPolling for result (request_id: {request_id})...")
+    spinner = ["|", "/", "-", "\\"]
+    spin_idx = 0
+
+    while time.time() < deadline:
+        try:
+            response = table.get_item(Key={"request_id": request_id})
+            item = response.get("Item")
+            if item:
+                status = item.get("status", "PROCESSING")
+                if status != "PROCESSING":
+                    print(f"\r[OK] Result ready (status: {status})          ")
+                    return item
+        except (BotoCoreError, ClientError) as err:
+            print(f"\nWarning: DynamoDB poll error: {err}", file=sys.stderr)
+
+        # Spinner tick
+        print(f"\r  Waiting for Lambda result... {spinner[spin_idx % len(spinner)]}", end="", flush=True)
+        spin_idx += 1
+        time.sleep(interval)
+
+    print(f"\r[FAIL] Timed out after {timeout}s waiting for result.          ")
+    return None
+
+
+# ─────────────────────────────────────────────────────────────────
+# Result rendering
+# ─────────────────────────────────────────────────────────────────
+
+def _render_before_after_diff(requested_policy: Any, cedar_policy: str) -> None:
+    """Prints a before/after diff of requested IAM policy vs. drafted Cedar policy."""
+    print("\n" + "=" * 60)
+    print("  BEFORE — Requested IAM Policy (from Terraform plan)")
+    print("=" * 60)
+    if isinstance(requested_policy, str):
+        try:
+            requested_policy = json.loads(requested_policy)
+        except Exception:
+            pass
+    print(json.dumps(requested_policy, indent=2) if isinstance(requested_policy, dict) else str(requested_policy))
+
+    print("\n" + "=" * 60)
+    print("  AFTER  — Drafted Cedar Policy (Bedrock reasoning output)")
+    print("=" * 60)
+    print(cedar_policy)
+
+
+def _render_complete_result(item: Dict[str, Any]) -> None:
+    """Renders a COMPLETE pipeline result to stdout."""
+    requested_policy_raw = item.get("requested_policy")
+    cedar_policy = item.get("cedar_policy", "(no Cedar policy returned)")
+    rationale = item.get("rationale", "")
+    coverage = item.get("coverage_check", {})
+    cedar_val = item.get("cedar_validation", {})
+
+    try:
+        requested_policy = json.loads(requested_policy_raw) if isinstance(requested_policy_raw, str) else requested_policy_raw
+    except Exception:
+        requested_policy = requested_policy_raw
+
+    _render_before_after_diff(requested_policy, cedar_policy)
+
+    print("\n" + "-" * 60)
+    print("  RATIONALE")
+    print("-" * 60)
+    print(rationale)
+
+    print("\n" + "-" * 60)
+    print("  COVERAGE CHECK")
+    print("-" * 60)
+    if coverage.get("passed"):
+        print("[PASS] all observed actions are present in the draft policy.")
+    else:
+        print("[FAIL] see blocked actions above.")
+
+    print("\n" + "-" * 60)
+    print("  CEDAR FORMAL VERIFICATION")
+    print("-" * 60)
+    if cedar_val.get("passed"):
+        print("[PASS] draft Cedar policy is schema-valid (STRICT mode).")
+        store_id = cedar_val.get("policy_store_id", "")
+        if store_id:
+            print(f"  (Validated against disposable AVP policy store: {store_id})")
+    else:
+        print("[FAIL] Cedar schema validation errors:")
+        for msg in cedar_val.get("messages", []):
+            print(f"  * {msg}")
+
+    print("\n" + "=" * 60)
+
+
+def _render_blocked_result(item: Dict[str, Any]) -> int:
+    """
+    Renders the hard-block warning and interactive [1]/[2]/[3] menu.
+    Returns the exit code from the selected option.
+    """
+    coverage = item.get("coverage_check", {})
+    cedar_policy = item.get("cedar_policy", "")
+    requested_policy_raw = item.get("requested_policy")
+
+    try:
+        requested_policy = json.loads(requested_policy_raw) if isinstance(requested_policy_raw, str) else requested_policy_raw
+    except Exception:
+        requested_policy = requested_policy_raw
+
+    blocked_actions_raw = coverage.get("blocked_actions", "[]")
+    try:
+        blocked_actions = json.loads(blocked_actions_raw) if isinstance(blocked_actions_raw, str) else blocked_actions_raw
+    except Exception:
+        blocked_actions = []
+
+    # Exact warning format per Phase 2 spec Section 5
+    print("\n[WARNING] SAFETY CHECK FAILED: Potential Workload Lockout Detected!")
+    print("The proposed Cedar policy drops observed CloudTrail actions:")
+    for ba in blocked_actions:
+        action = ba.get("action", "unknown")
+        count = ba.get("observed_count", 0)
+        print(f"  - {action} (Observed {count} times in last 7 days)")
+    print()
+    print("Action Taken: Deployment blocked.")
+    print("[1] Fall back to original policy")
+    print("[2] Force-apply draft Cedar policy (Override)")
+    print("[3] Re-evaluate with tighter prompt context")
+
+    try:
+        choice = input("\nSelect option [1/2/3]: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print("\nAborted.")
+        return 1
+
+    if choice == "1":
+        # Print the original requested policy and exit 0
+        print("\n── Original Requested Policy ──────────────────────────")
+        print(json.dumps(requested_policy, indent=2) if isinstance(requested_policy, dict) else str(requested_policy))
+        print("───────────────────────────────────────────────────────")
+        print("Reverted to original policy. No changes applied.")
+        return 0
+
+    elif choice == "2":
+        # Stub — Phase 3 will implement IAM enforcement
+        print("\nOverride not available until IAM enforcement exists in Phase 3.")
+        return 1
+
+    elif choice == "3":
+        # Re-publish with blocked actions explicitly in the prompt context
+        return _handle_reevaluate(item, blocked_actions)
+
+    else:
+        print(f"\nUnrecognized option '{choice}'. Exiting.", file=sys.stderr)
+        return 1
+
+
+def _handle_reevaluate(item: Dict[str, Any], blocked_actions: List[Dict]) -> int:
+    """
+    Option [3]: Re-invokes the pipeline with a re-evaluation hint injected
+    into the event detail, so Bedrock receives the dropped actions explicitly.
+    Prints a new request_id and instructs the user to poll again (or auto-polls).
+    """
+    new_request_id = str(uuid.uuid4())
+    region = os.environ.get("AWS_REGION")
+    bus_name = os.environ.get("EVENT_BUS_NAME", "cedar-sentinel-events")
+    table_name = os.environ.get("RESULTS_TABLE_NAME", "cedar-sentinel-results")
+
+    # Reconstruct the re-evaluation detail — inject dropped actions hint
+    blocked_names = [ba.get("action", "") for ba in blocked_actions]
+    reevaluate_hint = (
+        f"IMPORTANT: The previous draft dropped these observed actions that MUST be "
+        f"included: {', '.join(blocked_names)}. Preserve them in the new draft."
+    )
+
+    # Pull original detail fields out of the DynamoDB item for re-publish
+    requested_policy_raw = item.get("requested_policy", "{}")
+    try:
+        requested_policy = json.loads(requested_policy_raw) if isinstance(requested_policy_raw, str) else requested_policy_raw
+    except Exception:
+        requested_policy = {}
+
+    role_arn = item.get("role_arn", "")
+    detail_payload = {
+        "request_id": new_request_id,
+        "role_arn": role_arn,
+        "policies": [{"policy_document": requested_policy}],
+        "reevaluate_hint": reevaluate_hint,
+    }
+
+    print(f"\nRe-evaluating with tighter prompt context...")
+    print(f"New request_id: {new_request_id}")
+
+    try:
+        resp = publish_event(
+            event_bus_name=bus_name,
+            source="cedar.sentinel",
+            detail_type="TerraformPlanIamPolicyDetected",
+            detail=detail_payload,
+            region=region,
+        )
+        failed = resp.get("FailedEntryCount", 0)
+        if failed > 0:
+            print("Warning: Failed to re-publish event.", file=sys.stderr)
+            return 1
+    except (BotoCoreError, ClientError) as err:
+        print(f"Error re-publishing event: {err}", file=sys.stderr)
+        return 1
+
+    # Auto-poll the new result
+    result = poll_results_table(
+        table_name=table_name,
+        request_id=new_request_id,
+        region=region,
+    )
+    if result is None:
+        print("Timed out waiting for re-evaluation result.", file=sys.stderr)
+        return 1
+
+    status = result.get("status", "UNKNOWN")
+    if status == "COMPLETE":
+        _render_complete_result(result)
+        return 0
+    elif status == "BLOCKED":
+        return _render_blocked_result(result)
+    else:
+        print(f"Re-evaluation ended with status: {status}", file=sys.stderr)
+        err_msg = result.get("error_message", "")
+        if err_msg:
+            print(f"Error: {err_msg}", file=sys.stderr)
+        return 1
+
+
+# ─────────────────────────────────────────────────────────────────
+# Command handlers
+# ─────────────────────────────────────────────────────────────────
 
 def handle_check_aws(args: argparse.Namespace) -> int:
     """Handler for `check-aws` subcommand."""
@@ -175,45 +456,95 @@ def handle_analyze(args: argparse.Namespace) -> int:
         print(json.dumps(p["policy_document"], indent=6))
         print("-" * 50)
 
-    # Publish to EventBridge if requested or configured
+    # Publish + pipeline path
     bus_name = args.event_bus or os.environ.get("EVENT_BUS_NAME")
-    if args.publish or bus_name:
-        effective_bus = bus_name or "default"
-        source = args.source or "cedar.sentinel.test"
-        detail_type = "TerraformPlanIamPolicyDetected"
-        detail_payload = {
-            "plan_file": os.path.basename(plan_path),
-            "policy_count": len(policies),
-            "policies": policies,
-        }
+    if not (args.publish or bus_name):
+        return 0  # local extraction only — no pipeline
 
-        print(f"\nPublishing event to EventBridge bus '{effective_bus}' with source '{source}'...")
-        try:
-            resp = publish_event(
-                event_bus_name=effective_bus,
-                source=source,
-                detail_type=detail_type,
-                detail=detail_payload,
-                region=args.region,
-            )
-            entries = resp.get("Entries", [])
-            failed_count = resp.get("FailedEntryCount", 0)
-            if failed_count == 0 and entries:
-                print(f"Event published successfully! EventId: {entries[0].get('EventId')}")
-            else:
-                print(f"Warning: Failed to publish event: {resp}", file=sys.stderr)
-                return 1
-        except (BotoCoreError, ClientError) as err:
-            print(f"Error publishing event to EventBridge: {err}", file=sys.stderr)
+    if args.role_arn is None:
+        print(
+            "Error: --role-arn is required when publishing to the pipeline (--publish).",
+            file=sys.stderr,
+        )
+        return 1
+
+    effective_bus = bus_name or "cedar-sentinel-events"
+    source = args.source or "cedar.sentinel"
+    request_id = str(uuid.uuid4())
+
+    detail_payload = {
+        "request_id": request_id,
+        "plan_file": os.path.basename(plan_path),
+        "role_arn": args.role_arn,
+        "policy_count": len(policies),
+        "policies": policies,
+    }
+
+    print(f"\nPublishing analysis event to EventBridge bus '{effective_bus}'...")
+    print(f"Request ID: {request_id}")
+
+    try:
+        resp = publish_event(
+            event_bus_name=effective_bus,
+            source=source,
+            detail_type="TerraformPlanIamPolicyDetected",
+            detail=detail_payload,
+            region=args.region,
+        )
+        failed_count = resp.get("FailedEntryCount", 0)
+        entries = resp.get("Entries", [])
+        if failed_count == 0 and entries:
+            print(f"Event published. EventId: {entries[0].get('EventId')}")
+        else:
+            print(f"Warning: Failed to publish event: {resp}", file=sys.stderr)
             return 1
+    except (BotoCoreError, ClientError) as err:
+        print(f"Error publishing event to EventBridge: {err}", file=sys.stderr)
+        return 1
 
-    return 0
+    # Poll the results table
+    table_name = os.environ.get("RESULTS_TABLE_NAME", "cedar-sentinel-results")
+    result = poll_results_table(
+        table_name=table_name,
+        request_id=request_id,
+        region=args.region,
+        timeout=POLL_TIMEOUT_SECONDS,
+        interval=POLL_INTERVAL_SECONDS,
+    )
 
+    if result is None:
+        print(
+            f"\nTimeout: no result received after {POLL_TIMEOUT_SECONDS}s. "
+            f"Check CloudWatch logs for request_id={request_id}.",
+            file=sys.stderr,
+        )
+        return 1
+
+    status = result.get("status", "UNKNOWN")
+
+    if status == "COMPLETE":
+        _render_complete_result(result)
+        return 0
+    elif status == "BLOCKED":
+        return _render_blocked_result(result)
+    elif status == "ERROR":
+        print(f"\n[ERROR] Pipeline error for request_id={request_id}", file=sys.stderr)
+        err_msg = result.get("error_message", "No details available.")
+        print(f"  {err_msg}", file=sys.stderr)
+        return 1
+    else:
+        print(f"\nUnknown status '{status}' for request_id={request_id}.", file=sys.stderr)
+        return 1
+
+
+# ─────────────────────────────────────────────────────────────────
+# Argument parser
+# ─────────────────────────────────────────────────────────────────
 
 def build_parser() -> argparse.ArgumentParser:
     """Builds the CLI argument parser."""
     parser = argparse.ArgumentParser(
-        description="Cedar Sentinel CLI — IAM Policy Extraction & Event Dispatcher"
+        description="Cedar Sentinel CLI — IAM Policy Extraction, Bedrock Reasoning & Cedar Verification"
     )
     parser.add_argument(
         "--region",
@@ -229,7 +560,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # Subcommand: analyze
     parser_analyze = subparsers.add_parser(
-        "analyze", help="Analyze Terraform plan JSON and extract IAM policies"
+        "analyze",
+        help="Analyze Terraform plan JSON, extract IAM policies, reason with Bedrock, verify with Cedar",
     )
     parser_analyze.add_argument(
         "--plan-file",
@@ -237,9 +569,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to the JSON output of 'terraform show -json'",
     )
     parser_analyze.add_argument(
+        "--role-arn",
+        default=None,
+        help="ARN of the IAM role to query CloudTrail history for (required when --publish is set)",
+    )
+    parser_analyze.add_argument(
         "--publish",
         action="store_true",
-        help="Publish extracted policy event to EventBridge",
+        help="Publish extracted policy event to EventBridge and poll for pipeline result",
     )
     parser_analyze.add_argument(
         "--event-bus",
@@ -248,8 +585,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser_analyze.add_argument(
         "--source",
-        default="cedar.sentinel.test",
-        help="EventBridge event source (default: cedar.sentinel.test)",
+        default="cedar.sentinel",
+        help="EventBridge event source (default: cedar.sentinel)",
     )
     parser_analyze.set_defaults(func=handle_analyze)
 
