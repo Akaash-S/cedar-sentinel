@@ -1,371 +1,1809 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cedar Sentinel — Policy Reasoning & Enforcement Dashboard</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cedar Sentinel — Analysis & Enforcement Pipeline</title>
   <style>
     :root {
-      --bg: #090d16;
-      --card-bg: #111726;
-      --border: #1e293b;
-      --accent-cyan: #38bdf8;
-      --accent-emerald: #10b981;
-      --accent-amber: #f59e0b;
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --text-muted: #64748b;
-      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --bg: #0b0f14;
+      --panel-bg: #11161d;
+      --card-bg: #161b22;
+      --card-hover: #1c2128;
+      --card-selected: #21262d;
+      --border: #30363d;
+      --border-subtle: #21262d;
+      --text: #c9d1d9;
+      --muted: #6e7681;
+      --green: #3fb950;
+      --green-bg: rgba(63, 185, 80, 0.1);
+      --red: #f85149;
+      --red-bg: rgba(248, 81, 73, 0.1);
+      --amber: #d29922;
+      --amber-bg: rgba(210, 153, 34, 0.1);
+      --accent: #58a6ff;
+      --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       background-color: var(--bg);
-      color: var(--text-primary);
-      font-family: var(--font-sans);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
       line-height: 1.5;
-      padding: 2rem 1rem;
+      padding: 16px;
+      -webkit-font-smoothing: antialiased;
     }
 
-    .container {
-      max-width: 1080px;
+    /* Container */
+    .app-container {
+      max-width: 1360px;
       margin: 0 auto;
     }
 
+    /* Header */
     header {
+      border: 1px solid var(--border);
+      background-color: var(--panel-bg);
+      padding: 12px 16px;
+      margin-bottom: 12px;
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 2rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border);
+      align-items: center;
+      gap: 12px;
+      border-radius: 2px;
     }
 
-    .brand h1 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: #fff;
+    .prompt-line {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
     }
 
-    .brand p {
-      color: var(--text-secondary);
-      font-size: 0.95rem;
-      margin-top: 0.25rem;
+    .prompt-symbol {
+      color: var(--accent);
     }
 
-    .badge-status {
+    .status-badge {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-APPLIED { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+    .status-COMPLETE { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+    .status-DECLINED { border-color: var(--amber); color: var(--amber); background: var(--amber-bg); }
+    .status-APPLIED_UNVERIFIED { border-color: var(--amber); color: var(--amber); background: var(--amber-bg); }
+    .status-BLOCKED { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+    .status-CEDAR_INVALID { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+    .status-ANALYZER_INVALID { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+    .status-APPLY_FAILED { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+    .status-ERROR { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+    .status-PROCESSING { border-color: var(--amber); color: var(--amber); background: var(--amber-bg); }
+
+    /* Controls Bar */
+    .controls-bar {
+      border: 1px solid var(--border);
+      background-color: var(--panel-bg);
+      padding: 10px 16px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-radius: 2px;
+    }
+
+    .controls-left {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    select, button {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text);
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 6px 10px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    select:focus, button:focus {
+      border-color: var(--accent);
+    }
+
+    button:hover {
+      background-color: var(--card-hover);
+      border-color: var(--muted);
+    }
+
+    .replay-btn {
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .replay-btn:hover {
+      background-color: rgba(88, 166, 255, 0.1);
+    }
+
+    .controls-note {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    /* Synthetic Banner */
+    .synthetic-banner {
+      display: none;
+      background-color: var(--amber-bg);
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      border-radius: 2px;
+    }
+
+    /* Pipeline Strip */
+    .pipeline-strip {
+      border: 1px solid var(--border);
+      background-color: var(--panel-bg);
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      border-radius: 2px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      overflow-x: auto;
+      font-size: 11px;
+    }
+
+    .strip-node {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.4rem 0.9rem;
-      border-radius: 9999px;
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-      font-weight: 700;
-      background: rgba(16, 185, 129, 0.15);
-      color: var(--accent-emerald);
-      border: 1px solid rgba(16, 185, 129, 0.35);
-    }
-
-    .badge-dot {
-      width: 8px;
-      height: 8px;
-      background-color: var(--accent-emerald);
-      border-radius: 50%;
-      box-shadow: 0 0 8px var(--accent-emerald);
-    }
-
-    .record-notice {
-      background: rgba(56, 189, 248, 0.08);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      border-radius: 8px;
-      padding: 0.75rem 1rem;
-      margin-bottom: 2rem;
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .record-notice strong { color: var(--accent-cyan); }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
-      margin-bottom: 2rem;
-    }
-
-    .card {
+      gap: 4px;
+      padding: 2px 6px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 2px;
       background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.25rem;
+      white-space: nowrap;
     }
 
-    .card h2 {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--accent-cyan);
-      margin-bottom: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+    .strip-node.done { border-color: var(--green); color: var(--green); }
+    .strip-node.running { border-color: var(--amber); color: var(--amber); }
+    .strip-node.failed { border-color: var(--red); color: var(--red); }
+    .strip-node.blocked { border-color: var(--red); color: var(--red); }
+    .strip-node.declined { border-color: var(--amber); color: var(--amber); }
+    .strip-node.warning { border-color: var(--amber); color: var(--amber); }
+    .strip-node.muted { border-color: var(--border-subtle); color: var(--muted); }
+
+    .strip-connector {
+      color: var(--muted);
     }
 
-    .metadata-list {
-      list-style: none;
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
+    /* Main Grid Layout */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 16px;
+      align-items: start;
     }
 
-    .metadata-list li {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .metadata-list li:last-child { border-bottom: none; }
-    .meta-label { color: var(--text-muted); }
-    .meta-value { color: var(--text-primary); text-align: right; word-break: break-all; }
-
-    /* Timeline */
-    .timeline {
+    /* Pipeline Groups & Cards */
+    .pipeline-container {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 14px;
     }
 
-    .timeline-step {
+    .group-block {
+      border: 1px solid var(--border);
+      background-color: var(--panel-bg);
+      padding: 12px;
+      border-radius: 2px;
+    }
+
+    .group-header {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 0.6rem 0.8rem;
-      background: rgba(0, 0, 0, 0.25);
-      border-radius: 6px;
-      border-left: 3px solid var(--accent-emerald);
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
+      gap: 6px;
     }
 
-    .step-name { display: flex; align-items: center; gap: 0.5rem; color: #fff; }
-    .step-duration { color: var(--accent-cyan); font-size: 0.8rem; }
-
-    /* Policy Diff Panels */
-    .diff-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
-      margin-bottom: 2rem;
+    .cards-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
 
-    .diff-panel {
-      background: #060911;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    .diff-header {
-      padding: 0.6rem 1rem;
-      background: #0f1523;
-      border-bottom: 1px solid var(--border);
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-
-    .diff-header.before { color: #f87171; }
-    .diff-header.after { color: #4ade80; }
-    .diff-header.cedar { color: #38bdf8; }
-
-    pre {
-      padding: 1rem;
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      overflow-x: auto;
-      color: #e2e8f0;
-      line-height: 1.4;
-    }
-
-    footer {
-      margin-top: 3rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
+    .group-connector {
       text-align: center;
-      font-size: 0.85rem;
-      color: var(--text-muted);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1;
+      margin: -6px 0;
+    }
+
+    /* Stage Card Button */
+    .stage-card {
+      width: 100%;
+      text-align: left;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 10px 12px;
+      transition: background-color 0.1s, border-color 0.1s;
+      position: relative;
+    }
+
+    .stage-card:disabled {
+      cursor: default;
+      opacity: 0.85;
+    }
+
+    .stage-card:not(:disabled):hover {
+      background-color: var(--card-hover);
+      border-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .stage-card.selected {
+      background-color: var(--card-selected);
+      border-color: var(--accent);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .card-title-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .card-glyph {
+      font-weight: bold;
+    }
+    .glyph-green { color: var(--green); }
+    .glyph-red { color: var(--red); }
+    .glyph-amber { color: var(--amber); }
+    .glyph-muted { color: var(--muted); }
+
+    .card-badge {
+      font-size: 11px;
+      padding: 1px 6px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 2px;
+      white-space: nowrap;
+    }
+
+    .badge-done { color: var(--green); border-color: var(--green); background: var(--green-bg); }
+    .badge-running { color: var(--amber); border-color: var(--amber); background: var(--amber-bg); }
+    .badge-failed { color: var(--red); border-color: var(--red); background: var(--red-bg); }
+    .badge-blocked { color: var(--red); border-color: var(--red); background: var(--red-bg); }
+    .badge-declined { color: var(--amber); border-color: var(--amber); background: var(--amber-bg); }
+    .badge-warning { color: var(--amber); border-color: var(--amber); background: var(--amber-bg); }
+    .badge-muted { color: var(--muted); border-color: var(--border-subtle); background: transparent; }
+
+    .card-explanation {
+      font-size: 12px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .card-under-the-hood {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .card-detail {
+      font-size: 11px;
+      color: var(--accent);
+      background: rgba(88, 166, 255, 0.05);
+      border-left: 2px solid var(--accent);
+      padding: 3px 6px;
+      margin-top: 4px;
+      overflow-wrap: anywhere;
+    }
+
+    /* Summary Block */
+    .summary-block {
+      border: 1px solid var(--border);
+      background-color: var(--panel-bg);
+      padding: 16px;
+      border-radius: 2px;
+      margin-top: 14px;
+    }
+
+    .summary-header {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .summary-outcome {
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 12px;
+      padding: 8px 10px;
+      background: var(--card-bg);
+      border-left: 3px solid var(--accent);
+    }
+
+    .summary-meta {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* Diff View */
+    .diff-container {
+      margin-top: 12px;
+    }
+
+    .diff-title {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .diff-box {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 8px;
+      font-size: 11px;
+      line-height: 1.4;
+      max-height: 380px;
+      overflow-y: auto;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .diff-line {
+      display: flex;
+      gap: 8px;
+      padding: 1px 4px;
+    }
+
+    .diff-line.removed {
+      background-color: var(--red-bg);
+      color: #ff7b72;
+    }
+
+    .diff-line.added {
+      background-color: var(--green-bg);
+      color: #7ee787;
+    }
+
+    .diff-line.unchanged {
+      color: var(--text);
+    }
+
+    .diff-line.guard-removed {
+      background-color: var(--red-bg);
+      color: #ffa198;
+    }
+
+    .diff-gutter {
+      user-select: none;
+      font-weight: bold;
+      width: 14px;
+      flex-shrink: 0;
+    }
+
+    /* Detail Side Panel */
+    .detail-panel {
+      border: 1px solid var(--border);
+      background-color: var(--panel-bg);
+      padding: 16px;
+      border-radius: 2px;
+      position: sticky;
+      top: 16px;
+      max-height: calc(100vh - 32px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .panel-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 2px 6px;
+    }
+
+    .panel-close-btn:hover {
+      color: var(--text);
+    }
+
+    .panel-content {
+      overflow-y: auto;
+      overflow-x: auto;
+      flex: 1;
+      font-size: 11px;
+    }
+
+    .panel-placeholder {
+      color: var(--muted);
+      text-align: center;
+      padding: 40px 10px;
+    }
+
+    .panel-section {
+      margin-bottom: 14px;
+    }
+
+    .panel-section-title {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    pre.code-block {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.4;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--text);
+    }
+
+    .table-list {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+    }
+
+    .table-list th, .table-list td {
+      border: 1px solid var(--border);
+      padding: 4px 6px;
+      text-align: left;
+      font-size: 11px;
+    }
+
+    .table-list th {
+      background-color: var(--card-bg);
+      color: var(--muted);
+    }
+
+    /* Error View */
+    .error-box {
+      border: 1px solid var(--red);
+      background-color: var(--red-bg);
+      color: var(--red);
+      padding: 16px;
+      margin-bottom: 16px;
+      border-radius: 2px;
+      display: none;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      margin-top: 24px;
+      padding: 16px 0 8px 0;
+      color: var(--muted);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    /* Responsive Design (Mobile / Narrow Viewport) */
+    @media (max-width: 900px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        top: auto;
+        max-height: 70vh;
+        z-index: 100;
+        border-top: 2px solid var(--accent);
+        box-shadow: 0 -4px 16px rgba(0,0,0,0.5);
+        display: none;
+      }
+
+      .detail-panel.open {
+        display: flex;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="app-container">
+    <!-- Header -->
     <header>
-      <div class="brand">
-        <h1>Cedar Sentinel</h1>
-        <p>Automated Least-Privilege IAM Policy Synthesis, Cedar Verification & Safe Enforcement</p>
+      <div class="prompt-line">
+        <span class="prompt-symbol">$</span>
+        <span>cedar-sentinel analyze --apply</span>
       </div>
-      <div>
-        <span class="badge-status">
-          <span class="badge-dot"></span>
-          <span id="run-status">STATUS: APPLIED</span>
-        </span>
-      </div>
+      <div id="header-status-badge" class="status-badge status-APPLIED">STATUS: APPLIED</div>
     </header>
 
-    <div class="record-notice">
-      <span><strong>RECORDED RUN SNAPSHOT</strong> &bull; Read-only observability view from AWS DynamoDB results table</span>
-      <span id="run-timestamp" style="font-family: var(--font-mono);"></span>
+    <!-- Error Alert Box -->
+    <div id="error-alert" class="error-box"></div>
+
+    <!-- Controls Bar -->
+    <div class="controls-bar">
+      <div class="controls-left">
+        <label for="run-select" style="color: var(--muted); font-size: 11px;">REPLAY RUN:</label>
+        <select id="run-select" aria-label="Select recorded run to replay"></select>
+        <button id="replay-btn" class="replay-btn" title="Replay recorded animation from cache">[▶] REPLAY</button>
+      </div>
+      <div class="controls-note">
+        run complete · fetched once · replaying recorded stage timings (each card shown for at least 350 ms so it stays visible)
+      </div>
     </div>
 
-    <div class="grid">
-      <!-- Run Metadata -->
-      <div class="card">
-        <h2>Run Execution Details</h2>
-        <ul class="metadata-list">
-          <li>
-            <span class="meta-label">Request ID</span>
-            <span class="meta-value" id="meta-req-id">Loading...</span>
-          </li>
-          <li>
-            <span class="meta-label">Target Role</span>
-            <span class="meta-value" id="meta-role-arn">Loading...</span>
-          </li>
-          <li>
-            <span class="meta-label">Reasoning Engine</span>
-            <span class="meta-value" id="meta-model">Loading...</span>
-          </li>
-          <li>
-            <span class="meta-label">Cedar Formal Check</span>
-            <span class="meta-value" style="color: var(--accent-emerald);">STRICT (AVP Validated)</span>
-          </li>
-          <li>
-            <span class="meta-label">Access Analyzer</span>
-            <span class="meta-value" style="color: var(--accent-emerald);" id="meta-analyzer">NO NEW ACCESS (PASS)</span>
-          </li>
-          <li>
-            <span class="meta-label">Action Normalization</span>
-            <span class="meta-value" id="meta-mappings">s3:ListBuckets &rarr; ListAllMyBuckets</span>
-          </li>
-          <li id="meta-guard-row" style="display: none;">
-            <span class="meta-label">Deterministic Guard</span>
-            <span class="meta-value" style="color: var(--accent-amber);" id="meta-guard-actions">None</span>
-          </li>
-        </ul>
-      </div>
+    <!-- Synthetic Banner -->
+    <div id="synthetic-banner" class="synthetic-banner">
+      <strong>[!] SYNTHETIC EXAMPLE</strong> — <span id="synthetic-note-text">crafted to demonstrate this state</span>
+    </div>
 
-      <!-- Stage Timings Timeline -->
-      <div class="card">
-        <h2>Stage-by-Stage Timeline</h2>
-        <div class="timeline" id="timeline-container">
-          <!-- Populated by JS -->
+    <!-- Pipeline Strip -->
+    <div id="pipeline-strip" class="pipeline-strip" aria-label="Pipeline overview strip">
+      <!-- Generated via JS -->
+    </div>
+
+    <!-- Main Grid -->
+    <div class="main-layout">
+      <!-- Pipeline Column -->
+      <div class="pipeline-container">
+        <!-- Group 1: ANALYZE -->
+        <div class="group-block">
+          <div class="group-header">▸ ANALYZE (Stages 1 – 3)</div>
+          <div class="cards-list">
+            <!-- Card 1 -->
+            <button id="card-1" class="stage-card" disabled aria-label="Stage 1: Extract and publish">
+              <div class="card-top">
+                <div class="card-title-line">
+                  <span id="glyph-1" class="card-glyph glyph-muted">[—]</span>
+                  <span>1. Extract &amp; publish</span>
+                </div>
+                <span id="badge-1" class="card-badge badge-muted">pending</span>
+              </div>
+              <div class="card-explanation">CLI read the Terraform plan and published it to EventBridge → SQS</div>
+              <div class="card-under-the-hood">↳ events:PutEvents → sqs → Lambda</div>
+              <div id="detail-1" class="card-detail">extracting requested actions...</div>
+            </button>
+
+            <!-- Card 2 -->
+            <button id="card-2" class="stage-card" disabled aria-label="Stage 2: Usage lookup">
+              <div class="card-top">
+                <div class="card-title-line">
+                  <span id="glyph-2" class="card-glyph glyph-muted">[—]</span>
+                  <span>2. Usage lookup</span>
+                </div>
+                <span id="badge-2" class="card-badge badge-muted">pending</span>
+              </div>
+              <div class="card-explanation">Lambda queried CloudWatch Logs Insights for the role's real activity</div>
+              <div class="card-under-the-hood">↳ logs:StartQuery / logs:GetQueryResults</div>
+              <div id="detail-2" class="card-detail">querying CloudWatch Logs...</div>
+            </button>
+
+            <!-- Card 3 -->
+            <button id="card-3" class="stage-card" disabled aria-label="Stage 3: Draft">
+              <div class="card-top">
+                <div class="card-title-line">
+                  <span id="glyph-3" class="card-glyph glyph-muted">[—]</span>
+                  <span>3. Draft</span>
+                </div>
+                <span id="badge-3" class="card-badge badge-muted">pending</span>
+              </div>
+              <div class="card-explanation">The model drafted a tightened Cedar policy plus rationale; a deterministic guard strips unobserved actions</div>
+              <div id="hood-3" class="card-under-the-hood">↳ bedrock:InvokeModel</div>
+              <div id="detail-3" class="card-detail">invoking Amazon Bedrock...</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="group-connector">│<br>▼</div>
+
+        <!-- Group 2: VERIFY -->
+        <div class="group-block">
+          <div class="group-header">▸ VERIFY (Stages 4 – 7)</div>
+          <div class="cards-list">
+            <!-- Card 4 -->
+            <button id="card-4" class="stage-card" disabled aria-label="Stage 4: Coverage check">
+              <div class="card-top">
+                <div class="card-title-line">
+                  <span id="glyph-4" class="card-glyph glyph-muted">[—]</span>
+                  <span>4. Coverage check</span>
+                </div>
+                <span id="badge-4" class="card-badge badge-muted">pending</span>
+              </div>
+              <div class="card-explanation">Every observed action must still be allowed by the draft</div>
+              <div class="card-under-the-hood">↳ in-Lambda comparison (no AWS call)</div>
+              <div id="detail-4" class="card-detail">verifying coverage against baseline...</div>
+            </button>
+
+            <!-- Card 5 -->
+            <button id="card-5" class="stage-card" disabled aria-label="Stage 5: Cedar validation">
+              <div class="card-top">
+                <div class="card-title-line">
+                  <span id="glyph-5" class="card-glyph glyph-muted">[—]</span>
+                  <span>5. Cedar validation</span>
+                </div>
+                <span id="badge-5" class="card-badge badge-muted">pending</span>
+              </div>
+              <div class="card-explanation">Draft validated against a schema in a disposable AVP store, then discarded</div>
+              <div class="card-under-the-hood">↳ verifiedpermissions:PutSchema / CreatePolicy / DeletePolicy</div>
+              <div id="detail-5" class="card-detail">validating Cedar policy syntax &amp; schema...</div>
+            </button>
+
+            <!-- Card 6 -->
+            <button id="card-6" class="stage-card" disabled aria-label="Stage 6: IAM translation">
+              <div class="card-top">
+                <div class="card-title-line">
+                  <span id="glyph-6" class="card-glyph glyph-muted">[—]</span>
+                  <span>6. IAM translation</span>
+                </div>
+                <span id="badge-6" class="card-badge badge-muted">pending</span>
+              </div>
+              <div class="card-explanation">Verified Cedar translated to an IAM policy; CloudTrail event names mapped to IAM actions</div>
+              <div class="card-under-the-hood">↳ in-Lambda (no AWS call)</div>
+              <div id="detail-6" class="card-detail">translating Cedar to IAM policy statements...</div>
+            </button>
+
+            <!-- Card 7 -->
+            <button id="card-7" class="stage-card" disabled aria-label="Stage 7: Access Analyzer">
+              <div class="card-top">
+                <div class="card-title-line">
+                  <span id="glyph-7" class="card-glyph glyph-muted">[—]</span>
+                  <span>7. Access Analyzer</span>
+                </div>
+                <span id="badge-7" class="card-badge badge-muted">pending</span>
+              </div>
+              <div class="card-explanation">Independent check: policy syntax, and no access beyond the requested plan</div>
+              <div class="card-under-the-hood">↳ access-analyzer:ValidatePolicy / CheckNoNewAccess</div>
+              <div id="detail-7" class="card-detail">running IAM Access Analyzer checks...</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="group-connector">│<br>▼</div>
+
+        <!-- Group 3: ENFORCE -->
+        <div class="group-block">
+          <div class="group-header">▸ ENFORCE (Stages 8 – 10 · CLI Side)</div>
+          <div class="cards-list">
+            <!-- Card 8 -->
+            <button id="card-8" class="stage-card" disabled aria-label="Stage 8: Approval">
+              <div class="card-top">
+                <div class="card-title-line">
+                  <span id="glyph-8" class="card-glyph glyph-muted">[—]</span>
+                  <span>8. Approval</span>
+                </div>
+                <span id="badge-8" class="card-badge badge-muted">pending</span>
+              </div>
+              <div class="card-explanation">Developer reviews the diff and approves in the CLI</div>
+              <div class="card-under-the-hood">↳ none — CLI prompt (dashboard is read-only)</div>
+              <div id="detail-8" class="card-detail">CLI-side human approval prompt</div>
+            </button>
+
+            <!-- Card 9 -->
+            <button id="card-9" class="stage-card" disabled aria-label="Stage 9: Apply & verify">
+              <div class="card-top">
+                <div class="card-title-line">
+                  <span id="glyph-9" class="card-glyph glyph-muted">[—]</span>
+                  <span>9. Apply &amp; verify</span>
+                </div>
+                <span id="badge-9" class="card-badge badge-muted">pending</span>
+              </div>
+              <div class="card-explanation">Tightened policy written to the role, then read back</div>
+              <div class="card-under-the-hood">↳ iam:GetRolePolicy → iam:PutRolePolicy → iam:GetRolePolicy</div>
+              <div id="detail-9" class="card-detail">overwriting inline role policy...</div>
+            </button>
+
+            <!-- Card 10 -->
+            <button id="card-10" class="stage-card" disabled aria-label="Stage 10: Audit record">
+              <div class="card-top">
+                <div class="card-title-line">
+                  <span id="glyph-10" class="card-glyph glyph-muted">[—]</span>
+                  <span>10. Audit record</span>
+                </div>
+                <span id="badge-10" class="card-badge badge-muted">pending</span>
+              </div>
+              <div class="card-explanation">Approved Cedar policy + rationale stored in a persistent AVP audit store</div>
+              <div class="card-under-the-hood">↳ verifiedpermissions:CreatePolicy (audit store)</div>
+              <div id="detail-10" class="card-detail">persisting Cedar policy to audit store...</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Summary Panel -->
+        <div id="summary-panel" class="summary-block" style="display: none;">
+          <div class="summary-header">
+            <span>PIPELINE EXECUTION SUMMARY</span>
+            <span id="summary-timing" style="color: var(--accent); font-size: 12px;"></span>
+          </div>
+          <div id="summary-outcome-text" class="summary-outcome"></div>
+          <div id="summary-meta-line" class="summary-meta"></div>
+
+          <!-- Unified Diff -->
+          <div class="diff-container">
+            <div class="diff-title">UNIFIED POLICY DIFF (REQUESTED → TIGHTENED)</div>
+            <div id="diff-output" class="diff-box"></div>
+          </div>
         </div>
       </div>
+
+      <!-- Detail Side Panel -->
+      <aside id="detail-panel" class="detail-panel" aria-label="Stage details">
+        <div class="panel-header">
+          <span id="panel-stage-title" class="panel-title">STAGE DETAILS</span>
+          <button id="panel-close-btn" class="panel-close-btn" aria-label="Close details panel">[✕]</button>
+        </div>
+        <div id="panel-body" class="panel-content">
+          <div class="panel-placeholder">Select any completed stage to inspect its full data payload.</div>
+        </div>
+      </aside>
     </div>
 
-    <!-- Rationale & Guard Banner -->
-    <div class="card" style="margin-bottom: 2rem;" id="card-rationale">
-      <h2>Pipeline Rationale & Guard Actions</h2>
-      <p id="text-rationale" style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary);">Loading...</p>
-    </div>
-
-    <!-- Policy Diffs -->
-    <h2 style="font-size: 1.1rem; color: var(--accent-cyan); margin-bottom: 1rem; text-transform: uppercase;">
-      Policy Transformation Diff
-    </h2>
-    <div class="diff-container">
-      <div class="diff-panel">
-        <div class="diff-header before">&minus; BEFORE: Requested Broad IAM Policy (Terraform)</div>
-        <pre id="code-before">Loading...</pre>
-      </div>
-      <div class="diff-panel">
-        <div class="diff-header after">&plus; AFTER: Translated Tightened IAM Policy (Applied)</div>
-        <pre id="code-after">Loading...</pre>
-      </div>
-    </div>
-
-    <div class="diff-panel" style="margin-bottom: 2rem;">
-      <div class="diff-header cedar">&lambda; FORMAL CEDAR POLICY (Verified via Amazon Verified Permissions)</div>
-      <pre id="code-cedar">Loading...</pre>
-    </div>
-
+    <!-- Footer -->
     <footer>
-      Cedar Sentinel &bull; Bharat Builds Hackathon 2026 &bull; Track: Ship It &bull; Zero Workload Lockouts
+      Cedar Sentinel · First Commit · Ship It · recorded runs, read-only
     </footer>
   </div>
 
   <script>
-    async function loadRunData() {
-      try {
-        const res = await fetch('run.json');
-        if (!res.ok) throw new Error('Failed to load run.json');
-        const data = await res.json();
+    // State
+    const runCache = new Map();
+    let currentManifest = [];
+    let currentRunData = null;
+    let currentRunMeta = null;
+    let selectedStageIndex = null;
+    let animationTimer = null;
+    let isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        document.getElementById('run-status').textContent = 'STATUS: ' + data.status;
-        document.getElementById('run-timestamp').textContent = 'Completed: ' + new Date(data.completed_at).toUTCString();
-        document.getElementById('meta-req-id').textContent = data.request_id;
-        document.getElementById('meta-role-arn').textContent = data.role_arn;
-        document.getElementById('meta-model').textContent = data.model_used || 'Amazon Nova Lite';
+    // Stage definition metadata
+    const STAGES_META = [
+      { num: 1, name: "Extract & publish", timingKey: null },
+      { num: 2, name: "Usage lookup", timingKey: "cloudwatch_query" },
+      { num: 3, name: "Draft", timingKey: "bedrock_call" },
+      { num: 4, name: "Coverage check", timingKey: "coverage_check" },
+      { num: 5, name: "Cedar validation", timingKey: "cedar_validation" },
+      { num: 6, name: "IAM translation", timingKey: "iam_translation" },
+      { num: 7, name: "Access Analyzer", timingKey: "analyzer_validation" },
+      { num: 8, name: "Approval", timingKey: null, isCli: true },
+      { num: 9, name: "Apply & verify", timingKey: null, isCli: true },
+      { num: 10, name: "Audit record", timingKey: null, isCli: true }
+    ];
 
-        if (data.action_mappings_applied && data.action_mappings_applied.length > 0) {
-          document.getElementById('meta-mappings').textContent = data.action_mappings_applied.map(m => `${m.original} \u2192 ${m.mapped}`).join(', ');
+    // Status Matrix Definitions
+    function computeStageStates(status, data) {
+      // Returns an array of 10 objects: { state: 'done'|'running'|'failed'|'blocked'|'declined'|'warning'|'not_reached', detail: string, badge: string, glyph: string }
+      const s = status.toUpperCase();
+      const timings = getStageTimingsMap(data);
+      const res = [];
+
+      // Helper to format real timing badge
+      function getTimingBadge(stageNum, timingKey, defaultText = "done") {
+        if (!timingKey || timings[timingKey] === undefined) {
+          return `${defaultText} · not recorded`;
         }
+        const ms = timings[timingKey];
+        const dur = ms >= 1000 ? `${(ms / 1000).toFixed(2)} s` : `${ms} ms`;
+        return `${defaultText} · ${dur}`;
+      }
 
-        if (data.guard_removed_actions && data.guard_removed_actions.length > 0) {
-          document.getElementById('meta-guard-row').style.display = 'flex';
-          document.getElementById('meta-guard-actions').textContent = `Excluded ${data.guard_removed_actions.length} unobserved action(s): ${data.guard_removed_actions.join(', ')}`;
-        }
+      // Stage 1 detail
+      const reqActions = countActionsInPolicy(data.requested_policy);
+      const stage1Detail = `requested plan has ${reqActions} distinct action${reqActions === 1 ? '' : 's'}`;
 
-        if (data.rationale) {
-          document.getElementById('text-rationale').textContent = data.rationale;
-        }
+      // Stage 2 detail
+      const obsCount = data.observed_actions ? Object.keys(data.observed_actions).length : 0;
+      const stage2Detail = `${obsCount} distinct observed action${obsCount === 1 ? '' : 's'} in 7d lookback`;
 
-        // Render timeline
-        const timeline = document.getElementById('timeline-container');
-        timeline.innerHTML = '';
-        if (data.stage_timings && data.stage_timings.length > 0) {
-          data.stage_timings.forEach((st, idx) => {
-            const start = new Date(st.start).getTime();
-            const end = new Date(st.end).getTime();
-            const ms = Math.max(end - start, 1);
-            const name = st.stage.replace(/_/g, ' ').toUpperCase();
+      // Stage 3 detail
+      const modelName = data.model_used || "bedrock model";
+      const draftActions = countActionsInCedar(data.cedar_policy);
+      const guardRemoved = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions.length : 0;
+      const stage3Detail = `${modelName} · drafted policy has ${draftActions} actions · guard removed ${guardRemoved}`;
 
-            const item = document.createElement('div');
-            item.className = 'timeline-step';
-            item.innerHTML = `
-              <span class="step-name">
-                <span style="color: var(--accent-cyan); font-weight: bold;">[${idx + 1}]</span>
-                ${name}
-              </span>
-              <span class="step-duration">${ms} ms</span>
-            `;
-            timeline.appendChild(item);
+      // Stage 4 detail
+      let stage4Detail = "";
+      const covPassed = data.coverage_check ? data.coverage_check.passed : true;
+      if (covPassed) {
+        stage4Detail = `all ${obsCount} observed actions covered`;
+      } else {
+        const blocked = getBlockedActionsList(data);
+        stage4Detail = `BLOCKED: dropped ${blocked.length} observed action(s): ${blocked.slice(0, 2).join(', ')}${blocked.length > 2 ? '...' : ''}`;
+      }
+
+      // Stage 5 detail
+      const cedarPassed = data.cedar_validation ? data.cedar_validation.passed : true;
+      const cedarFirstMsg = (data.cedar_validation && data.cedar_validation.messages && data.cedar_validation.messages[0]) ? ` (${data.cedar_validation.messages[0]})` : "";
+      const stage5Detail = `STRICT schema validation: ${cedarPassed ? 'PASS' : 'FAIL'}${cedarFirstMsg}`;
+
+      // Stage 6 detail
+      const iamActCount = countActionsInPolicy(data.iam_policy);
+      const mapCount = data.action_mappings_applied ? Object.keys(data.action_mappings_applied).length : 0;
+      const unmatchCount = Array.isArray(data.unmatched_actions) ? data.unmatched_actions.length : 0;
+      const stage6Detail = `${iamActCount} actions · ${mapCount} mappings applied · ${unmatchCount} unmatched`;
+
+      // Stage 7 detail
+      const anzPassed = data.analyzer_validation ? data.analyzer_validation.passed : true;
+      const findingsCount = (data.analyzer_validation && Array.isArray(data.analyzer_validation.findings)) ? data.analyzer_validation.findings.length : 0;
+      const noNewAcc = (data.analyzer_validation && data.analyzer_validation.check_no_new_access && data.analyzer_validation.check_no_new_access.result) || (anzPassed ? "PASS" : "FAIL");
+      const stage7Detail = `${findingsCount} findings · no new access: ${noNewAcc}`;
+
+      // Stage 8 detail
+      let stage8State = "not_reached";
+      let stage8Badge = "— not reached";
+      let stage8Glyph = "[—]";
+      let stage8Detail = "CLI approval prompt";
+
+      // Stage 9 detail
+      let stage9State = "not_reached";
+      let stage9Badge = "— not reached";
+      let stage9Glyph = "[—]";
+      let stage9Detail = "inline policy write & verification";
+
+      // Stage 10 detail
+      let stage10State = "not_reached";
+      let stage10Badge = "— not reached";
+      let stage10Glyph = "[—]";
+      let stage10Detail = "persistent AVP audit record";
+
+      // Build stages 1 - 7 based on status
+      let s1_7 = [];
+      if (s === "PROCESSING") {
+        for (let i = 1; i <= 10; i++) {
+          res.push({
+            state: "not_reached",
+            badge: "— not reached",
+            glyph: "[—]",
+            detail: "run still processing — nothing to replay",
+            reached: false
           });
         }
+        return res;
+      }
 
-        // Render policies
-        const reqPol = typeof data.requested_policy === 'string' ? JSON.parse(data.requested_policy) : data.requested_policy;
-        document.getElementById('code-before').textContent = JSON.stringify(reqPol, null, 2);
+      if (s === "BLOCKED") {
+        s1_7 = [
+          { state: "done", badge: getTimingBadge(1, null), glyph: "[✓]", detail: stage1Detail, reached: true },
+          { state: "done", badge: getTimingBadge(2, "cloudwatch_query"), glyph: "[✓]", detail: stage2Detail, reached: true },
+          { state: "done", badge: getTimingBadge(3, "bedrock_call"), glyph: "[✓]", detail: stage3Detail, reached: true },
+          { state: "blocked", badge: "blocked", glyph: "[!]", detail: stage4Detail, reached: true },
+          { state: "not_reached", badge: "— not reached", glyph: "[—]", detail: "skipped due to coverage block", reached: false },
+          { state: "not_reached", badge: "— not reached", glyph: "[—]", detail: "skipped due to coverage block", reached: false },
+          { state: "not_reached", badge: "— not reached", glyph: "[—]", detail: "skipped due to coverage block", reached: false }
+        ];
+      } else if (s === "CEDAR_INVALID") {
+        s1_7 = [
+          { state: "done", badge: getTimingBadge(1, null), glyph: "[✓]", detail: stage1Detail, reached: true },
+          { state: "done", badge: getTimingBadge(2, "cloudwatch_query"), glyph: "[✓]", detail: stage2Detail, reached: true },
+          { state: "done", badge: getTimingBadge(3, "bedrock_call"), glyph: "[✓]", detail: stage3Detail, reached: true },
+          { state: "done", badge: getTimingBadge(4, "coverage_check"), glyph: "[✓]", detail: stage4Detail, reached: true },
+          { state: "failed", badge: "failed", glyph: "[✗]", detail: stage5Detail, reached: true },
+          { state: "not_reached", badge: "— not reached", glyph: "[—]", detail: "skipped due to Cedar schema error", reached: false },
+          { state: "not_reached", badge: "— not reached", glyph: "[—]", detail: "skipped due to Cedar schema error", reached: false }
+        ];
+      } else if (s === "ANALYZER_INVALID") {
+        s1_7 = [
+          { state: "done", badge: getTimingBadge(1, null), glyph: "[✓]", detail: stage1Detail, reached: true },
+          { state: "done", badge: getTimingBadge(2, "cloudwatch_query"), glyph: "[✓]", detail: stage2Detail, reached: true },
+          { state: "done", badge: getTimingBadge(3, "bedrock_call"), glyph: "[✓]", detail: stage3Detail, reached: true },
+          { state: "done", badge: getTimingBadge(4, "coverage_check"), glyph: "[✓]", detail: stage4Detail, reached: true },
+          { state: "done", badge: getTimingBadge(5, "cedar_validation"), glyph: "[✓]", detail: stage5Detail, reached: true },
+          { state: "done", badge: getTimingBadge(6, "iam_translation"), glyph: "[✓]", detail: stage6Detail, reached: true },
+          { state: "failed", badge: "failed", glyph: "[✗]", detail: stage7Detail, reached: true }
+        ];
+      } else if (s === "ERROR") {
+        // Evaluate what stages completed
+        s1_7 = [
+          { state: "done", badge: getTimingBadge(1, null), glyph: "[✓]", detail: stage1Detail, reached: true },
+          { state: timings["cloudwatch_query"] ? "done" : "failed", badge: timings["cloudwatch_query"] ? getTimingBadge(2, "cloudwatch_query") : "failed", glyph: timings["cloudwatch_query"] ? "[✓]" : "[✗]", detail: stage2Detail, reached: true },
+          { state: timings["bedrock_call"] ? "done" : (timings["cloudwatch_query"] ? "failed" : "not_reached"), badge: timings["bedrock_call"] ? getTimingBadge(3, "bedrock_call") : (timings["cloudwatch_query"] ? "failed" : "— not reached"), glyph: timings["bedrock_call"] ? "[✓]" : (timings["cloudwatch_query"] ? "[✗]" : "[—]"), detail: stage3Detail, reached: !!timings["cloudwatch_query"] },
+          { state: "not_reached", badge: "— not reached", glyph: "[—]", detail: "pipeline terminated with error", reached: false },
+          { state: "not_reached", badge: "— not reached", glyph: "[—]", detail: "pipeline terminated with error", reached: false },
+          { state: "not_reached", badge: "— not reached", glyph: "[—]", detail: "pipeline terminated with error", reached: false },
+          { state: "not_reached", badge: "— not reached", glyph: "[—]", detail: "pipeline terminated with error", reached: false }
+        ];
+      } else {
+        // COMPLETE, APPLIED, APPLIED_UNVERIFIED, APPLY_FAILED, DECLINED
+        s1_7 = [
+          { state: "done", badge: getTimingBadge(1, null), glyph: "[✓]", detail: stage1Detail, reached: true },
+          { state: "done", badge: getTimingBadge(2, "cloudwatch_query"), glyph: "[✓]", detail: stage2Detail, reached: true },
+          { state: "done", badge: getTimingBadge(3, "bedrock_call"), glyph: "[✓]", detail: stage3Detail, reached: true },
+          { state: "done", badge: getTimingBadge(4, "coverage_check"), glyph: "[✓]", detail: stage4Detail, reached: true },
+          { state: "done", badge: getTimingBadge(5, "cedar_validation"), glyph: "[✓]", detail: stage5Detail, reached: true },
+          { state: "done", badge: getTimingBadge(6, "iam_translation"), glyph: "[✓]", detail: stage6Detail, reached: true },
+          { state: "done", badge: getTimingBadge(7, "analyzer_validation"), glyph: "[✓]", detail: stage7Detail, reached: true }
+        ];
+      }
 
-        const iamPol = typeof data.iam_policy === 'string' ? JSON.parse(data.iam_policy) : data.iam_policy;
-        document.getElementById('code-after').textContent = JSON.stringify(iamPol, null, 2);
+      // Configure Enforce Stages (8, 9, 10)
+      if (s === "APPLIED") {
+        stage8State = "done"; stage8Badge = "done · approved"; stage8Glyph = "[✓]"; stage8Detail = "approved by operator via CLI --apply";
+        stage9State = "done"; stage9Badge = "done · verified"; stage9Glyph = "[✓]"; stage9Detail = "overwrote inline policy · read-back confirmed";
+        stage10State = "done"; stage10Badge = "done · recorded"; stage10Glyph = "[✓]"; stage10Detail = data.audit_failed ? "audit_failed (AVP store error)" : "Cedar policy + rationale stored in AVP audit store";
+      } else if (s === "COMPLETE") {
+        stage8State = "warning"; stage8Badge = "awaiting decision"; stage8Glyph = "[!]"; stage8Detail = "awaiting developer approval via CLI";
+        stage9State = "not_reached"; stage9Badge = "— not reached"; stage9Glyph = "[—]"; stage9Detail = "not reached (dry run only)";
+        stage10State = "not_reached"; stage10Badge = "— not reached"; stage10Glyph = "[—]"; stage10Detail = "not reached (audit recorded only on apply)";
+      } else if (s === "DECLINED") {
+        stage8State = "declined"; stage8Badge = "declined"; stage8Glyph = "[!]"; stage8Detail = "developer declined the diff in CLI prompt";
+        stage9State = "not_reached"; stage9Badge = "— not reached"; stage9Glyph = "[—]"; stage9Detail = "not reached (apply aborted)";
+        stage10State = "not_reached"; stage10Badge = "— not reached"; stage10Glyph = "[—]"; stage10Detail = "not reached (audit skipped)";
+      } else if (s === "APPLIED_UNVERIFIED") {
+        stage8State = "done"; stage8Badge = "done · approved"; stage8Glyph = "[✓]"; stage8Detail = "approved by operator via CLI";
+        stage9State = "warning"; stage9Badge = "warning · unverified"; stage9Glyph = "[!]"; stage9Detail = "put succeeded, read-back not confirmed";
+        stage10State = "not_reached"; stage10Badge = "— not reached"; stage10Glyph = "[—]"; stage10Detail = "audit record skipped due to unverified read-back";
+      } else if (s === "APPLY_FAILED") {
+        stage8State = "done"; stage8Badge = "done · approved"; stage8Glyph = "[✓]"; stage8Detail = "approved by operator via CLI";
+        stage9State = "failed"; stage9Badge = "failed"; stage9Glyph = "[✗]"; stage9Detail = data.error_message || "PutRolePolicy returned error";
+        stage10State = "not_reached"; stage10Badge = "— not reached"; stage10Glyph = "[—]"; stage10Detail = "not reached (apply failed)";
+      }
 
-        document.getElementById('code-cedar').textContent = data.cedar_policy;
+      res.push(...s1_7);
+      res.push({ state: stage8State, badge: stage8Badge, glyph: stage8Glyph, detail: stage8Detail, reached: stage8State !== "not_reached" });
+      res.push({ state: stage9State, badge: stage9Badge, glyph: stage9Glyph, detail: stage9Detail, reached: stage9State !== "not_reached" });
+      res.push({ state: stage10State, badge: stage10Badge, glyph: stage10Glyph, detail: stage10Detail, reached: stage10State !== "not_reached" });
 
-      } catch (err) {
-        console.error(err);
-        document.getElementById('meta-req-id').textContent = 'Error loading recorded run snapshot.';
+      return res;
+    }
+
+    // Helper functions for parsing data
+    function getStageTimingsMap(data) {
+      const map = {};
+      if (Array.isArray(data.stage_timings)) {
+        for (const t of data.stage_timings) {
+          if (t && t.stage && t.start !== undefined && t.end !== undefined) {
+            map[t.stage] = Math.round(t.end - t.start);
+          }
+        }
+      }
+      return map;
+    }
+
+    function getTotalLambdaDuration(data) {
+      let total = 0;
+      if (Array.isArray(data.stage_timings)) {
+        for (const t of data.stage_timings) {
+          if (t && t.start !== undefined && t.end !== undefined) {
+            total += Math.round(t.end - t.start);
+          }
+        }
+      }
+      return total;
+    }
+
+    function countActionsInPolicy(policy) {
+      if (!policy) return 0;
+      let obj = policy;
+      if (typeof policy === 'string') {
+        try { obj = JSON.parse(policy); } catch (e) { return 0; }
+      }
+      if (!obj || !Array.isArray(obj.Statement)) return 0;
+      const acts = new Set();
+      for (const st of obj.Statement) {
+        if (!st) continue;
+        const a = st.Action;
+        if (typeof a === 'string') acts.add(a);
+        else if (Array.isArray(a)) a.forEach(x => acts.add(x));
+      }
+      return acts.size;
+    }
+
+    function countActionsInCedar(cedarText) {
+      if (!cedarText || typeof cedarText !== 'string') return 0;
+      const matches = cedarText.match(/action\s*==\s*Action::"([^"]+)"/g) || [];
+      const multiMatches = cedarText.match(/action\s+in\s+\[(.*?)\]/gs) || [];
+      const set = new Set();
+      matches.forEach(m => {
+        const a = m.match(/Action::"([^"]+)"/);
+        if (a) set.add(a[1]);
+      });
+      multiMatches.forEach(m => {
+        const sub = m.match(/Action::"([^"]+)"/g) || [];
+        sub.forEach(x => {
+          const a = x.match(/Action::"([^"]+)"/);
+          if (a) set.add(a[1]);
+        });
+      });
+      return set.size || matches.length;
+    }
+
+    function getBlockedActionsList(data) {
+      if (data.coverage_check && data.coverage_check.blocked_actions) {
+        const b = data.coverage_check.blocked_actions;
+        if (Array.isArray(b)) return b;
+        if (typeof b === 'string') {
+          try { return JSON.parse(b); } catch (e) { return [b]; }
+        }
+      }
+      return [];
+    }
+
+    function getOutcomeSummaryText(status, data) {
+      switch (status.toUpperCase()) {
+        case "COMPLETE":
+          return "Verified. Not applied in this run.";
+        case "APPLIED":
+          return "Tightened policy applied and verified.";
+        case "APPLIED_UNVERIFIED":
+          return "Applied but not verified — inspect the role manually.";
+        case "APPLY_FAILED":
+          return `Apply failed.${data.error_message ? ' Error: ' + data.error_message : ''}`;
+        case "DECLINED":
+          return "Developer declined. Nothing applied.";
+        case "BLOCKED":
+          return "Deployment blocked. The CLI offered a three-way choice: fall back / override (disabled in this build) / re-evaluate. The dashboard does not offer choices.";
+        case "CEDAR_INVALID":
+          return "Cedar validation rejected the draft. Nothing applied.";
+        case "ANALYZER_INVALID":
+          return "Access Analyzer rejected the translated policy. Nothing applied.";
+        case "ERROR":
+          return `Unhandled pipeline error: ${data.error_message || data.status || "Unknown exception"}. Nothing applied.`;
+        case "PROCESSING":
+          return "Run is still processing in Lambda. No replay data available.";
+        default:
+          return `Status: ${status}`;
       }
     }
-    loadRunData();
+
+    // Unified Diff Generator: <Effect>  <Resource>  <Action>
+    function generatePolicyDiff(data) {
+      function flattenStatements(policy) {
+        if (!policy) return [];
+        let obj = policy;
+        if (typeof policy === 'string') {
+          try { obj = JSON.parse(policy); } catch (e) { return []; }
+        }
+        if (!obj || !Array.isArray(obj.Statement)) return [];
+        const lines = [];
+        for (const st of obj.Statement) {
+          const eff = st.Effect || "Allow";
+          let resList = Array.isArray(st.Resource) ? st.Resource : [st.Resource || "*"];
+          let actList = Array.isArray(st.Action) ? st.Action : [st.Action || "*"];
+          for (const r of resList) {
+            for (const a of actList) {
+              lines.push(`${eff}  ${r}  ${a}`);
+            }
+          }
+        }
+        return lines;
+      }
+
+      const reqLines = flattenStatements(data.requested_policy);
+      const tightLines = flattenStatements(data.iam_policy);
+
+      const reqSet = new Set(reqLines);
+      const tightSet = new Set(tightLines);
+
+      const diffLines = [];
+
+      // Removed lines (in requested but not tightened)
+      for (const line of reqLines) {
+        if (!tightSet.has(line)) {
+          diffLines.push({ type: 'removed', text: `-  ${line}` });
+        }
+      }
+
+      // Added lines (in tightened but not requested)
+      for (const line of tightLines) {
+        if (!reqSet.has(line)) {
+          diffLines.push({ type: 'added', text: `+  ${line}` });
+        }
+      }
+
+      // Unchanged lines (in both)
+      for (const line of reqLines) {
+        if (tightSet.has(line)) {
+          diffLines.push({ type: 'unchanged', text: `   ${line}` });
+        }
+      }
+
+      // Guard removed actions (separate red block)
+      const guardRemoved = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions : [];
+
+      return { diffLines, guardRemoved };
+    }
+
+    // Render Stage Details into Side Panel
+    function renderSidePanel(stageIndex, data) {
+      selectedStageIndex = stageIndex;
+      const stageNum = stageIndex + 1;
+      const meta = STAGES_META[stageIndex];
+      const panel = document.getElementById('detail-panel');
+      const titleEl = document.getElementById('panel-stage-title');
+      const bodyEl = document.getElementById('panel-body');
+
+      panel.classList.add('open');
+      titleEl.textContent = `STAGE ${stageNum}: ${meta.name.toUpperCase()}`;
+
+      // Highlight active card
+      document.querySelectorAll('.stage-card').forEach((card, idx) => {
+        card.classList.toggle('selected', idx === stageIndex);
+      });
+
+      let html = '';
+
+      switch (stageNum) {
+        case 1: { // Extract & publish
+          const req = typeof data.requested_policy === 'string' ? data.requested_policy : JSON.stringify(data.requested_policy, null, 2);
+          html = `
+            <div class="panel-section">
+              <div class="panel-section-title">TARGET ROLE ARN</div>
+              <pre class="code-block">${escapeHtml(data.role_arn || "not recorded")}</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">REQUESTED POLICY (TERRAFORM PLAN)</div>
+              <pre class="code-block">${escapeHtml(req || "not recorded")}</pre>
+            </div>
+          `;
+          break;
+        }
+
+        case 2: { // Usage lookup
+          const obs = data.observed_actions || {};
+          const sortedObs = Object.entries(obs).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+          let tableRows = sortedObs.map(([act, count]) => `<tr><td>${escapeHtml(act)}</td><td style="text-align: right; color: var(--accent);">${count}</td></tr>`).join('');
+          if (!tableRows) tableRows = '<tr><td colspan="2" style="color: var(--muted);">No actions observed in window</td></tr>';
+
+          const queryTemplate = `fields @timestamp, eventName, eventSource\n| filter eventSource in ["s3.amazonaws.com", "dynamodb.amazonaws.com", "sqs.amazonaws.com"]\n| filter userIdentity.arn = "<ROLE_ARN>"\n| stats count(*) as invocations by eventSource, eventName\n| sort invocations desc\n| limit 100`;
+
+          html = `
+            <div class="panel-section">
+              <div class="panel-section-title">OBSERVED ACTIONS (7-DAY CLOUDTRAIL LOOKBACK)</div>
+              <table class="table-list">
+                <thead><tr><th>Action</th><th style="text-align: right;">Invocations</th></tr></thead>
+                <tbody>${tableRows}</tbody>
+              </table>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">CLOUDWATCH LOGS INSIGHTS QUERY (TEMPLATE)</div>
+              <div style="font-size: 10px; color: var(--muted); margin-bottom: 4px;">query template — role ARN substituted at runtime</div>
+              <pre class="code-block">${escapeHtml(queryTemplate)}</pre>
+            </div>
+          `;
+          break;
+        }
+
+        case 3: { // Draft
+          const model = data.model_used || "not recorded";
+          const rationale = data.rationale || "not recorded";
+          const cedar = data.cedar_policy || "not recorded";
+          const guardList = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions : [];
+          const guardDisplay = guardList.length > 0 
+            ? guardList.map(a => `• ${escapeHtml(a)}`).join('\n')
+            : "None (all drafted actions were observed in CloudTrail baseline)";
+
+          html = `
+            <div class="panel-section">
+              <div class="panel-section-title">FOUNDATION MODEL</div>
+              <pre class="code-block">${escapeHtml(model)}</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">MODEL RATIONALE</div>
+              <pre class="code-block">${escapeHtml(rationale)}</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">CEDAR POLICY (POST-GUARD)</div>
+              <div style="font-size: 10px; color: var(--muted); margin-bottom: 4px;">Cedar policy (schema-validated via Amazon Verified Permissions)</div>
+              <pre class="code-block">${escapeHtml(cedar)}</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">DETERMINISTIC GUARD REMOVALS</div>
+              <div style="font-size: 10px; color: var(--muted); margin-bottom: 4px;">removed because not observed in CloudTrail</div>
+              <pre class="code-block" style="color: ${guardList.length > 0 ? 'var(--red)' : 'var(--text)'};">${guardDisplay}</pre>
+            </div>
+          `;
+          break;
+        }
+
+        case 4: { // Coverage check
+          const obs = data.observed_actions || {};
+          const cedar = data.cedar_policy || "";
+          const blocked = getBlockedActionsList(data);
+          const sortedObs = Object.entries(obs).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+          let rows = sortedObs.map(([act, count]) => {
+            // Check if action or its prefix is in cedar or if in blocked list
+            const isBlocked = blocked.includes(act);
+            const isCovered = !isBlocked;
+            return `<tr>
+              <td>${escapeHtml(act)}</td>
+              <td style="text-align: right;">${count}</td>
+              <td style="text-align: center; color: ${isCovered ? 'var(--green)' : 'var(--red)'};">${isCovered ? '[✓] covered' : '[✗] DROPPED'}</td>
+            </tr>`;
+          }).join('');
+
+          if (!rows) rows = '<tr><td colspan="3" style="color: var(--muted);">No observed actions to check</td></tr>';
+
+          html = `
+            <div class="panel-section">
+              <div class="panel-section-title">OBSERVED ACTION COVERAGE TABLE</div>
+              <div style="font-size: 10px; color: var(--muted); margin-bottom: 4px;">recomputed in browser from stored data</div>
+              <table class="table-list">
+                <thead><tr><th>Action</th><th style="text-align: right;">Count</th><th style="text-align: center;">Status</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+            ${blocked.length > 0 ? `
+              <div class="panel-section">
+                <div class="panel-section-title" style="color: var(--red);">RECORDED BLOCKED ACTIONS</div>
+                <pre class="code-block" style="color: var(--red);">${escapeHtml(JSON.stringify(blocked, null, 2))}</pre>
+              </div>
+            ` : ''}
+          `;
+          break;
+        }
+
+        case 5: { // Cedar validation
+          const val = data.cedar_validation || {};
+          const passed = val.passed !== false;
+          const msgs = Array.isArray(val.messages) ? val.messages : [];
+          const msgStr = msgs.length > 0 ? msgs.join('\n') : "No validation errors. Schema validation passed.";
+
+          html = `
+            <div class="panel-section">
+              <div class="panel-section-title">VALIDATION RESULT</div>
+              <pre class="code-block" style="color: ${passed ? 'var(--green)' : 'var(--red)'};">MODE: STRICT\nPASSED: ${passed ? 'TRUE' : 'FALSE'}</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">VERIFIED PERMISSIONS MESSAGES</div>
+              <pre class="code-block">${escapeHtml(msgStr)}</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">SCHEMA SCOPE &amp; ISOLATION NOTE</div>
+              <pre class="code-block">The schema is generated from the draft's own actions, so this validates schema/syntax, not privilege escalation — Access Analyzer covers that.</pre>
+            </div>
+            ${(!passed && data.cedar_policy) ? `
+              <div class="panel-section">
+                <div class="panel-section-title" style="color: var(--red);">OFFENDING CEDAR POLICY DRAFT</div>
+                <pre class="code-block">${escapeHtml(data.cedar_policy)}</pre>
+              </div>
+            ` : ''}
+          `;
+          break;
+        }
+
+        case 6: { // IAM translation
+          const iam = typeof data.iam_policy === 'string' ? data.iam_policy : JSON.stringify(data.iam_policy, null, 2);
+          const mappings = data.action_mappings_applied ? JSON.stringify(data.action_mappings_applied, null, 2) : "{}";
+          const unmatched = Array.isArray(data.unmatched_actions) ? JSON.stringify(data.unmatched_actions, null, 2) : "[]";
+
+          html = `
+            <div class="panel-section">
+              <div class="panel-section-title">TRANSLATED IAM POLICY</div>
+              <pre class="code-block">${escapeHtml(iam || "not recorded")}</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">ACTION MAPPINGS APPLIED (CLOUDTRAIL → IAM)</div>
+              <pre class="code-block">${escapeHtml(mappings)}</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">UNMATCHED ACTIONS</div>
+              <pre class="code-block">${escapeHtml(unmatched)}</pre>
+            </div>
+          `;
+          break;
+        }
+
+        case 7: { // Access Analyzer
+          const anz = data.analyzer_validation || {};
+          const findings = Array.isArray(anz.findings) ? JSON.stringify(anz.findings, null, 2) : "[]";
+          const noNew = anz.check_no_new_access || {};
+          const noNewStr = JSON.stringify(noNew, null, 2);
+
+          html = `
+            <div class="panel-section">
+              <div class="panel-section-title">VALIDATEPOLICY FINDINGS</div>
+              <pre class="code-block">${escapeHtml(findings)}</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">CHECK_NO_NEW_ACCESS RESULT</div>
+              <pre class="code-block">${escapeHtml(noNewStr)}</pre>
+            </div>
+            ${anz.reason ? `
+              <div class="panel-section">
+                <div class="panel-section-title" style="color: var(--red);">REJECTION REASON</div>
+                <pre class="code-block" style="color: var(--red);">${escapeHtml(anz.reason)}</pre>
+              </div>
+            ` : ''}
+          `;
+          break;
+        }
+
+        case 8: { // Approval
+          const isApproved = data.status === "APPLIED" || data.status === "APPLIED_UNVERIFIED" || data.status === "APPLY_FAILED";
+          const isDeclined = data.status === "DECLINED";
+          const outcome = isApproved ? "APPROVED" : (isDeclined ? "DECLINED" : "AWAITING DECISION");
+
+          html = `
+            <div class="panel-section">
+              <div class="panel-section-title">CLI APPROVAL INTERACTION</div>
+              <pre class="code-block">$ cedar-sentinel analyze --apply\nReview tightened policy diff above.\nApply to role arn:aws:iam::<ACCOUNT_ID>:role/... ? [y/N]: ${isApproved ? 'y' : (isDeclined ? 'n' : '[waiting]')}\n\nOutcome: ${outcome}\nNote: Approval is CLI-only. The dashboard is strictly read-only.</pre>
+            </div>
+          `;
+          break;
+        }
+
+        case 9: { // Apply & verify
+          const prev = typeof data.previous_policy === 'string' ? data.previous_policy : JSON.stringify(data.previous_policy, null, 2);
+          const current = typeof data.iam_policy === 'string' ? data.iam_policy : JSON.stringify(data.iam_policy, null, 2);
+          const others = data.other_policies ? JSON.stringify(data.other_policies, null, 2) : "none";
+
+          html = `
+            <div class="panel-section">
+              <div class="panel-section-title">IAM ENFORCEMENT CALLS</div>
+              <pre class="code-block">1. iam:GetRolePolicy (read before-policy)\n2. iam:PutRolePolicy (overwrite inline policy)\n3. iam:GetRolePolicy (read-back verification)</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">ATTACHED / OTHER POLICIES</div>
+              <pre class="code-block">${escapeHtml(others)}</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">OVERWRITTEN INLINE POLICY</div>
+              <pre class="code-block">${escapeHtml(current || "not applied")}</pre>
+            </div>
+          `;
+          break;
+        }
+
+        case 10: { // Audit record
+          const cedar = data.cedar_policy || "not recorded";
+          const rationale = data.rationale || "not recorded";
+          const isWritten = data.status === "APPLIED" && !data.audit_failed;
+
+          html = `
+            <div class="panel-section">
+              <div class="panel-section-title">AVP AUDIT STORE ENTRY</div>
+              <pre class="code-block">Store Type: Persistent Amazon Verified Permissions Policy Store\nRecorded: ${isWritten ? 'YES' : 'NO'}\nPolicy ID: recorded in the AVP audit store; ID not stored in the run item\nDescription Prefix: [request_id: ${data.request_id || "not recorded"}]\nAudit Status: ${data.audit_failed ? 'AUDIT_FAILED' : (isWritten ? 'PERSISTED' : 'SKIPPED')}</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">STORED AUDIT CEDAR POLICY</div>
+              <pre class="code-block">${escapeHtml(cedar)}</pre>
+            </div>
+            <div class="panel-section">
+              <div class="panel-section-title">STORED AUDIT RATIONALE</div>
+              <pre class="code-block">${escapeHtml(rationale)}</pre>
+            </div>
+          `;
+          break;
+        }
+      }
+
+      bodyEl.innerHTML = html;
+    }
+
+    function closeSidePanel() {
+      const panel = document.getElementById('detail-panel');
+      panel.classList.remove('open');
+      selectedStageIndex = null;
+      document.querySelectorAll('.stage-card').forEach(c => c.classList.remove('selected'));
+    }
+
+    // Escape HTML helper
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return "";
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Animation & State Replay
+    function replayAnimation(data, status) {
+      if (animationTimer) {
+        clearTimeout(animationTimer);
+        animationTimer = null;
+      }
+
+      const stageStates = computeStageStates(status, data);
+      const timings = getStageTimingsMap(data);
+
+      // Render Pipeline Strip initial placeholder
+      renderPipelineStrip(stageStates, -1);
+
+      // Reset all cards to initial pending/empty
+      for (let i = 0; i < 10; i++) {
+        const stageNum = i + 1;
+        const card = document.getElementById(`card-${stageNum}`);
+        const glyph = document.getElementById(`glyph-${stageNum}`);
+        const badge = document.getElementById(`badge-${stageNum}`);
+        const detail = document.getElementById(`detail-${stageNum}`);
+
+        card.disabled = true;
+        card.classList.remove('selected');
+        glyph.className = 'card-glyph glyph-muted';
+        glyph.textContent = '[—]';
+        badge.className = 'card-badge badge-muted';
+        badge.textContent = 'pending';
+        detail.textContent = 'waiting...';
+      }
+
+      // Hide summary while animating
+      const summaryEl = document.getElementById('summary-panel');
+      summaryEl.style.display = 'none';
+
+      if (isReducedMotion || status.toUpperCase() === "PROCESSING") {
+        // Immediate render without delays
+        for (let i = 0; i < 10; i++) {
+          renderCardFinalState(i, stageStates[i]);
+        }
+        renderPipelineStrip(stageStates, 9);
+        renderSummary(data, status);
+        return;
+      }
+
+      // Step-by-step animation sequence
+      let currentStage = 0;
+
+      function step() {
+        if (currentStage >= 10) {
+          renderPipelineStrip(stageStates, 9);
+          renderSummary(data, status);
+          return;
+        }
+
+        const stageConfig = stageStates[currentStage];
+        const meta = STAGES_META[currentStage];
+        const stageNum = currentStage + 1;
+
+        if (!stageConfig.reached && stageConfig.state === "not_reached") {
+          renderCardFinalState(currentStage, stageConfig);
+          currentStage++;
+          animationTimer = setTimeout(step, 80);
+          return;
+        }
+
+        // Mark as running
+        const badge = document.getElementById(`badge-${stageNum}`);
+        const glyph = document.getElementById(`glyph-${stageNum}`);
+        badge.className = 'card-badge badge-running';
+        badge.textContent = 'running...';
+        glyph.className = 'card-glyph glyph-amber';
+        glyph.textContent = '[▸]';
+
+        renderPipelineStrip(stageStates, currentStage);
+
+        // Compute animation delay: clamp(real_ms, 350, 1800)
+        let realMs = meta.timingKey ? timings[meta.timingKey] : null;
+        let animMs = 450;
+        if (realMs !== null && realMs !== undefined) {
+          animMs = Math.min(Math.max(realMs, 350), 1800);
+        }
+
+        animationTimer = setTimeout(() => {
+          renderCardFinalState(currentStage, stageConfig);
+          currentStage++;
+          step();
+        }, animMs);
+      }
+
+      step();
+    }
+
+    function renderCardFinalState(idx, stageState) {
+      const stageNum = idx + 1;
+      const card = document.getElementById(`card-${stageNum}`);
+      const glyph = document.getElementById(`glyph-${stageNum}`);
+      const badge = document.getElementById(`badge-${stageNum}`);
+      const detail = document.getElementById(`detail-${stageNum}`);
+
+      // Set glyph and badge
+      glyph.textContent = stageState.glyph;
+      badge.textContent = stageState.badge;
+      detail.textContent = stageState.detail;
+
+      // Assign colors based on state
+      switch (stageState.state) {
+        case "done":
+          glyph.className = 'card-glyph glyph-green';
+          badge.className = 'card-badge badge-done';
+          card.disabled = false;
+          break;
+        case "failed":
+          glyph.className = 'card-glyph glyph-red';
+          badge.className = 'card-badge badge-failed';
+          card.disabled = false;
+          break;
+        case "blocked":
+          glyph.className = 'card-glyph glyph-red';
+          badge.className = 'card-badge badge-blocked';
+          card.disabled = false;
+          break;
+        case "declined":
+          glyph.className = 'card-glyph glyph-amber';
+          badge.className = 'card-badge badge-declined';
+          card.disabled = false;
+          break;
+        case "warning":
+          glyph.className = 'card-glyph glyph-amber';
+          badge.className = 'card-badge badge-warning';
+          card.disabled = false;
+          break;
+        default: // not_reached
+          glyph.className = 'card-glyph glyph-muted';
+          badge.className = 'card-badge badge-muted';
+          card.disabled = true;
+          break;
+      }
+    }
+
+    function renderPipelineStrip(stageStates, currentAnimatedIndex) {
+      const strip = document.getElementById('pipeline-strip');
+      let html = '';
+
+      for (let i = 0; i < 10; i++) {
+        const stageNum = i + 1;
+        const st = stageStates[i];
+        let nodeClass = "muted";
+        let nodeGlyph = "[—]";
+
+        if (i < currentAnimatedIndex || currentAnimatedIndex === 9) {
+          nodeClass = st.state;
+          nodeGlyph = st.glyph;
+        } else if (i === currentAnimatedIndex) {
+          nodeClass = "running";
+          nodeGlyph = "[▸]";
+        }
+
+        html += `<span class="strip-node ${nodeClass}">${stageNum} ${nodeGlyph}</span>`;
+        if (i < 9) {
+          html += `<span class="strip-connector">─</span>`;
+        }
+      }
+
+      strip.innerHTML = html;
+    }
+
+    function renderSummary(data, status) {
+      const summaryEl = document.getElementById('summary-panel');
+      const timingEl = document.getElementById('summary-timing');
+      const outcomeEl = document.getElementById('summary-outcome-text');
+      const metaEl = document.getElementById('summary-meta-line');
+      const diffEl = document.getElementById('diff-output');
+
+      const totalMs = getTotalLambdaDuration(data);
+      const totalSec = (totalMs / 1000).toFixed(2);
+      timingEl.textContent = totalMs > 0 ? `Total Lambda Duration: ${totalMs} ms (${totalSec} s)` : `Total Lambda Duration: not recorded`;
+
+      outcomeEl.textContent = getOutcomeSummaryText(status, data);
+
+      const reqId = data.request_id || "unknown";
+      const compAt = data.completed_at || data.created_at || "not recorded";
+      metaEl.textContent = `Request ID: ${reqId} · Completed: ${compAt} · Status: ${status}`;
+
+      // Build unified diff
+      const { diffLines, guardRemoved } = generatePolicyDiff(data);
+      let diffHtml = '';
+
+      if (diffLines.length === 0) {
+        diffHtml = '<div style="color: var(--muted); padding: 4px;">No policy diff data available for this run.</div>';
+      } else {
+        diffHtml = diffLines.map(dl => {
+          const gutter = dl.type === 'removed' ? '-' : (dl.type === 'added' ? '+' : ' ');
+          return `<div class="diff-line ${dl.type}"><span class="diff-gutter">${gutter}</span><span>${escapeHtml(dl.text.substring(3))}</span></div>`;
+        }).join('');
+      }
+
+      // Append Guard Removed block if present
+      if (guardRemoved.length > 0) {
+        diffHtml += `<div style="border-top: 1px dashed var(--border); margin: 8px 0 6px 0; padding-top: 6px; color: var(--red); font-weight: bold;">[!] REMOVED BY DETERMINISTIC GUARD (NOT OBSERVED IN CLOUDTRAIL):</div>`;
+        diffHtml += guardRemoved.map(a => `<div class="diff-line guard-removed"><span class="diff-gutter">-</span><span>Deny  *  ${escapeHtml(a)}</span></div>`).join('');
+      }
+
+      diffEl.innerHTML = diffHtml;
+      summaryEl.style.display = 'block';
+    }
+
+    // Load and Replay a Selected Run
+    async function loadRun(runMeta) {
+      currentRunMeta = runMeta;
+      const statusBadge = document.getElementById('header-status-badge');
+      const banner = document.getElementById('synthetic-banner');
+      const noteEl = document.getElementById('synthetic-note-text');
+      const errBox = document.getElementById('error-alert');
+
+      errBox.style.display = 'none';
+
+      // Update Header Status Badge
+      statusBadge.className = `status-badge status-${runMeta.status}`;
+      statusBadge.textContent = `STATUS: ${runMeta.status}`;
+
+      // Update URL query param without reload
+      const url = new URL(window.location);
+      url.searchParams.set('run', runMeta.id);
+      window.history.replaceState({}, '', url);
+
+      // Check Cache
+      if (runCache.has(runMeta.file)) {
+        currentRunData = runCache.get(runMeta.file);
+        handleLoadedData();
+        return;
+      }
+
+      // Fetch file once
+      try {
+        const resp = await fetch(runMeta.file);
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+        }
+        const data = await resp.json();
+        runCache.set(runMeta.file, data);
+        currentRunData = data;
+        handleLoadedData();
+      } catch (err) {
+        showError(`Could not load ${runMeta.file} — ${err.message}`);
+      }
+
+      function handleLoadedData() {
+        // Handle synthetic banner
+        if (currentRunData.synthetic || runMeta.synthetic) {
+          banner.style.display = 'block';
+          noteEl.textContent = currentRunData.synthetic_note || runMeta.label || "crafted to demonstrate this state";
+        } else {
+          banner.style.display = 'none';
+        }
+
+        // Close details panel on run change
+        closeSidePanel();
+
+        // Start Replay
+        replayAnimation(currentRunData, currentRunData.status || runMeta.status);
+      }
+    }
+
+    function showError(msg) {
+      const errBox = document.getElementById('error-alert');
+      let extra = '';
+      if (window.location.protocol === 'file:') {
+        extra = '<br><br><em>Tip: You opened this page via file:// which blocks fetch requests in modern browsers. Run <code>python -m http.server</code> inside the dashboard directory and visit http://localhost:8000.</em>';
+      }
+      errBox.innerHTML = `<strong>[ERROR]</strong> ${escapeHtml(msg)}${extra}`;
+      errBox.style.display = 'block';
+    }
+
+    // Initialize App
+    async function init() {
+      // Setup Card click handlers
+      for (let i = 0; i < 10; i++) {
+        const card = document.getElementById(`card-${i + 1}`);
+        card.addEventListener('click', () => {
+          if (!card.disabled && currentRunData) {
+            renderSidePanel(i, currentRunData);
+          }
+        });
+      }
+
+      // Close panel handler
+      document.getElementById('panel-close-btn').addEventListener('click', closeSidePanel);
+
+      // Keyboard Esc handler to close panel
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeSidePanel();
+        }
+      });
+
+      // Replay button handler
+      document.getElementById('replay-btn').addEventListener('click', () => {
+        if (currentRunData && currentRunMeta) {
+          replayAnimation(currentRunData, currentRunData.status || currentRunMeta.status);
+        }
+      });
+
+      // Fetch Manifest
+      try {
+        const resp = await fetch('runs/index.json');
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+        }
+        currentManifest = await resp.json();
+
+        // Populate dropdown
+        const select = document.getElementById('run-select');
+        select.innerHTML = '';
+        currentManifest.forEach(rm => {
+          const opt = document.createElement('option');
+          opt.value = rm.id;
+          opt.textContent = rm.label || `${rm.status} — ${rm.id}`;
+          select.appendChild(opt);
+        });
+
+        select.addEventListener('change', (e) => {
+          const selected = currentManifest.find(m => m.id === e.target.value);
+          if (selected) loadRun(selected);
+        });
+
+        // Determine initial run to load (check ?run=<id>, default to 'applied')
+        const urlParams = new URLSearchParams(window.location.search);
+        const requestedId = urlParams.get('run');
+        let initialRun = currentManifest.find(m => m.id === requestedId);
+        if (!initialRun) {
+          initialRun = currentManifest.find(m => m.id === 'applied') || currentManifest[0];
+        }
+
+        if (initialRun) {
+          select.value = initialRun.id;
+          await loadRun(initialRun);
+        }
+      } catch (err) {
+        showError(`Could not load runs/index.json manifest — ${err.message}`);
+      }
+    }
+
+    // Run on DOM ready
+    window.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
 </html>

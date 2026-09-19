@@ -1,0 +1,246 @@
+{
+  "requested_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DemoS3Access",
+        "Effect": "Allow",
+        "Action": [
+          "s3:*"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoEC2Access",
+        "Effect": "Allow",
+        "Action": [
+          "ec2:Describe*",
+          "ec2:List*"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoLogsAccess",
+        "Effect": "Allow",
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents",
+          "logs:StartQuery",
+          "logs:GetQueryResults",
+          "logs:StopQuery"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoDynamoAccess",
+        "Effect": "Allow",
+        "Action": [
+          "dynamodb:*"
+        ],
+        "Resource": "*"
+      }
+    ]
+  },
+  "observed_actions": {
+    "s3:ListBuckets": 2,
+    "s3:GetObject": 1,
+    "s3:CreateBucket": 1,
+    "s3:HeadObject": 1,
+    "s3:DeleteObject": 1,
+    "s3:PutObject": 1,
+    "s3:GetBucketLocation": 2
+  },
+  "status": "ANALYZER_INVALID",
+  "model_used": "apac.amazon.nova-lite-v1:0",
+  "stage_timings": [
+    {
+      "start": "2026-09-19T12:42:54.694723+00:00",
+      "end": "2026-09-19T12:42:58.000919+00:00",
+      "stage": "cloudwatch_query"
+    },
+    {
+      "stage": "bedrock_call",
+      "start": "2026-09-19T12:42:58.001928+00:00",
+      "end": "2026-09-19T12:43:03.639085+00:00"
+    },
+    {
+      "stage": "coverage_check",
+      "end": "2026-09-19T12:43:03.648673+00:00",
+      "start": "2026-09-19T12:43:03.640092+00:00"
+    },
+    {
+      "stage": "cedar_validation",
+      "start": "2026-09-19T12:43:03.648695+00:00",
+      "end": "2026-09-19T12:43:04.219817+00:00"
+    },
+    {
+      "start": "2026-09-19T12:43:04.221922+00:00",
+      "stage": "iam_translation",
+      "end": "2026-09-19T12:43:04.223285+00:00"
+    },
+    {
+      "end": "2026-09-19T12:43:04.471877+00:00",
+      "stage": "analyzer_validation",
+      "start": "2026-09-19T12:43:04.223296+00:00"
+    }
+  ],
+  "cedar_validation": {
+    "policy_store_id": "<AVP_STORE_ID>",
+    "messages": [
+      "Policy passed STRICT Cedar schema validation."
+    ],
+    "passed": true
+  },
+  "coverage_check": {
+    "blocked_actions": [],
+    "passed": true
+  },
+  "cedar_policy": "permit(\n    principal,\n    action in [\n        CedarSentinel::Action::\"ec2:DescribeFleets\",\n        CedarSentinel::Action::\"ec2:DescribeImages\",\n        CedarSentinel::Action::\"ec2:DescribeInstanceAttribute\",\n        CedarSentinel::Action::\"ec2:DescribeInstanceCreditSpecifications\",\n        CedarSentinel::Action::\"ec2:DescribeInstanceEventNotificationAttributes\",\n        CedarSentinel::Action::\"ec2:DescribeInstanceOfferings\",\n        CedarSentinel::Action::\"ec2:<AVP_STORE_ID>\",\n        CedarSentinel::Action::\"ec2:DescribeInstanceTopology\",\n        CedarSentinel::Action::\"ec2:DescribeInstanceTypeOfferings\",\n        CedarSentinel::Action::\"ec2:DescribeInstanceTypes\",\n        CedarSentinel::Action::\"ec2:DescribeInstances\",\n        CedarSentinel::Action::\"ec2:DescribeKeyPairs\",\n        CedarSentinel::Action::\"ec2:DescribeLaunchTemplates\",\n        CedarSentinel::Action::\"ec2:DescribeNetworkInterfaces\",\n        CedarSentinel::Action::\"ec2:<AVP_STORE_ID>\",\n        CedarSentinel::Action::\"ec2:DescribeSubnets\",\n        CedarSentinel::Action::\"ec2:DescribeTags\",\n        CedarSentinel::Action::\"ec2:DescribeVolumes\",\n        CedarSentinel::Action::\"ec2:DescribeVpcs\",\n        CedarSentinel::Action::\"logs:CreateLogGroup\",\n        CedarSentinel::Action::\"logs:DescribeLogGroups\",\n        CedarSentinel::Action::\"logs:DescribeLogStreams\",\n        CedarSentinel::Action::\"logs:FilterLogEvents\",\n        CedarSentinel::Action::\"logs:GetLogEvents\",\n        CedarSentinel::Action::\"logs:GetQueryResults\",\n        CedarSentinel::Action::\"logs:PutLogEvents\",\n        CedarSentinel::Action::\"logs:StartQuery\",\n        CedarSentinel::Action::\"logs:StopQuery\",\n        CedarSentinel::Action::\"s3:CreateBucket\",\n        CedarSentinel::Action::\"s3:DeleteObject\",\n        CedarSentinel::Action::\"s3:GetBucketLocation\",\n        CedarSentinel::Action::\"s3:GetObject\",\n        CedarSentinel::Action::\"s3:HeadObject\",\n        CedarSentinel::Action::\"s3:ListBuckets\",\n        CedarSentinel::Action::\"s3:PutObject\"\n    ],\n    resource\n);",
+  "role_arn": "arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role",
+  "completed_at": "2026-09-19T12:43:04.790935+00:00",
+  "action_mappings_applied": [
+    {
+      "original": "s3:ListBuckets",
+      "mapped": "s3:ListAllMyBuckets"
+    }
+  ],
+  "analyzer_validation": {
+    "passed": false,
+    "check_no_new_access": null,
+    "messages": [
+      "Access Analyzer validation error: The action ec2:DescribeInstanceOfferings does not exist. (INVALID_ACTION)",
+      "Access Analyzer validation error: The action s3:HeadObject does not exist. Did you mean s3:GetObject? The API called HeadObject authorizes against the IAM action s3:GetObject. (INVALID_ACTION)"
+    ],
+    "reason": "VALIDATION_ERROR",
+    "findings": [
+      {
+        "issueCode": "INVALID_ACTION",
+        "findingDetails": "The action ec2:DescribeInstanceOfferings does not exist.",
+        "findingType": "ERROR",
+        "locations": [
+          {
+            "path": [
+              {
+                "value": "Statement"
+              },
+              {
+                "index": 0
+              },
+              {
+                "value": "Action"
+              },
+              {
+                "index": 5
+              }
+            ],
+            "span": {
+              "end": {
+                "offset": 312,
+                "column": 312,
+                "line": 1
+              },
+              "start": {
+                "column": 281,
+                "offset": 281,
+                "line": 1
+              }
+            }
+          }
+        ],
+        "learnMoreLink": "https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-reference-policy-checks.html#access-analyzer-reference-policy-checks-error-invalid-action"
+      },
+      {
+        "findingDetails": "The action s3:HeadObject does not exist. Did you mean s3:GetObject? The API called HeadObject authorizes against the IAM action s3:GetObject.",
+        "learnMoreLink": "https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-reference-policy-checks.html#access-analyzer-reference-policy-checks-error-invalid-action",
+        "locations": [
+          {
+            "path": [
+              {
+                "value": "Statement"
+              },
+              {
+                "index": 0
+              },
+              {
+                "value": "Action"
+              },
+              {
+                "index": 32
+              }
+            ],
+            "span": {
+              "end": {
+                "column": 967,
+                "line": 1,
+                "offset": 967
+              },
+              "start": {
+                "column": 952,
+                "offset": 952,
+                "line": 1
+              }
+            }
+          }
+        ],
+        "issueCode": "INVALID_ACTION",
+        "findingType": "ERROR"
+      }
+    ]
+  },
+  "iam_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "CedarSentinelTightenedStmt1",
+        "Effect": "Allow",
+        "Action": [
+          "ec2:DescribeFleets",
+          "ec2:DescribeImages",
+          "ec2:DescribeInstanceAttribute",
+          "ec2:DescribeInstanceCreditSpecifications",
+          "ec2:DescribeInstanceEventNotificationAttributes",
+          "ec2:DescribeInstanceOfferings",
+          "ec2:<AVP_STORE_ID>",
+          "ec2:DescribeInstanceTopology",
+          "ec2:DescribeInstanceTypeOfferings",
+          "ec2:DescribeInstanceTypes",
+          "ec2:DescribeInstances",
+          "ec2:DescribeKeyPairs",
+          "ec2:DescribeLaunchTemplates",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:<AVP_STORE_ID>",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeTags",
+          "ec2:DescribeVolumes",
+          "ec2:DescribeVpcs",
+          "logs:CreateLogGroup",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:FilterLogEvents",
+          "logs:GetLogEvents",
+          "logs:GetQueryResults",
+          "logs:PutLogEvents",
+          "logs:StartQuery",
+          "logs:StopQuery",
+          "s3:CreateBucket",
+          "s3:DeleteObject",
+          "s3:GetBucketLocation",
+          "s3:GetObject",
+          "s3:HeadObject",
+          "s3:ListAllMyBuckets",
+          "s3:PutObject"
+        ],
+        "Resource": "*"
+      }
+    ]
+  },
+  "rationale": "Tightened policy to include only observed CloudTrail actions.",
+  "request_id": "9712a250-ef28-4b95-8c83-7a885fe7945d",
+  "unmatched_actions": [],
+  "synthetic": false
+}

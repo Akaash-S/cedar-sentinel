@@ -1,0 +1,67 @@
+{
+  "role_arn": "arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role",
+  "requested_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DemoS3Access",
+        "Effect": "Allow",
+        "Action": [
+          "s3:*"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoEC2Access",
+        "Effect": "Allow",
+        "Action": [
+          "ec2:Describe*",
+          "ec2:List*"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoLogsAccess",
+        "Effect": "Allow",
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents",
+          "logs:StartQuery",
+          "logs:GetQueryResults",
+          "logs:StopQuery"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoDynamoAccess",
+        "Effect": "Allow",
+        "Action": [
+          "dynamodb:*"
+        ],
+        "Resource": "*"
+      }
+    ]
+  },
+  "completed_at": "2026-09-19T06:59:58.070394+00:00",
+  "error_message": "Bedrock response is not valid JSON. Raw response: ```json\n{\n  \"cedar_policy\": \"permit(\\n    principal,\\n    action in [\\n        CedarSentinel::Action::\\\"s3:GetBucketLocation\\\",\\n        CedarSentinel::Action::\\\"s3:ListBuckets\\\",\\n        CedarSentinel::Action::\\\"s3:CreateBucket\\\"\\n    ],\\n    resource\\n);\\npermit(\\n    principal,\\n    action in [\\",
+  "observed_actions": {
+    "s3:CreateBucket": 1,
+    "s3:GetBucketLocation": 2,
+    "s3:ListBuckets": 2
+  },
+  "request_id": "c41cba0d-dbe4-4a40-ab9f-79c2e14d7505",
+  "status": "ERROR",
+  "stage_timings": [
+    {
+      "start": "2026-09-19T06:59:48.520013+00:00",
+      "end": "2026-09-19T06:59:51.715492+00:00",
+      "stage": "cloudwatch_query"
+    }
+  ],
+  "synthetic": false
+}

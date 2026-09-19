@@ -1,0 +1,168 @@
+{
+  "requested_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DemoS3Access",
+        "Effect": "Allow",
+        "Action": [
+          "s3:*"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoEC2Access",
+        "Effect": "Allow",
+        "Action": [
+          "ec2:Describe*",
+          "ec2:List*"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoLogsAccess",
+        "Effect": "Allow",
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents",
+          "logs:StartQuery",
+          "logs:GetQueryResults",
+          "logs:StopQuery"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoDynamoAccess",
+        "Effect": "Allow",
+        "Action": [
+          "dynamodb:*"
+        ],
+        "Resource": "*"
+      }
+    ]
+  },
+  "observed_actions": {
+    "s3:ListBuckets": 3,
+    "s3:DeleteObject": 1,
+    "s3:CreateBucket": 1,
+    "s3:HeadObject": 1,
+    "s3:ListObjects": 2,
+    "s3:GetBucketLocation": 2,
+    "s3:PutObject": 1,
+    "s3:GetObject": 1
+  },
+  "status": "COMPLETE",
+  "model_used": "apac.amazon.nova-lite-v1:0",
+  "stage_timings": [
+    {
+      "start": "2026-09-19T15:20:03.666320+00:00",
+      "end": "2026-09-19T15:20:06.799239+00:00",
+      "stage": "cloudwatch_query"
+    },
+    {
+      "start": "2026-09-19T15:20:06.800392+00:00",
+      "stage": "bedrock_call",
+      "end": "2026-09-19T15:20:08.238787+00:00"
+    },
+    {
+      "start": "2026-09-19T15:20:08.239962+00:00",
+      "stage": "coverage_check",
+      "end": "2026-09-19T15:20:08.240478+00:00"
+    },
+    {
+      "end": "2026-09-19T15:20:08.819402+00:00",
+      "stage": "cedar_validation",
+      "start": "2026-09-19T15:20:08.240488+00:00"
+    },
+    {
+      "stage": "iam_translation",
+      "start": "2026-09-19T15:20:08.822062+00:00",
+      "end": "2026-09-19T15:20:08.822344+00:00"
+    },
+    {
+      "stage": "analyzer_validation",
+      "end": "2026-09-19T15:20:09.190611+00:00",
+      "start": "2026-09-19T15:20:08.822355+00:00"
+    }
+  ],
+  "cedar_validation": {
+    "passed": true,
+    "policy_store_id": "<AVP_STORE_ID>",
+    "messages": [
+      "Policy passed STRICT Cedar schema validation."
+    ]
+  },
+  "coverage_check": {
+    "passed": true,
+    "blocked_actions": []
+  },
+  "cedar_policy": "permit(\n    principal,\n    action in [\n        CedarSentinel::Action::\"s3:CreateBucket\",\n        CedarSentinel::Action::\"s3:DeleteObject\",\n        CedarSentinel::Action::\"s3:GetBucketLocation\",\n        CedarSentinel::Action::\"s3:GetObject\",\n        CedarSentinel::Action::\"s3:HeadObject\",\n        CedarSentinel::Action::\"s3:ListBuckets\",\n        CedarSentinel::Action::\"s3:ListObjects\",\n        CedarSentinel::Action::\"s3:PutObject\"\n    ],\n    resource\n);",
+  "role_arn": "arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role",
+  "analyzer_validation": {
+    "messages": [
+      "Access Analyzer validation passed (no errors, no new access)."
+    ],
+    "reason": null,
+    "passed": true,
+    "check_no_new_access": {
+      "result": "PASS",
+      "reasons": [],
+      "message": "The modified permissions grant less or equal access compared to your existing policy."
+    },
+    "findings": []
+  },
+  "completed_at": "2026-09-19T15:20:09.529040+00:00",
+  "action_mappings_applied": [
+    {
+      "mapped": "s3:GetObject",
+      "original": "s3:HeadObject"
+    },
+    {
+      "original": "s3:ListBuckets",
+      "mapped": "s3:ListAllMyBuckets"
+    },
+    {
+      "original": "s3:ListObjects",
+      "mapped": "s3:ListBucket"
+    }
+  ],
+  "rationale": "Tightened policy to include only observed CloudTrail actions for s3 service(s). [Deterministic guard excluded 9 unobserved action(s): logs:CreateLogGroup, logs:DescribeLogGroups, logs:DescribeLogStreams, logs:FilterLogEvents, logs:GetLogEvents, logs:GetQueryResults, logs:PutLogEvents, logs:StartQuery, logs:StopQuery]",
+  "iam_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "CedarSentinelTightenedStmt1",
+        "Effect": "Allow",
+        "Action": [
+          "s3:CreateBucket",
+          "s3:DeleteObject",
+          "s3:GetBucketLocation",
+          "s3:GetObject",
+          "s3:ListAllMyBuckets",
+          "s3:ListBucket",
+          "s3:PutObject"
+        ],
+        "Resource": "*"
+      }
+    ]
+  },
+  "request_id": "6293da8f-7f30-4f80-8a30-e2afa8b7ad9c",
+  "guard_removed_actions": [
+    "logs:CreateLogGroup",
+    "logs:DescribeLogGroups",
+    "logs:DescribeLogStreams",
+    "logs:FilterLogEvents",
+    "logs:GetLogEvents",
+    "logs:GetQueryResults",
+    "logs:PutLogEvents",
+    "logs:StartQuery",
+    "logs:StopQuery"
+  ],
+  "unmatched_actions": [],
+  "synthetic": false
+}
