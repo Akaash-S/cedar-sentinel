@@ -13,7 +13,7 @@
         "actions": ["create"],
         "before": null,
         "after": {
-          "name": "cedar-sentinel-demo-policy",
+          "name": "demo-broad-s3",
           "role": "cedar-sentinel-demo-role",
           "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"DemoS3Access\",\"Effect\":\"Allow\",\"Action\":[\"s3:*\"],\"Resource\":\"*\"},{\"Sid\":\"DemoEC2Access\",\"Effect\":\"Allow\",\"Action\":[\"ec2:Describe*\",\"ec2:List*\"],\"Resource\":\"*\"},{\"Sid\":\"DemoLogsAccess\",\"Effect\":\"Allow\",\"Action\":[\"logs:CreateLogGroup\",\"logs:CreateLogStream\",\"logs:PutLogEvents\",\"logs:DescribeLogGroups\",\"logs:DescribeLogStreams\",\"logs:GetLogEvents\",\"logs:FilterLogEvents\",\"logs:StartQuery\",\"logs:GetQueryResults\",\"logs:StopQuery\"],\"Resource\":\"*\"},{\"Sid\":\"DemoDynamoAccess\",\"Effect\":\"Allow\",\"Action\":[\"dynamodb:*\"],\"Resource\":\"*\"}]}"
         },

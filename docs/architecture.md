@@ -63,6 +63,48 @@ Lookback window: 7 days. Result: `{eventName: count}` map handed to Bedrock.
 
 ---
 
+## Phase 3 new components
+
+| Date | Component | Description |
+|---|---|---|
+| 2026-09-19 | **Cedar → IAM Policy Translator (`stage_iam_translation`)** | Translates verified Cedar permit statements into standard AWS IAM JSON policy documents. Handles CloudTrail `eventName` to IAM action name mapping (`CLOUDTRAIL_TO_IAM_ACTION_MAP`), assigns statement Resources based on requested policy patterns, excludes unrequested actions without widening, and strictly refuses `forbid` statements. |
+| 2026-09-19 | **IAM Access Analyzer Independent Safety Net (`stage_access_analyzer`)** | Account-level validation calling `accessanalyzer:ValidatePolicy` (blocking on `ERROR` findings $\rightarrow$ `ANALYZER_INVALID` with `VALIDATION_ERROR`) and `accessanalyzer:CheckNoNewAccess` (blocking on `FAIL` findings $\rightarrow$ `ANALYZER_INVALID` with `NEW_ACCESS`). |
+| 2026-09-19 | **Persistent AVP Audit Store (`cedar-sentinel-audit-store`)** | Persistent Amazon Verified Permissions policy store (SSM: `/cedar-sentinel/dev/avp-audit-store-id`) where the CLI writes approved Cedar policies via `CreatePolicy` exclusively after successful apply. Separate from disposable validation store. |
+| 2026-09-19 | **CLI Enforcement & Snapshotting (`--apply`, `previous_policy`)** | CLI workflow enforcing target role verification, inline policy overwrite check (`iam:ListRolePolicies`), snapshotting existing policy (`iam:GetRolePolicy`), executing `iam:PutRolePolicy` with throttling retry, and performing read-back verification. |
+| 2026-09-19 | **Demo Role Reset Script (`scripts/reset_demo_role.py`)** | Standalone script hard-coded for `cedar-sentinel-demo-role` that restores the broad baseline `s3:*` policy for repeatable demo testing. |
+| 2026-09-19 | **Sanitized Dashboard Run Exporter (`scripts/export_run.py`)** | Exports completed DynamoDB run data into a sanitized `dashboard/run.json` with account IDs redacted for static dashboard replay. |
+
+---
+
+## Result Status Values
+
+The pipeline and CLI support the following 10 explicit status states:
+
+| Status | Meaning | Emitted By |
+|---|---|---|
+| `PROCESSING` | Pipeline execution in progress in Lambda | Lambda |
+| `COMPLETE` | Analysis, coverage check, Cedar verification, IAM translation, and Access Analyzer checks all passed | Lambda |
+| `BLOCKED` | Coverage check failed (dropped observed CloudTrail actions detected) | Lambda |
+| `CEDAR_INVALID` | Cedar formal verification failed against AVP STRICT schema | Lambda |
+| `ANALYZER_INVALID` | IAM Access Analyzer rejected the translated policy (`VALIDATION_ERROR` or `NEW_ACCESS`) | Lambda |
+| `DECLINED` | Developer reviewed diff and answered `N` at the CLI approval prompt; nothing applied | CLI |
+| `APPLIED` | `iam:PutRolePolicy` succeeded and read-back `iam:GetRolePolicy` confirmed match | CLI |
+| `APPLIED_UNVERIFIED` | `iam:PutRolePolicy` succeeded, but read-back did not confirm consistency within retry window | CLI |
+| `APPLY_FAILED` | `iam:PutRolePolicy` failed (e.g. malformed policy or size limit exceeded) | CLI |
+| `ERROR` | Unhandled error in Lambda processor or translator | Lambda |
+
+---
+
+## IAM Permissions & Scoping Justifications
+
+### Lambda Execution Role `access-analyzer:*` Scoping Justification
+- **Permissions:** `access-analyzer:ValidatePolicy` and `access-analyzer:CheckNoNewAccess`
+- **Resource:** `"*"`
+- **Justification:** AWS IAM Access Analyzer policy validation and comparison APIs (`ValidatePolicy` and `CheckNoNewAccess`) are account-level evaluation operations that operate on arbitrary in-memory policy strings and baseline documents. AWS IAM does not support resource-level ARN constraints for these specific API actions.
+- **Least Privilege Boundary:** The Lambda execution role contains **zero** IAM write permissions (`iam:PutRolePolicy`, `iam:CreatePolicy`, etc. are strictly omitted). All IAM modification actions are initiated solely by the human developer through the authenticated CLI with explicit interactive confirmation.
+
+---
+
 ## Deviation log
 
 *(Append an entry every time the actual build diverges from the blueprint.)*
@@ -83,5 +125,9 @@ Lookback window: 7 days. Result: `{eventName: count}` map handed to Bedrock.
 | 2026-09-19 | Bedrock reasoning prompt updated for zero-observed-actions case | In cases with zero observed CloudTrail activity for a principal, the model previously drafted free-text `deny all;` which failed AVP syntax validation. System prompt updated with explicit rule and few-shot example requiring valid Cedar syntax (`forbid(principal, action in [CedarSentinel::Action::"none"], resource);`) when no actions are observed. |
 | 2026-09-19 | Bedrock model ID resolution logged before invocation | Added `logger.info("Resolved BEDROCK_MODEL_ID: %s", model_id)` at the start of `stage_bedrock_call` to ensure the deployed model ID is immediately visible in CloudWatch logs prior to invoking Bedrock. |
 | 2026-09-19 | Bedrock prompt tightened & deterministic code-level Cedar policy guard added | Dynamically selects the few-shot example and prompt rules based on whether observed actions exist (preventing the model from confusing zero-action and non-empty action rules). Added a code-level normalization and validation guard (`_sanitize_and_guard_cedar_policy`) that strips spurious `forbid` statements or non-schema action references when observed actions exist, and guarantees that `"none"` is always registered in the AVP Cedar schema. |
+| 2026-09-19 | Added Action Normalization & Mapping (`CLOUDTRAIL_TO_IAM_ACTION_MAP`) | CloudTrail API event names frequently differ from the underlying IAM action names (e.g., `s3:ListBuckets` $\rightarrow$ `s3:ListAllMyBuckets`, `s3:HeadObject` $\rightarrow$ `s3:GetObject`, `s3:HeadBucket` $\rightarrow$ `s3:ListBucket`). Added deterministic translation mapping before IAM Access Analyzer validation. |
+| 2026-09-19 | Added IAM Access Analyzer validation stage (`stage_access_analyzer`) | Added independent safety net calling `ValidatePolicy` and `CheckNoNewAccess`. Rejects invalid actions (`VALIDATION_ERROR`) and privilege escalations (`NEW_ACCESS`) with distinct `ANALYZER_INVALID` status before human review. |
+| 2026-09-19 | Lockout menu option `[2]` disabled with safety notice | Option `[2]` (force-apply draft Cedar policy) intentionally disabled in this build to prevent bypassing the safety net when dropped actions are detected. |
+| 2026-09-19 | Added persistent AVP audit store (`cedar-sentinel-audit-store`) | Added a persistent AVP policy store (distinct from the disposable verification store) where the CLI records approved Cedar policies via `CreatePolicy` exclusively upon confirmed `APPLIED` status. |
 
 

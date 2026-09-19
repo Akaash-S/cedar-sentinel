@@ -11,6 +11,7 @@ Result is written once to DynamoDB (cedar-sentinel-results) keyed by request_id,
 then the CLI polls until status leaves PROCESSING.
 """
 
+import fnmatch
 import json
 import logging
 import os
@@ -18,6 +19,7 @@ import re
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
+
 
 import boto3
 from botocore.exceptions import ClientError
@@ -168,7 +170,8 @@ def _invoke_bedrock_model_raw(
     if "nova" in model_id or "amazon" in model_id.split("/")[-1]:
         # Amazon Nova models use the Converse-compatible messages API
         body = json.dumps({
-            "messages": [{"role": "user", "content": [{"text": f"{system_prompt}\n\n{user_message}"}]}],
+            "system": [{"text": system_prompt}],
+            "messages": [{"role": "user", "content": [{"text": user_message}]}],
             "inferenceConfig": {
                 "maxTokens": BEDROCK_MAX_TOKENS,
                 "temperature": 0.1,
@@ -383,9 +386,16 @@ def stage_bedrock_call(
                     "rationale": rat_match.group(1) if rat_match else "Tightened policy to include only observed CloudTrail actions.",
                 }
             else:
-                raise ValueError(
-                    f"Bedrock response is not valid JSON and could not extract Cedar statement. Raw: {raw_text[:300]}"
-                )
+                acts = _extract_cedar_actions(clean_text)
+                if acts:
+                    parsed = {
+                        "cedar_policy": clean_text,
+                        "rationale": rat_match.group(1) if rat_match else "Tightened policy to include only observed CloudTrail actions.",
+                    }
+                else:
+                    raise ValueError(
+                        f"Bedrock response is not valid JSON and could not extract Cedar statement. Raw: {raw_text[:300]}"
+                    )
 
     if "cedar_policy" not in parsed or "rationale" not in parsed:
         raise ValueError(
@@ -393,9 +403,21 @@ def stage_bedrock_call(
         )
 
     # Apply deterministic code-level guard to normalize and sanitize cedar_policy
-    parsed["cedar_policy"] = _sanitize_and_guard_cedar_policy(
+    sanitized_policy, removed_actions = _sanitize_and_guard_cedar_policy(
         parsed["cedar_policy"], observed_actions
     )
+    parsed["cedar_policy"] = sanitized_policy
+    parsed["guard_removed_actions"] = removed_actions
+
+    # Adjust rationale if actions were stripped by the deterministic guard
+    if removed_actions:
+        observed_services = sorted(set(k.split(":")[0] for k in observed_actions if int(observed_actions[k]) > 0))
+        svc_str = ", ".join(observed_services) if observed_services else "observed"
+        parsed["rationale"] = (
+            f"Tightened policy to include only observed CloudTrail actions for {svc_str} service(s). "
+            f"[Deterministic guard excluded {len(removed_actions)} unobserved action(s): {', '.join(sorted(removed_actions))}]"
+        )
+
     # Attach the model that actually served this request
     parsed["model_used"] = actual_model_used
 
@@ -431,29 +453,89 @@ def _normalize_cedar_policy_text(cedar_policy_raw: Any) -> str:
     return str(cedar_policy_raw)
 
 
+CLOUDTRAIL_TO_IAM_ACTION_MAP: Dict[str, str] = {
+    "s3:ListBuckets": "s3:ListAllMyBuckets",  # CloudTrail eventName ListBuckets maps to IAM s3:ListAllMyBuckets
+    "s3:GetBucketLocation": "s3:GetBucketLocation",
+    "s3:CreateBucket": "s3:CreateBucket",
+    "s3:DeleteBucket": "s3:DeleteBucket",
+    "s3:PutObject": "s3:PutObject",
+    "s3:GetObject": "s3:GetObject",
+    "s3:HeadObject": "s3:GetObject",          # CloudTrail eventName HeadObject authorizes against IAM s3:GetObject
+    "s3:HeadBucket": "s3:ListBucket",         # CloudTrail eventName HeadBucket authorizes against IAM s3:ListBucket
+    "s3:DeleteObject": "s3:DeleteObject",
+    "s3:ListObjects": "s3:ListBucket",
+    "s3:ListObjectsV2": "s3:ListBucket",
+    "ec2:DescribeInstanceOfferings": "ec2:DescribeInstanceTypeOfferings",
+}
+
+CLOUDTRAIL_TO_IAM_ACTION_MAP_LOWER: Dict[str, str] = {
+    k.lower(): v.lower() for k, v in CLOUDTRAIL_TO_IAM_ACTION_MAP.items()
+}
+IAM_TO_CLOUDTRAIL_ACTION_MAP_LOWER: Dict[str, str] = {
+    v.lower(): k.lower() for k, v in CLOUDTRAIL_TO_IAM_ACTION_MAP.items()
+}
+
+
+def _is_action_observed_or_mapped(action: str, observed_actions: Dict[str, Any]) -> bool:
+    """
+    Checks if a given action is covered by the observed actions (considering
+    CloudTrail-to-IAM action mappings and case-insensitivity).
+    """
+    obs_set = {str(k).lower() for k, v in observed_actions.items() if int(v) > 0}
+    act_lower = action.lower()
+
+    if act_lower in obs_set:
+        return True
+
+    for obs in obs_set:
+        mapped_iam = CLOUDTRAIL_TO_IAM_ACTION_MAP_LOWER.get(obs, obs)
+        if act_lower == mapped_iam:
+            return True
+        if CLOUDTRAIL_TO_IAM_ACTION_MAP_LOWER.get(obs) == act_lower:
+            return True
+
+    # Check if the drafted action is an IAM name mapping back to an observed CloudTrail action
+    if act_lower in IAM_TO_CLOUDTRAIL_ACTION_MAP_LOWER:
+        orig_ct = IAM_TO_CLOUDTRAIL_ACTION_MAP_LOWER[act_lower]
+        if orig_ct in obs_set:
+            return True
+
+    return False
+
+
 def _sanitize_and_guard_cedar_policy(
     raw_policy: Any,
-    observed_actions: Dict[str, int],
-) -> str:
+    observed_actions: Dict[str, Any],
+) -> Tuple[str, List[str]]:
     """
     Deterministic code-level guard that cleans, normalizes, and validates the
     Cedar policy text before verification:
     1. If observed actions exist:
        - Extracts all action references.
        - Discards spurious 'none' action or forbid statements.
+       - Filters out unobserved actions (actions absent from observed_actions).
        - Strips concatenated forbid blocks (e.g. 'permit(...); forbid(...)').
        - Formats into a clean, canonical single permit statement.
+       - Returns (policy_text, list_of_removed_actions).
     2. If zero observed actions:
        - Ensures a single valid forbid statement on Action::'none'.
+       - Returns (policy_text, []).
     """
     text = _normalize_cedar_policy_text(raw_policy)
-    has_observed = any(count > 0 for count in observed_actions.values())
+    has_observed = any(int(count) > 0 for count in observed_actions.values())
 
     if has_observed:
         # Extract actions present in the policy
         extracted = _extract_cedar_actions(text)
-        # Filter out spurious "none" or invalid action names
-        valid_actions = [a for a in extracted if a != "none" and ":" in a]
+        # Filter out spurious "none", unobserved actions, or invalid action names
+        valid_actions = [
+            a for a in extracted
+            if a != "none" and ":" in a and _is_action_observed_or_mapped(a, observed_actions)
+        ]
+        removed_actions = [
+            a for a in extracted
+            if a != "none" and ":" in a and not _is_action_observed_or_mapped(a, observed_actions)
+        ]
 
         # If valid actions were found in the text, use them
         if valid_actions:
@@ -467,11 +549,12 @@ def _sanitize_and_guard_cedar_policy(
                 f"        {action_items}\n"
                 f"    ],\n"
                 f"    resource\n"
-                f");"
+                f");",
+                sorted(set(removed_actions)),
             )
-        # Fallback to observed actions if model output had no parseable service actions
+        # Fallback to observed actions if model output had no parseable observed actions
         action_items = ",\n        ".join(
-            f'{CS_NAMESPACE}::Action::"{a}"' for a in sorted(observed_actions.keys()) if observed_actions[a] > 0
+            f'{CS_NAMESPACE}::Action::"{a}"' for a in sorted(observed_actions.keys()) if int(observed_actions[a]) > 0
         )
         return (
             f"permit(\n"
@@ -480,7 +563,8 @@ def _sanitize_and_guard_cedar_policy(
             f"        {action_items}\n"
             f"    ],\n"
             f"    resource\n"
-            f");"
+            f");",
+            sorted(set(removed_actions)),
         )
     else:
         # Zero observed actions
@@ -491,7 +575,8 @@ def _sanitize_and_guard_cedar_policy(
             f'        {CS_NAMESPACE}::Action::"none"\n'
             f"    ],\n"
             f"    resource\n"
-            f");"
+            f");",
+            [],
         )
 
 
@@ -751,13 +836,244 @@ def stage_cedar_validation(
                 policyStoreId=store_id,
                 policyId=created_policy_id,
             )
-            logger.info("Cleaned up disposable policy %s from store.", created_policy_id)
         except ClientError as exc:
             logger.warning("Could not clean up policy %s: %s", created_policy_id, exc)
 
     end_iso = _now_iso()
     return (
         {"passed": passed, "messages": messages, "policy_store_id": store_id},
+        start_iso,
+        end_iso,
+    )
+
+
+
+# ─────────────────────────────────────────────────────────────────
+# Stage 5 — Cedar to IAM Policy Translation & Action Normalization
+# ─────────────────────────────────────────────────────────────────
+
+
+
+
+def _action_matches_pattern(action: str, pattern: str) -> bool:
+    """Case-insensitive IAM action wildcard matching (e.g. 's3:*' matches 's3:CreateBucket')."""
+    if pattern == "*":
+        return True
+    return fnmatch.fnmatchcase(action.lower(), pattern.lower())
+
+
+def stage_iam_translation(
+    cedar_policy_text: str,
+    requested_policy: Any,
+) -> Tuple[Dict[str, Any], str, str]:
+    """
+    Translates a verified Cedar permit statement into a standard AWS IAM JSON policy document.
+    1. Normalizes CloudTrail event names to valid IAM action names via CLOUDTRAIL_TO_IAM_ACTION_MAP.
+    2. Assigns Resources by finding the statement in the originally requested policy that covers
+       each action (wildcard-aware). Groups actions by distinct Resource value.
+    3. Excludes actions not covered by any requested statement (recorded in unmatched_actions).
+    4. Refuses forbid statements.
+
+    Returns (result_dict, start_iso, end_iso).
+    result_dict keys:
+      - iam_policy (Dict[str, Any]): standard IAM policy JSON dict
+      - action_mappings_applied (List[Dict[str, str]]): list of {"original": str, "mapped": str}
+      - unmatched_actions (List[str]): actions dropped because they had no matching requested statement
+    """
+    start_iso = _now_iso()
+
+    # Rule 4: Refuse forbid statements
+    if "forbid" in cedar_policy_text:
+        raise ValueError(
+            "Translator refused: Cedar policy contains 'forbid' statement. "
+            "Only verified 'permit' statements can be translated to IAM Allow policies."
+        )
+
+    # Parse requested policy
+    req_doc = requested_policy
+    if isinstance(req_doc, str):
+        try:
+            req_doc = json.loads(req_doc)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Requested policy is not valid JSON: {req_doc[:200]}") from exc
+
+    req_statements = req_doc.get("Statement", []) if isinstance(req_doc, dict) else []
+    if isinstance(req_statements, dict):
+        req_statements = [req_statements]
+
+    # Extract actions from Cedar policy
+    extracted_actions = _extract_cedar_actions(cedar_policy_text)
+
+    action_mappings_applied: List[Dict[str, str]] = []
+    mapped_actions: List[Tuple[str, str]] = []  # (original, mapped)
+
+    for act in sorted(set(extracted_actions)):
+        if act == "none":
+            continue
+        mapped = CLOUDTRAIL_TO_IAM_ACTION_MAP.get(act, act)
+        if mapped != act:
+            action_mappings_applied.append({"original": act, "mapped": mapped})
+        mapped_actions.append((act, mapped))
+
+    # Match each mapped action to the requested policy statement's Resource
+    resource_to_actions: Dict[str, List[str]] = {}
+    resource_raw_map: Dict[str, Any] = {}
+    unmatched_actions: List[str] = []
+
+    for orig_act, mapped_act in mapped_actions:
+        matched_resource = None
+        # Check against requested statements
+        for stmt in req_statements:
+            if not isinstance(stmt, dict):
+                continue
+            if stmt.get("Effect", "Allow") != "Allow":
+                continue
+            stmt_actions = stmt.get("Action", [])
+            if isinstance(stmt_actions, str):
+                stmt_actions = [stmt_actions]
+
+            # Check if mapped action or original action matches any statement action pattern
+            if any(_action_matches_pattern(mapped_act, pat) or _action_matches_pattern(orig_act, pat) for pat in stmt_actions):
+                matched_resource = stmt.get("Resource", "*")
+                break
+
+        if matched_resource is not None:
+            # Canonicalize key for grouping
+            res_key = json.dumps(matched_resource, sort_keys=True)
+            if res_key not in resource_to_actions:
+                resource_to_actions[res_key] = []
+                resource_raw_map[res_key] = matched_resource
+            resource_to_actions[res_key].append(mapped_act)
+        else:
+            unmatched_actions.append(mapped_act)
+
+    if not resource_to_actions:
+        raise ValueError(
+            "Translator error: zero actions could be matched to requested policy statements. "
+            f"Unmatched actions: {unmatched_actions}"
+        )
+
+    # Build IAM Policy Document
+    statements: List[Dict[str, Any]] = []
+    stmt_idx = 1
+    for res_key, actions in sorted(resource_to_actions.items()):
+        raw_res = resource_raw_map[res_key]
+        statements.append({
+            "Sid": f"CedarSentinelTightenedStmt{stmt_idx}",
+            "Effect": "Allow",
+            "Action": sorted(set(actions)),
+            "Resource": raw_res,
+        })
+        stmt_idx += 1
+
+    iam_policy = {
+        "Version": "2012-10-17",
+        "Statement": statements,
+    }
+
+    end_iso = _now_iso()
+    result = {
+        "iam_policy": iam_policy,
+        "action_mappings_applied": action_mappings_applied,
+        "unmatched_actions": unmatched_actions,
+    }
+    return result, start_iso, end_iso
+
+
+# ─────────────────────────────────────────────────────────────────
+# Stage 6 — IAM Access Analyzer Independent Safety Net
+# ─────────────────────────────────────────────────────────────────
+
+def stage_access_analyzer(
+    iam_policy: Dict[str, Any],
+    requested_policy: Any,
+    region: str,
+) -> Tuple[Dict[str, Any], str, str]:
+    """
+    Validates translated IAM policy with IAM Access Analyzer:
+    1. ValidatePolicy (policyType=IDENTITY_POLICY):
+       - ERROR findings -> hard-blocking (passed=False, reason='VALIDATION_ERROR')
+       - SECURITY_WARNING / WARNING / SUGGESTION -> non-blocking, stored for diff
+    2. CheckNoNewAccess (comparing translated IAM policy vs requested IAM policy):
+       - result == 'FAIL' -> hard-blocking (passed=False, reason='NEW_ACCESS')
+       - result == 'PASS' -> passing
+
+    Returns (result_dict, start_iso, end_iso).
+    """
+    start_iso = _now_iso()
+    client = boto3.client("accessanalyzer", region_name=region)
+
+    iam_policy_str = json.dumps(iam_policy) if not isinstance(iam_policy, str) else iam_policy
+    req_doc_str = json.dumps(requested_policy) if not isinstance(requested_policy, str) else requested_policy
+
+    # 1. ValidatePolicy
+    validate_resp = client.validate_policy(
+        policyDocument=iam_policy_str,
+        policyType="IDENTITY_POLICY",
+    )
+    findings = validate_resp.get("findings", [])
+    errors = [f for f in findings if f.get("findingType") == "ERROR"]
+
+    if errors:
+        end_iso = _now_iso()
+        return (
+            {
+                "passed": False,
+                "reason": "VALIDATION_ERROR",
+                "findings": findings,
+                "check_no_new_access": None,
+                "messages": [
+                    f"Access Analyzer validation error: {e.get('findingDetails')} ({e.get('issueCode')})"
+                    for e in errors
+                ],
+            },
+            start_iso,
+            end_iso,
+        )
+
+    # 2. CheckNoNewAccess
+    check_resp = client.check_no_new_access(
+        newPolicyDocument=iam_policy_str,
+        existingPolicyDocument=req_doc_str,
+        policyType="IDENTITY_POLICY",
+    )
+    check_result = check_resp.get("result", "PASS")
+    reasons = check_resp.get("reasons", [])
+
+    if check_result == "FAIL":
+        end_iso = _now_iso()
+        return (
+            {
+                "passed": False,
+                "reason": "NEW_ACCESS",
+                "findings": findings,
+                "check_no_new_access": {
+                    "result": check_result,
+                    "reasons": reasons,
+                    "message": check_resp.get("message", ""),
+                },
+                "messages": [
+                    f"Access Analyzer detected new access granted: {r.get('description', '')}"
+                    for r in reasons
+                ] or ["Access Analyzer determined new policy grants permissions beyond the existing policy."],
+            },
+            start_iso,
+            end_iso,
+        )
+
+    end_iso = _now_iso()
+    return (
+        {
+            "passed": True,
+            "reason": None,
+            "findings": findings,
+            "check_no_new_access": {
+                "result": check_result,
+                "reasons": reasons,
+                "message": check_resp.get("message", ""),
+            },
+            "messages": ["Access Analyzer validation passed (no errors, no new access)."],
+        },
         start_iso,
         end_iso,
     )
@@ -770,7 +1086,7 @@ def stage_cedar_validation(
 def write_result(
     table_name: str,
     request_id: str,
-    status: str,  # COMPLETE | BLOCKED | ERROR
+    status: str,  # COMPLETE | BLOCKED | CEDAR_INVALID | ANALYZER_INVALID | DECLINED | APPLIED | APPLIED_UNVERIFIED | APPLY_FAILED | ERROR
     region: str,
     role_arn: Optional[str] = None,
     observed_actions: Optional[Dict[str, int]] = None,
@@ -780,6 +1096,11 @@ def write_result(
     requested_policy: Optional[Any] = None,
     coverage_check: Optional[Dict] = None,
     cedar_validation: Optional[Dict] = None,
+    iam_policy: Optional[Any] = None,
+    action_mappings_applied: Optional[List[Dict[str, str]]] = None,
+    unmatched_actions: Optional[List[str]] = None,
+    guard_removed_actions: Optional[List[str]] = None,
+    analyzer_validation: Optional[Dict] = None,
     stage_timings: Optional[List[Dict]] = None,
     error_message: Optional[str] = None,
 ) -> None:
@@ -831,6 +1152,31 @@ def write_result(
             "policy_store_id": cedar_validation.get("policy_store_id", ""),
         }
 
+    if iam_policy is not None:
+        item["iam_policy"] = (
+            json.dumps(iam_policy)
+            if not isinstance(iam_policy, str)
+            else iam_policy
+        )
+
+    if action_mappings_applied is not None:
+        item["action_mappings_applied"] = action_mappings_applied
+
+    if unmatched_actions is not None:
+        item["unmatched_actions"] = unmatched_actions
+
+    if guard_removed_actions is not None:
+        item["guard_removed_actions"] = guard_removed_actions
+
+    if analyzer_validation is not None:
+        item["analyzer_validation"] = {
+            "passed": analyzer_validation.get("passed", False),
+            "reason": analyzer_validation.get("reason"),
+            "findings": analyzer_validation.get("findings", []),
+            "check_no_new_access": analyzer_validation.get("check_no_new_access"),
+            "messages": analyzer_validation.get("messages", []),
+        }
+
     if error_message is not None:
         item["error_message"] = error_message
 
@@ -845,8 +1191,8 @@ def write_result(
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Processes a single SQS message containing an EventBridge event from the CLI.
-    Runs the four-stage reasoning + verification pipeline and writes the result
-    to DynamoDB so the CLI can poll and display it.
+    Runs the multi-stage reasoning, verification, translation, and Access Analyzer
+    pipeline and writes the result to DynamoDB so the CLI can poll and display it.
     """
     records = event.get("Records", [])
     logger.info("Received SQS batch with %d record(s).", len(records))
@@ -894,6 +1240,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         bedrock_result: Dict[str, Any] = {}
         coverage_result: Dict[str, Any] = {}
         cedar_result: Dict[str, Any] = {}
+        translation_result: Dict[str, Any] = {}
+        analyzer_result: Dict[str, Any] = {}
 
         reevaluate_hint = detail.get("reevaluate_hint", "")
 
@@ -933,6 +1281,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             cedar_policy_text: str = bedrock_result.get("cedar_policy", "")
             rationale: str = bedrock_result.get("rationale", "")
             model_used: str = bedrock_result.get("model_used", BEDROCK_MODEL_ID)
+            guard_removed_actions: List[str] = bedrock_result.get("guard_removed_actions", [])
 
             # ── Stage 3: Coverage / lockout check ──────────────────
             coverage_result, s3_start, s3_end = stage_coverage_check(
@@ -961,6 +1310,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     requested_policy=requested_policy,
                     coverage_check=coverage_result,
                     cedar_validation=None,
+                    guard_removed_actions=guard_removed_actions,
                     stage_timings=stage_timings + [
                         {"stage": "cedar_validation", "start": _now_iso(), "end": _now_iso(), "skipped": True}
                     ],
@@ -978,15 +1328,63 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 {"stage": "cedar_validation", "start": s4_start, "end": s4_end}
             )
 
-            # ── Write final result ──────────────────────────────────
-            final_status = "COMPLETE" if cedar_result.get("passed", False) else "CEDAR_INVALID"
-            if final_status == "CEDAR_INVALID":
+            if not cedar_result.get("passed", False):
                 logger.warning(
                     "Cedar validation failed for request_id='%s'. Writing status 'CEDAR_INVALID'. Messages: %s",
                     request_id,
                     cedar_result.get("messages", []),
                 )
+                write_result(
+                    table_name=RESULTS_TABLE_NAME,
+                    request_id=request_id,
+                    status="CEDAR_INVALID",
+                    region=aws_region,
+                    role_arn=role_arn,
+                    observed_actions=observed_actions,
+                    cedar_policy=cedar_policy_text,
+                    rationale=rationale,
+                    model_used=model_used,
+                    requested_policy=requested_policy,
+                    coverage_check=coverage_result,
+                    cedar_validation=cedar_result,
+                    guard_removed_actions=guard_removed_actions,
+                    stage_timings=stage_timings,
+                )
+                continue
 
+            # ── Stage 5: Cedar -> IAM Policy Translation ───────────
+            translation_result, s5_start, s5_end = stage_iam_translation(
+                cedar_policy_text=cedar_policy_text,
+                requested_policy=requested_policy,
+            )
+            stage_timings.append(
+                {"stage": "iam_translation", "start": s5_start, "end": s5_end}
+            )
+
+            iam_policy = translation_result.get("iam_policy", {})
+            action_mappings = translation_result.get("action_mappings_applied", [])
+            unmatched = translation_result.get("unmatched_actions", [])
+
+            # ── Stage 6: IAM Access Analyzer Safety Check ──────────
+            analyzer_result, s6_start, s6_end = stage_access_analyzer(
+                iam_policy=iam_policy,
+                requested_policy=requested_policy,
+                region=aws_region,
+            )
+            stage_timings.append(
+                {"stage": "analyzer_validation", "start": s6_start, "end": s6_end}
+            )
+
+            final_status = "COMPLETE" if analyzer_result.get("passed", False) else "ANALYZER_INVALID"
+            if final_status == "ANALYZER_INVALID":
+                logger.warning(
+                    "Access Analyzer validation failed for request_id='%s'. Reason: %s, Messages: %s",
+                    request_id,
+                    analyzer_result.get("reason"),
+                    analyzer_result.get("messages", []),
+                )
+
+            # Write complete result to DynamoDB
             write_result(
                 table_name=RESULTS_TABLE_NAME,
                 request_id=request_id,
@@ -1000,6 +1398,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 requested_policy=requested_policy,
                 coverage_check=coverage_result,
                 cedar_validation=cedar_result,
+                iam_policy=iam_policy,
+                action_mappings_applied=action_mappings,
+                unmatched_actions=unmatched,
+                guard_removed_actions=guard_removed_actions,
+                analyzer_validation=analyzer_result,
                 stage_timings=stage_timings,
             )
 
@@ -1016,12 +1419,18 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 rationale=bedrock_result.get("rationale"),
                 requested_policy=requested_policy,
                 coverage_check=coverage_result or None,
-                cedar_validation=None,
+                cedar_validation=cedar_result or None,
+                iam_policy=translation_result.get("iam_policy") if translation_result else None,
+                action_mappings_applied=translation_result.get("action_mappings_applied") if translation_result else None,
+                unmatched_actions=translation_result.get("unmatched_actions") if translation_result else None,
+                guard_removed_actions=bedrock_result.get("guard_removed_actions", []),
+                analyzer_validation=analyzer_result or None,
                 stage_timings=stage_timings,
                 error_message=str(exc),
             )
 
     return {
         "statusCode": 200,
-        "body": json.dumps({"message": "Phase 2 pipeline batch processed", "records": len(records)}),
+        "body": json.dumps({"message": "Phase 3 pipeline batch processed", "records": len(records)}),
     }
+
