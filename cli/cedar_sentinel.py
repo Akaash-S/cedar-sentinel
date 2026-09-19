@@ -209,7 +209,7 @@ def poll_results_table(
 # Result rendering
 # ─────────────────────────────────────────────────────────────────
 
-def _render_before_after_diff(requested_policy: Any, cedar_policy: str) -> None:
+def _render_before_after_diff(requested_policy: Any, cedar_policy: str, model_used: str = "") -> None:
     """Prints a before/after diff of requested IAM policy vs. drafted Cedar policy."""
     print("\n" + "=" * 60)
     print("  BEFORE — Requested IAM Policy (from Terraform plan)")
@@ -223,6 +223,8 @@ def _render_before_after_diff(requested_policy: Any, cedar_policy: str) -> None:
 
     print("\n" + "=" * 60)
     print("  AFTER  — Drafted Cedar Policy (Bedrock reasoning output)")
+    if model_used:
+        print(f"  Reasoned by: {model_used}")
     print("=" * 60)
     print(cedar_policy)
 
@@ -232,6 +234,7 @@ def _render_complete_result(item: Dict[str, Any]) -> None:
     requested_policy_raw = item.get("requested_policy")
     cedar_policy = item.get("cedar_policy", "(no Cedar policy returned)")
     rationale = item.get("rationale", "")
+    model_used = item.get("model_used", "")
     coverage = item.get("coverage_check", {})
     cedar_val = item.get("cedar_validation", {})
 
@@ -240,7 +243,7 @@ def _render_complete_result(item: Dict[str, Any]) -> None:
     except Exception:
         requested_policy = requested_policy_raw
 
-    _render_before_after_diff(requested_policy, cedar_policy)
+    _render_before_after_diff(requested_policy, cedar_policy, model_used=model_used)
 
     print("\n" + "-" * 60)
     print("  RATIONALE")
@@ -468,6 +471,23 @@ def handle_analyze(args: argparse.Namespace) -> int:
         )
         return 1
 
+    # ── Self-analysis guard (Section 2 fix) ───────────────────────────────────
+    # If the target role matches Cedar Sentinel's own Lambda execution role, the
+    # analysis would reflect the tool's own AWS calls, not a real workload's.
+    lambda_exec_role_arn = os.environ.get("LAMBDA_EXECUTION_ROLE_ARN", "").strip()
+    if lambda_exec_role_arn and args.role_arn.strip() == lambda_exec_role_arn:
+        if not getattr(args, "allow_self_analysis", False):
+            print(
+                "[WARNING] Target role matches Cedar Sentinel's own execution role — results will reflect\n"
+                "the tool's own AWS calls, not a real workload.",
+                file=sys.stderr,
+            )
+            print(
+                "Pass --allow-self-analysis to proceed anyway (not recommended for real analysis).",
+                file=sys.stderr,
+            )
+            return 1
+
     effective_bus = bus_name or "cedar-sentinel-events"
     source = args.source or "cedar.sentinel"
     request_id = str(uuid.uuid4())
@@ -587,6 +607,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--source",
         default="cedar.sentinel",
         help="EventBridge event source (default: cedar.sentinel)",
+    )
+    parser_analyze.add_argument(
+        "--allow-self-analysis",
+        action="store_true",
+        dest="allow_self_analysis",
+        help="Allow analysis of Cedar Sentinel's own Lambda execution role (not recommended; for testing only)",
     )
     parser_analyze.set_defaults(func=handle_analyze)
 

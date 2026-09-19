@@ -29,12 +29,14 @@ logger.setLevel(logging.INFO)
 # Environment / config
 # ─────────────────────────────────────────────────────────────────
 RESULTS_TABLE_NAME = os.environ.get("RESULTS_TABLE_NAME", "cedar-sentinel-results")
-BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-sonnet-4-6")
+BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "apac.amazon.nova-lite-v1:0")
 CLOUDWATCH_LOG_GROUP_NAME = os.environ.get("CLOUDWATCH_LOG_GROUP_NAME", "")
 AVP_POLICY_STORE_SSM_PARAM = os.environ.get(
     "AVP_POLICY_STORE_SSM_PARAM", "/cedar-sentinel/dev/avp-policy-store-id"
 )
 AVP_REGION = os.environ.get("AVP_REGION", os.environ.get("AWS_REGION", "ap-south-1"))
+# ARN of Cedar Sentinel's own Lambda execution role — used to reject self-analysis
+LAMBDA_EXECUTION_ROLE_ARN = os.environ.get("LAMBDA_EXECUTION_ROLE_ARN", "")
 
 # Cedar Sentinel namespace used in all Cedar policies and schemas
 CS_NAMESPACE = "CedarSentinel"
@@ -90,9 +92,11 @@ def stage_cloudwatch_query(
     # the underlying role ARN in userIdentity.sessionContext.sessionIssuer.arn.
     # We match against the session issuer field to reliably identify all sessions
     # that used the target role, regardless of session name.
+    # We also capture eventSource so the caller can derive the service prefix
+    # (e.g. "s3.amazonaws.com" → "s3") for correct Cedar action labels.
     query_string = (
         f'filter userIdentity.sessionContext.sessionIssuer.arn = "{role_arn}" '
-        f"| stats count(*) as call_count by eventName "
+        f"| stats count(*) as call_count by eventName, eventSource "
         f"| sort call_count desc "
         f"| limit 200"
     )
@@ -125,17 +129,25 @@ def stage_cloudwatch_query(
         client.stop_query(queryId=query_id)
         raise TimeoutError(f"CloudWatch Insights query {query_id} timed out after {CWL_QUERY_TIMEOUT_SECONDS}s")
 
-    # Parse results into {eventName: count} map
+    # Parse results into {"service:EventName": count} map.
+    # CloudTrail's eventSource is like "s3.amazonaws.com" — strip the ".amazonaws.com"
+    # suffix to get the service prefix, then compose "service:EventName" so Cedar labels
+    # are correct from the start (fixes the ssm:* / verifiedpermissions:* mislabeling bug).
     observed: Dict[str, int] = {}
     for row in result_resp.get("results", []):
         row_dict = {field["field"]: field["value"] for field in row}
         event_name = row_dict.get("eventName", "").strip()
+        event_source = row_dict.get("eventSource", "").strip()
         count_str = row_dict.get("call_count", "0").strip()
         if event_name:
+            # Derive service prefix: "verifiedpermissions.amazonaws.com" → "verifiedpermissions"
+            service_prefix = event_source.replace(".amazonaws.com", "").replace(".aws", "")
+            # Compose as "service:EventName" if we have a prefix, else keep bare eventName
+            key = f"{service_prefix}:{event_name}" if service_prefix else event_name
             try:
-                observed[event_name] = int(float(count_str))
+                observed[key] = int(float(count_str))
             except ValueError:
-                observed[event_name] = 0
+                observed[key] = 0
 
     logger.info("CloudWatch query complete. Observed %d distinct API actions.", len(observed))
     end_iso = _now_iso()
@@ -152,8 +164,26 @@ def _invoke_bedrock_model_raw(
     system_prompt: str,
     user_message: str,
 ) -> str:
-    """Invokes a Bedrock model (Anthropic, Meta Llama, or Mistral) and returns raw output string."""
-    if "anthropic" in model_id:
+    """Invokes a Bedrock model (Nova Lite, Anthropic, Meta Llama, or Mistral) and returns raw output string."""
+    if "nova" in model_id or "amazon" in model_id.split("/")[-1]:
+        # Amazon Nova models use the Converse-compatible messages API
+        body = json.dumps({
+            "messages": [{"role": "user", "content": [{"text": f"{system_prompt}\n\n{user_message}"}]}],
+            "inferenceConfig": {
+                "maxTokens": BEDROCK_MAX_TOKENS,
+                "temperature": 0.1,
+            },
+        })
+        response = client.invoke_model(
+            modelId=model_id,
+            contentType="application/json",
+            accept="application/json",
+            body=body,
+        )
+        response_body = json.loads(response["body"].read())
+        return response_body["output"]["message"]["content"][0]["text"].strip()
+
+    elif "anthropic" in model_id:
         body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": BEDROCK_MAX_TOKENS,
@@ -207,12 +237,13 @@ def _invoke_bedrock_model_raw(
         return outputs[0].get("text", "").strip() if outputs else ""
 
     else:
-        # Generic payload
+        # Generic fallback — try Nova-style messages API
         body = json.dumps({
-            "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": BEDROCK_MAX_TOKENS,
-            "system": system_prompt,
-            "messages": [{"role": "user", "content": user_message}],
+            "messages": [{"role": "user", "content": [{"text": f"{system_prompt}\n\n{user_message}"}]}],
+            "inferenceConfig": {
+                "maxTokens": BEDROCK_MAX_TOKENS,
+                "temperature": 0.1,
+            },
         })
         response = client.invoke_model(
             modelId=model_id,
@@ -221,7 +252,7 @@ def _invoke_bedrock_model_raw(
             body=body,
         )
         response_body = json.loads(response["body"].read())
-        return response_body["content"][0]["text"].strip()
+        return response_body["output"]["message"]["content"][0]["text"].strip()
 
 
 def stage_bedrock_call(
@@ -236,10 +267,10 @@ def stage_bedrock_call(
 
     Inputs:
       - requested_policy: the IAM policy document extracted from the Terraform plan
-      - observed_actions:  {eventName: count} from Stage 1
+      - observed_actions:  {"service:EventName": count} from Stage 1 (already prefixed)
       - reevaluate_hint: optional hint from Option [3] retry
 
-    Returns ({"cedar_policy": str, "rationale": str}, start_iso, end_iso).
+    Returns ({"cedar_policy": str, "rationale": str, "model_used": str}, start_iso, end_iso).
     """
     start_iso = _now_iso()
     client = boto3.client("bedrock-runtime", region_name=region)
@@ -265,7 +296,7 @@ def stage_bedrock_call(
         "}\n\n"
         "Rules:\n"
         f"1. 'cedar_policy' MUST be a STRING (not a nested JSON object), containing valid Cedar syntax.\n"
-        f"2. Every action must be formatted as '{CS_NAMESPACE}::Action::\"service:ActionName\"'.\n"
+        f"2. Every action must be formatted as '{CS_NAMESPACE}::Action::\"service:ActionName\"' — the service prefix is already included in each observed action string.\n"
         "3. Every observed action MUST be preserved in the draft policy actions array.\n"
         "4. Do NOT include markdown fences, code blocks, or text outside the JSON."
     )
@@ -285,16 +316,19 @@ def stage_bedrock_call(
     logger.info("Invoking Bedrock model '%s' for Cedar policy reasoning.", model_id)
 
     raw_text = ""
+    actual_model_used = model_id
     try:
         raw_text = _invoke_bedrock_model_raw(client, model_id, system_prompt, user_message)
+        logger.info("BEDROCK MODEL USED: %s", model_id)
     except Exception as exc:
         err_str = str(exc)
         logger.warning("Primary Bedrock model %s failed: %s", model_id, err_str)
-        # If marketplace subscription or model access fails on primary model, fallback to Llama 3 70B
+        # Fallback to Meta Llama 3 70B if primary model is unavailable
         fallback_model = "meta.llama3-70b-instruct-v1:0"
         if model_id != fallback_model:
-            logger.info("Attempting fallback reasoning call with '%s'...", fallback_model)
+            logger.warning("FALLBACK MODEL USED: %s (primary model %s unavailable)", fallback_model, model_id)
             raw_text = _invoke_bedrock_model_raw(client, fallback_model, system_prompt, user_message)
+            actual_model_used = fallback_model
         else:
             raise
 
@@ -319,6 +353,8 @@ def stage_bedrock_call(
 
     # Normalize cedar_policy to string if it was returned as a dict/list
     parsed["cedar_policy"] = _normalize_cedar_policy_text(parsed["cedar_policy"])
+    # Attach the model that actually served this request
+    parsed["model_used"] = actual_model_used
 
     end_iso = _now_iso()
     return parsed, start_iso, end_iso
@@ -620,6 +656,7 @@ def write_result(
     observed_actions: Optional[Dict[str, int]] = None,
     cedar_policy: Optional[str] = None,
     rationale: Optional[str] = None,
+    model_used: Optional[str] = None,
     requested_policy: Optional[Any] = None,
     coverage_check: Optional[Dict] = None,
     cedar_validation: Optional[Dict] = None,
@@ -650,6 +687,9 @@ def write_result(
 
     if rationale is not None:
         item["rationale"] = rationale
+
+    if model_used is not None:
+        item["model_used"] = model_used
 
     if requested_policy is not None:
         item["requested_policy"] = (
@@ -772,6 +812,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
             cedar_policy_text: str = bedrock_result.get("cedar_policy", "")
             rationale: str = bedrock_result.get("rationale", "")
+            model_used: str = bedrock_result.get("model_used", BEDROCK_MODEL_ID)
 
             # ── Stage 3: Coverage / lockout check ──────────────────
             coverage_result, s3_start, s3_end = stage_coverage_check(
@@ -796,6 +837,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     observed_actions=observed_actions,
                     cedar_policy=cedar_policy_text,
                     rationale=rationale,
+                    model_used=model_used,
                     requested_policy=requested_policy,
                     coverage_check=coverage_result,
                     cedar_validation=None,
@@ -826,6 +868,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 observed_actions=observed_actions,
                 cedar_policy=cedar_policy_text,
                 rationale=rationale,
+                model_used=model_used,
                 requested_policy=requested_policy,
                 coverage_check=coverage_result,
                 cedar_validation=cedar_result,

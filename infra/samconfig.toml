@@ -21,5 +21,5 @@ confirm_changeset = false
 resolve_s3 = true
 stack_name = "cedar-sentinel-infra"
 region = "ap-south-1"
-parameter_overrides = "EventBusName=\"cedar-sentinel-events\" DynamoDBTableName=\"cedar-sentinel-results\" BedrockModelId=\"global.anthropic.claude-sonnet-4-6\" CloudWatchLogGroupName=\"<YOUR_CLOUDTRAIL_LOG_GROUP>\" AVPPolicyStoreSSMParam=\"/cedar-sentinel/dev/avp-policy-store-id\""
+parameter_overrides = "EventBusName=\"cedar-sentinel-events\" DynamoDBTableName=\"cedar-sentinel-results\" BedrockModelId=\"apac.amazon.nova-lite-v1:0\" CloudWatchLogGroupName=\"<YOUR_CLOUDTRAIL_LOG_GROUP>\" AVPPolicyStoreSSMParam=\"/cedar-sentinel/dev/avp-policy-store-id\""
 image_repositories = []
