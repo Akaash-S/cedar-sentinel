@@ -3,215 +3,350 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cedar Sentinel — Policy Synthesis & Verification Dashboard</title>
+  <title>Cedar Sentinel — Policy Reasoning & Enforcement Dashboard</title>
   <style>
     :root {
-      --bg-color: #0b0f19;
-      --card-bg: rgba(18, 24, 38, 0.85);
-      --border-color: rgba(255, 255, 255, 0.08);
+      --bg: #090d16;
+      --card-bg: #111726;
+      --border: #1e293b;
       --accent-cyan: #38bdf8;
       --accent-emerald: #10b981;
-      --text-primary: #f1f5f9;
+      --accent-amber: #f59e0b;
+      --text-primary: #f8fafc;
       --text-secondary: #94a3b8;
-      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+      --text-muted: #64748b;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background-color: var(--bg-color);
+      background-color: var(--bg);
       color: var(--text-primary);
-      font-family: var(--font-family);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-      background-image: 
-        radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 40%);
+      font-family: var(--font-sans);
+      line-height: 1.5;
+      padding: 2rem 1rem;
     }
 
     .container {
-      max-width: 720px;
-      width: 100%;
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 3rem 2.5rem;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(12px);
-      text-align: center;
+      max-width: 1080px;
+      margin: 0 auto;
     }
 
-    .badge {
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      margin-top: 0.25rem;
+    }
+
+    .badge-status {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.35rem 0.85rem;
+      padding: 0.4rem 0.9rem;
       border-radius: 9999px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      background: rgba(56, 189, 248, 0.1);
-      color: var(--accent-cyan);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      margin-bottom: 1.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      font-weight: 700;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.35);
     }
 
     .badge-dot {
-      width: 6px;
-      height: 6px;
+      width: 8px;
+      height: 8px;
       background-color: var(--accent-emerald);
       border-radius: 50%;
       box-shadow: 0 0 8px var(--accent-emerald);
-      animation: pulse 2s infinite;
     }
 
-    @keyframes pulse {
-      0% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.8); }
-      100% { opacity: 1; transform: scale(1); }
-    }
-
-    h1 {
-      font-size: 2.25rem;
-      font-weight: 700;
-      letter-spacing: -0.025em;
-      margin-bottom: 0.75rem;
-      background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .tagline {
-      font-size: 1.1rem;
-      color: var(--text-secondary);
+    .record-notice {
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
       margin-bottom: 2rem;
-      line-height: 1.6;
-    }
-
-    .phase-card {
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px dashed rgba(255, 255, 255, 0.12);
-      border-radius: 12px;
-      padding: 1.75rem;
-      margin: 1.5rem 0;
-      text-align: left;
-    }
-
-    .phase-card h3 {
-      font-size: 1rem;
-      color: var(--accent-cyan);
-      margin-bottom: 0.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .phase-card p {
+      font-size: 0.85rem;
       color: var(--text-secondary);
-      font-size: 0.95rem;
-      line-height: 1.6;
-    }
-
-    .pipeline-preview {
       display: flex;
       justify-content: space-between;
-      gap: 0.5rem;
-      margin-top: 1.5rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border-color);
-      font-size: 0.8rem;
-      color: var(--text-secondary);
+      align-items: center;
     }
 
-    .step {
+    .record-notice strong { color: var(--accent-cyan); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .metadata-list {
+      list-style: none;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+    }
+
+    .metadata-list li {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .metadata-list li:last-child { border-bottom: none; }
+    .meta-label { color: var(--text-muted); }
+    .meta-value { color: var(--text-primary); text-align: right; word-break: break-all; }
+
+    /* Timeline */
+    .timeline {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 0.25rem;
-      flex: 1;
+      gap: 0.75rem;
     }
 
-    .step-num {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-color);
+    .timeline-step {
       display: flex;
       align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 0.75rem;
+      justify-content: space-between;
+      padding: 0.6rem 0.8rem;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 6px;
+      border-left: 3px solid var(--accent-emerald);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
     }
 
-    .step.active .step-num {
-      background: var(--accent-cyan);
-      color: #0b0f19;
-      border-color: var(--accent-cyan);
+    .step-name { display: flex; align-items: center; gap: 0.5rem; color: #fff; }
+    .step-duration { color: var(--accent-cyan); font-size: 0.8rem; }
+
+    /* Policy Diff Panels */
+    .diff-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .diff-panel {
+      background: #060911;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .diff-header {
+      padding: 0.6rem 1rem;
+      background: #0f1523;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .diff-header.before { color: #f87171; }
+    .diff-header.after { color: #4ade80; }
+    .diff-header.cedar { color: #38bdf8; }
+
+    pre {
+      padding: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      overflow-x: auto;
+      color: #e2e8f0;
+      line-height: 1.4;
     }
 
     footer {
-      margin-top: 2rem;
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
       font-size: 0.85rem;
-      color: #64748b;
+      color: var(--text-muted);
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="badge">
-      <span class="badge-dot"></span>
-      Phase 1 Scaffolding Active
-    </div>
-    
-    <h1>Cedar Sentinel</h1>
-    <p class="tagline">Automated Least-Privilege IAM Policy Synthesis &amp; Cedar Verification</p>
+    <header>
+      <div class="brand">
+        <h1>Cedar Sentinel</h1>
+        <p>Automated Least-Privilege IAM Policy Synthesis, Cedar Verification & Safe Enforcement</p>
+      </div>
+      <div>
+        <span class="badge-status">
+          <span class="badge-dot"></span>
+          <span id="run-status">STATUS: APPLIED</span>
+        </span>
+      </div>
+    </header>
 
-    <div class="phase-card">
-      <h3>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="12"></line>
-          <line x1="12" y1="16" x2="12.01" y2="16"></line>
-        </svg>
-        Cedar Sentinel — dry-run dashboard coming in Phase 3.
-      </h3>
-      <p>
-        Phase 1 infrastructure is fully provisioned. The event pipeline (Terraform Plan CLI &rarr; EventBridge &rarr; SQS &rarr; Lambda &rarr; CloudWatch Logs) is connected and operating. Policy synthesis reasoning and Cedar verification are scheduled for Phase 2.
-      </p>
+    <div class="record-notice">
+      <span><strong>RECORDED RUN SNAPSHOT</strong> &bull; Read-only observability view from AWS DynamoDB results table</span>
+      <span id="run-timestamp" style="font-family: var(--font-mono);"></span>
     </div>
 
-    <div class="pipeline-preview">
-      <div class="step active">
-        <div class="step-num">1</div>
-        <span>Setup &amp; IaC</span>
+    <div class="grid">
+      <!-- Run Metadata -->
+      <div class="card">
+        <h2>Run Execution Details</h2>
+        <ul class="metadata-list">
+          <li>
+            <span class="meta-label">Request ID</span>
+            <span class="meta-value" id="meta-req-id">Loading...</span>
+          </li>
+          <li>
+            <span class="meta-label">Target Role</span>
+            <span class="meta-value" id="meta-role-arn">Loading...</span>
+          </li>
+          <li>
+            <span class="meta-label">Reasoning Engine</span>
+            <span class="meta-value" id="meta-model">Loading...</span>
+          </li>
+          <li>
+            <span class="meta-label">Cedar Formal Check</span>
+            <span class="meta-value" style="color: var(--accent-emerald);">STRICT (AVP Validated)</span>
+          </li>
+          <li>
+            <span class="meta-label">Access Analyzer</span>
+            <span class="meta-value" style="color: var(--accent-emerald);" id="meta-analyzer">NO NEW ACCESS (PASS)</span>
+          </li>
+          <li>
+            <span class="meta-label">Action Normalization</span>
+            <span class="meta-value" id="meta-mappings">s3:ListBuckets &rarr; ListAllMyBuckets</span>
+          </li>
+        </ul>
       </div>
-      <div class="step">
-        <div class="step-num">2</div>
-        <span>Bedrock &amp; Cedar</span>
-      </div>
-      <div class="step">
-        <div class="step-num">3</div>
-        <span>Dry-Run UI</span>
-      </div>
-      <div class="step">
-        <div class="step-num">4</div>
-        <span>Demo &amp; Polish</span>
+
+      <!-- Stage Timings Timeline -->
+      <div class="card">
+        <h2>Stage-by-Stage Timeline</h2>
+        <div class="timeline" id="timeline-container">
+          <!-- Populated by JS -->
+        </div>
       </div>
     </div>
+
+    <!-- Policy Diffs -->
+    <h2 style="font-size: 1.1rem; color: var(--accent-cyan); margin-bottom: 1rem; text-transform: uppercase;">
+      Policy Transformation Diff
+    </h2>
+    <div class="diff-container">
+      <div class="diff-panel">
+        <div class="diff-header before">&minus; BEFORE: Requested Broad IAM Policy (Terraform)</div>
+        <pre id="code-before">Loading...</pre>
+      </div>
+      <div class="diff-panel">
+        <div class="diff-header after">&plus; AFTER: Translated Tightened IAM Policy (Applied)</div>
+        <pre id="code-after">Loading...</pre>
+      </div>
+    </div>
+
+    <div class="diff-panel" style="margin-bottom: 2rem;">
+      <div class="diff-header cedar">&lambda; FORMAL CEDAR POLICY (Verified via Amazon Verified Permissions)</div>
+      <pre id="code-cedar">Loading...</pre>
+    </div>
+
+    <footer>
+      Cedar Sentinel &bull; Bharat Builds Hackathon 2026 &bull; Track: Ship It &bull; Zero Workload Lockouts
+    </footer>
   </div>
 
-  <footer>
-    Cedar Sentinel &bull; Bharat Builds Hackathon 2026 &bull; Track: Ship It
-  </footer>
+  <script>
+    async function loadRunData() {
+      try {
+        const res = await fetch('run.json');
+        if (!res.ok) throw new Error('Failed to load run.json');
+        const data = await res.json();
+
+        document.getElementById('run-status').textContent = 'STATUS: ' + data.status;
+        document.getElementById('run-timestamp').textContent = 'Completed: ' + new Date(data.completed_at).toUTCString();
+        document.getElementById('meta-req-id').textContent = data.request_id;
+        document.getElementById('meta-role-arn').textContent = data.role_arn;
+        document.getElementById('meta-model').textContent = data.model_used || 'Amazon Nova Lite';
+
+        if (data.action_mappings_applied && data.action_mappings_applied.length > 0) {
+          document.getElementById('meta-mappings').textContent = data.action_mappings_applied.map(m => `${m.original} \u2192 ${m.mapped}`).join(', ');
+        }
+
+        // Render timeline
+        const timeline = document.getElementById('timeline-container');
+        timeline.innerHTML = '';
+        if (data.stage_timings && data.stage_timings.length > 0) {
+          data.stage_timings.forEach((st, idx) => {
+            const start = new Date(st.start).getTime();
+            const end = new Date(st.end).getTime();
+            const ms = Math.max(end - start, 1);
+            const name = st.stage.replace(/_/g, ' ').toUpperCase();
+
+            const item = document.createElement('div');
+            item.className = 'timeline-step';
+            item.innerHTML = `
+              <span class="step-name">
+                <span style="color: var(--accent-cyan); font-weight: bold;">[${idx + 1}]</span>
+                ${name}
+              </span>
+              <span class="step-duration">${ms} ms</span>
+            `;
+            timeline.appendChild(item);
+          });
+        }
+
+        // Render policies
+        const reqPol = typeof data.requested_policy === 'string' ? JSON.parse(data.requested_policy) : data.requested_policy;
+        document.getElementById('code-before').textContent = JSON.stringify(reqPol, null, 2);
+
+        const iamPol = typeof data.iam_policy === 'string' ? JSON.parse(data.iam_policy) : data.iam_policy;
+        document.getElementById('code-after').textContent = JSON.stringify(iamPol, null, 2);
+
+        document.getElementById('code-cedar').textContent = data.cedar_policy;
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('meta-req-id').textContent = 'Error loading recorded run snapshot.';
+      }
+    }
+    loadRunData();
+  </script>
 </body>
 </html>

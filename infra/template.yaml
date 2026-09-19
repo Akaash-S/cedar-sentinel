@@ -231,6 +231,20 @@ Resources:
                   - ssm:PutParameter
                 Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cedar-sentinel/*"
 
+        # IAM Access Analyzer — ValidatePolicy and CheckNoNewAccess (Phase 3)
+        # Note: Access Analyzer validation APIs do not support resource-level scoping,
+        # so Resource: "*" is required by AWS. Documented in docs/architecture.md.
+        - PolicyName: CedarSentinelLambdaAccessAnalyzerPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - access-analyzer:ValidatePolicy
+                  - access-analyzer:CheckNoNewAccess
+                Resource: "*"
+
+
   # ─────────────────────────────────────────────────────────────────
   # 7. Lambda Pipeline Processor Function
   # ─────────────────────────────────────────────────────────────────

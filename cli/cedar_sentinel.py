@@ -1,16 +1,18 @@
 """
-Cedar Sentinel CLI — Phase 2: Core Reasoning & Verification
+Cedar Sentinel CLI — Phase 3: IAM Translation & Enforcement
 Reads Terraform plan JSON, extracts IAM policy definitions, dispatches events,
-and polls DynamoDB for the Lambda pipeline result.
+polls DynamoDB for the Lambda pipeline result, and safely enforces tightened
+IAM policies on target IAM roles with human-in-the-loop approval.
 """
 
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
@@ -37,11 +39,11 @@ except ImportError:
 # DynamoDB polling config
 # ─────────────────────────────────────────────────────────────────
 POLL_INTERVAL_SECONDS = 2
-POLL_TIMEOUT_SECONDS = 30
+POLL_TIMEOUT_SECONDS = 45
 
 
 # ─────────────────────────────────────────────────────────────────
-# Policy extraction helpers (unchanged from Phase 1)
+# Policy extraction helpers
 # ─────────────────────────────────────────────────────────────────
 
 def get_caller_identity(region: Optional[str] = None) -> Dict[str, Any]:
@@ -161,7 +163,7 @@ def publish_event(
 
 
 # ─────────────────────────────────────────────────────────────────
-# DynamoDB polling
+# DynamoDB polling & status updates
 # ─────────────────────────────────────────────────────────────────
 
 def poll_results_table(
@@ -205,6 +207,119 @@ def poll_results_table(
     return None
 
 
+def _update_result_status(
+    table_name: str,
+    request_id: str,
+    status: str,
+    error_message: Optional[str] = None,
+    previous_policy: Optional[Any] = None,
+    region: Optional[str] = None,
+) -> None:
+    """Updates the status and optional fields of a results item in DynamoDB."""
+    ddb = boto3.resource("dynamodb", region_name=region)
+    table = ddb.Table(table_name)
+    update_expr = "SET #s = :s"
+    expr_names = {"#s": "status"}
+    expr_vals: Dict[str, Any] = {":s": status}
+    if error_message:
+        update_expr += ", error_message = :em"
+        expr_vals[":em"] = error_message
+    if previous_policy is not None:
+        update_expr += ", previous_policy = :pp"
+        expr_vals[":pp"] = json.dumps(previous_policy) if isinstance(previous_policy, (dict, list)) else str(previous_policy)
+
+    try:
+        table.update_item(
+            Key={"request_id": request_id},
+            UpdateExpression=update_expr,
+            ExpressionAttributeNames=expr_names,
+            ExpressionAttributeValues=expr_vals,
+        )
+    except Exception as exc:
+        print(f"Warning: Failed to update DynamoDB status: {exc}", file=sys.stderr)
+
+
+def _update_result_enforcement(
+    table_name: str,
+    request_id: str,
+    status: str,
+    previous_policy: Optional[Any] = None,
+    other_policies: Optional[List[str]] = None,
+    region: Optional[str] = None,
+) -> None:
+    """Updates enforcement fields in DynamoDB."""
+    ddb = boto3.resource("dynamodb", region_name=region)
+    table = ddb.Table(table_name)
+    update_expr = "SET #s = :s"
+    expr_names = {"#s": "status"}
+    expr_vals: Dict[str, Any] = {":s": status}
+    if previous_policy is not None:
+        update_expr += ", previous_policy = :pp"
+        expr_vals[":pp"] = json.dumps(previous_policy) if isinstance(previous_policy, (dict, list)) else str(previous_policy)
+    if other_policies:
+        update_expr += ", other_policies = :op"
+        expr_vals[":op"] = json.dumps(other_policies)
+
+    try:
+        table.update_item(
+            Key={"request_id": request_id},
+            UpdateExpression=update_expr,
+            ExpressionAttributeNames=expr_names,
+            ExpressionAttributeValues=expr_vals,
+        )
+    except Exception as exc:
+        print(f"Warning: Failed to update DynamoDB result: {exc}", file=sys.stderr)
+
+
+def _update_result_audit_failure(
+    table_name: str,
+    request_id: str,
+    audit_error: str,
+    region: Optional[str] = None,
+) -> None:
+    """Records audit failure without changing final status from APPLIED."""
+    ddb = boto3.resource("dynamodb", region_name=region)
+    table = ddb.Table(table_name)
+    try:
+        table.update_item(
+            Key={"request_id": request_id},
+            UpdateExpression="SET audit_failed = :af, audit_error = :ae",
+            ExpressionAttributeValues={":af": True, ":ae": audit_error},
+        )
+    except Exception as exc:
+        print(f"Warning: Failed to record audit failure in DynamoDB: {exc}", file=sys.stderr)
+
+
+def _extract_cedar_actions(cedar_policy_text: str) -> List[str]:
+    """Extracts action strings from Cedar policy text."""
+    actions: List[str] = []
+    pattern = re.compile(r'Action::\\?"([^\\"]+)\\?"')
+    for match in pattern.finditer(cedar_policy_text):
+        actions.append(match.group(1))
+
+    if not actions:
+        pattern2 = re.compile(r'\\?"([a-zA-Z0-9_*]+:[a-zA-Z0-9_*]+)\\?"')
+        for match in pattern2.finditer(cedar_policy_text):
+            actions.append(match.group(1))
+
+    return list(set(actions))
+
+
+def _policies_equal(doc1: Any, doc2: Any) -> bool:
+    """Compares two IAM policy documents for logical equality."""
+    if isinstance(doc1, str):
+        try:
+            doc1 = json.loads(doc1)
+        except Exception:
+            pass
+    if isinstance(doc2, str):
+        try:
+            doc2 = json.loads(doc2)
+        except Exception:
+            pass
+    return json.dumps(doc1, sort_keys=True) == json.dumps(doc2, sort_keys=True)
+
+
 # ─────────────────────────────────────────────────────────────────
 # Result rendering
 # ─────────────────────────────────────────────────────────────────
@@ -233,10 +348,14 @@ def _render_complete_result(item: Dict[str, Any]) -> None:
     """Renders a COMPLETE pipeline result to stdout."""
     requested_policy_raw = item.get("requested_policy")
     cedar_policy = item.get("cedar_policy", "(no Cedar policy returned)")
+    iam_policy = item.get("iam_policy")
     rationale = item.get("rationale", "")
     model_used = item.get("model_used", "")
     coverage = item.get("coverage_check", {})
     cedar_val = item.get("cedar_validation", {})
+    analyzer_val = item.get("analyzer_validation", {})
+    mappings_applied = item.get("action_mappings_applied", {})
+    unmatched_actions = item.get("unmatched_actions", [])
 
     try:
         requested_policy = json.loads(requested_policy_raw) if isinstance(requested_policy_raw, str) else requested_policy_raw
@@ -270,6 +389,24 @@ def _render_complete_result(item: Dict[str, Any]) -> None:
         print("[FAIL] Cedar schema validation errors:")
         for msg in cedar_val.get("messages", []):
             print(f"  * {msg}")
+
+    print("\n" + "-" * 60)
+    print("  IAM TRANSLATION & ACCESS ANALYZER VALIDATION")
+    print("-" * 60)
+    if iam_policy:
+        print("[PASS] Translated tightened IAM policy generated successfully:")
+        print(json.dumps(iam_policy, indent=2))
+        if mappings_applied:
+            print(f"\n  Action mappings applied: {mappings_applied}")
+        if unmatched_actions:
+            print(f"  [NOTE] Unmatched actions excluded without widening: {unmatched_actions}")
+        if analyzer_val.get("passed"):
+            print("\n  [PASS] IAM Access Analyzer validated syntax-valid and verified NO NEW ACCESS.")
+        findings = analyzer_val.get("findings", [])
+        if findings:
+            print(f"  Non-blocking findings: {findings}")
+    else:
+        print("[NOTE] IAM translation not present in result.")
 
     print("\n" + "=" * 60)
 
@@ -314,13 +451,60 @@ def _render_cedar_invalid_result(item: Dict[str, Any]) -> None:
     print("\nResult: Deployment blocked due to invalid Cedar policy syntax / schema mismatch.")
 
 
+def _render_analyzer_invalid_result(item: Dict[str, Any]) -> None:
+    """Renders an ANALYZER_INVALID pipeline result to stdout."""
+    requested_policy_raw = item.get("requested_policy")
+    cedar_policy = item.get("cedar_policy", "(no Cedar policy returned)")
+    iam_policy = item.get("iam_policy", {})
+    rationale = item.get("rationale", "")
+    model_used = item.get("model_used", "")
+    analyzer_val = item.get("analyzer_validation", {})
+
+    try:
+        requested_policy = json.loads(requested_policy_raw) if isinstance(requested_policy_raw, str) else requested_policy_raw
+    except Exception:
+        requested_policy = requested_policy_raw
+
+    _render_before_after_diff(requested_policy, cedar_policy, model_used=model_used)
+
+    print("\n" + "-" * 60)
+    print("  RATIONALE")
+    print("-" * 60)
+    print(rationale)
+
+    print("\n" + "=" * 60)
+    print("  [FAIL] IAM Access Analyzer rejected the translated policy!")
+    print("=" * 60)
+    reason = analyzer_val.get("reason", "UNKNOWN")
+    print(f"Rejection Reason: {reason}")
+    findings = analyzer_val.get("findings", [])
+    if findings:
+        print("Finding Details:")
+        for f in findings:
+            if isinstance(f, dict):
+                code = f.get("code") or f.get("findingType") or "Finding"
+                msg = f.get("message") or f.get("details") or str(f)
+                print(f"  * [{code}] {msg}")
+            else:
+                print(f"  * {f}")
+    else:
+        print("  * Access Analyzer safety check failed (details unstated).")
+
+    if iam_policy:
+        print("\nTranslated IAM Policy:")
+        print("-" * 40)
+        print(json.dumps(iam_policy, indent=2) if isinstance(iam_policy, dict) else str(iam_policy))
+        print("-" * 40)
+
+    print("\nResult: Deployment blocked due to IAM Access Analyzer validation / escalation failure.")
+
+
 def _render_blocked_result(item: Dict[str, Any]) -> int:
     """
     Renders the hard-block warning and interactive [1]/[2]/[3] menu.
     Returns the exit code from the selected option.
     """
     coverage = item.get("coverage_check", {})
-    cedar_policy = item.get("cedar_policy", "")
     requested_policy_raw = item.get("requested_policy")
 
     try:
@@ -334,7 +518,6 @@ def _render_blocked_result(item: Dict[str, Any]) -> int:
     except Exception:
         blocked_actions = []
 
-    # Exact warning format per Phase 2 spec Section 5
     print("\n[WARNING] SAFETY CHECK FAILED: Potential Workload Lockout Detected!")
     print("The proposed Cedar policy drops observed CloudTrail actions:")
     for ba in blocked_actions:
@@ -354,7 +537,6 @@ def _render_blocked_result(item: Dict[str, Any]) -> int:
         return 1
 
     if choice == "1":
-        # Print the original requested policy and exit 0
         print("\n── Original Requested Policy ──────────────────────────")
         print(json.dumps(requested_policy, indent=2) if isinstance(requested_policy, dict) else str(requested_policy))
         print("───────────────────────────────────────────────────────")
@@ -362,12 +544,14 @@ def _render_blocked_result(item: Dict[str, Any]) -> int:
         return 0
 
     elif choice == "2":
-        # Stub — Phase 3 will implement IAM enforcement
-        print("\nOverride not available until IAM enforcement exists in Phase 3.")
+        # Section 4.6: Override is intentionally disabled in this build
+        print(
+            "\nOverride is intentionally disabled in this build: applying a policy that drops\n"
+            "observed actions bypasses the lockout safeguard. Use [3] to re-evaluate or [1] to fall back."
+        )
         return 1
 
     elif choice == "3":
-        # Re-publish with blocked actions explicitly in the prompt context
         return _handle_reevaluate(item, blocked_actions)
 
     else:
@@ -379,21 +563,18 @@ def _handle_reevaluate(item: Dict[str, Any], blocked_actions: List[Dict]) -> int
     """
     Option [3]: Re-invokes the pipeline with a re-evaluation hint injected
     into the event detail, so Bedrock receives the dropped actions explicitly.
-    Prints a new request_id and instructs the user to poll again (or auto-polls).
     """
     new_request_id = str(uuid.uuid4())
     region = os.environ.get("AWS_REGION")
     bus_name = os.environ.get("EVENT_BUS_NAME", "cedar-sentinel-events")
     table_name = os.environ.get("RESULTS_TABLE_NAME", "cedar-sentinel-results")
 
-    # Reconstruct the re-evaluation detail — inject dropped actions hint
     blocked_names = [ba.get("action", "") for ba in blocked_actions]
     reevaluate_hint = (
         f"IMPORTANT: The previous draft dropped these observed actions that MUST be "
         f"included: {', '.join(blocked_names)}. Preserve them in the new draft."
     )
 
-    # Pull original detail fields out of the DynamoDB item for re-publish
     requested_policy_raw = item.get("requested_policy", "{}")
     try:
         requested_policy = json.loads(requested_policy_raw) if isinstance(requested_policy_raw, str) else requested_policy_raw
@@ -446,12 +627,320 @@ def _handle_reevaluate(item: Dict[str, Any], blocked_actions: List[Dict]) -> int
     elif status == "CEDAR_INVALID":
         _render_cedar_invalid_result(result)
         return 1
+    elif status == "ANALYZER_INVALID":
+        _render_analyzer_invalid_result(result)
+        return 1
     else:
         print(f"Re-evaluation ended with status: {status}", file=sys.stderr)
         err_msg = result.get("error_message", "")
         if err_msg:
             print(f"Error: {err_msg}", file=sys.stderr)
         return 1
+
+
+# ─────────────────────────────────────────────────────────────────
+# Persistent AVP Audit Store (Section 6)
+# ─────────────────────────────────────────────────────────────────
+
+def _record_persistent_audit_policy(
+    cedar_policy_text: str,
+    rationale: str,
+    request_id: str,
+    region: Optional[str] = None,
+    ssm_param: str = "/cedar-sentinel/dev/avp-audit-store-id",
+) -> Dict[str, Any]:
+    """
+    Writes the approved Cedar policy to the persistent AVP audit store.
+    Registers STRICT schema if needed and creates a static policy record.
+    """
+    ssm_client = boto3.client("ssm", region_name=region)
+    avp_client = boto3.client("verifiedpermissions", region_name=region)
+
+    store_id = None
+    try:
+        resp = ssm_client.get_parameter(Name=ssm_param)
+        candidate_id = resp["Parameter"]["Value"].strip()
+        avp_client.get_policy_store(policyStoreId=candidate_id)
+        store_id = candidate_id
+    except Exception:
+        pass
+
+    if store_id is None:
+        try:
+            create_resp = avp_client.create_policy_store(
+                validationSettings={"mode": "STRICT"},
+                description="cedar-sentinel-audit-store (persistent audit record)",
+            )
+            store_id = create_resp["policyStoreId"]
+            ssm_client.put_parameter(
+                Name=ssm_param,
+                Value=store_id,
+                Type="String",
+                Overwrite=True,
+                Description="Cedar Sentinel persistent AVP audit store ID",
+            )
+        except Exception as exc:
+            return {"success": False, "error": f"Failed to initialize persistent audit store: {exc}"}
+
+    # Register schema on the audit store
+    actions = _extract_cedar_actions(cedar_policy_text)
+    if not actions:
+        actions = ["none"]
+    actions_schema = {}
+    for act in sorted(set(actions)):
+        actions_schema[act] = {
+            "appliesTo": {
+                "principalTypes": ["Role"],
+                "resourceTypes": ["Resource"],
+            }
+        }
+    schema = {
+        "CedarSentinel": {
+            "entityTypes": {
+                "Role": {"shape": {"type": "Record", "attributes": {}}},
+                "Resource": {"shape": {"type": "Record", "attributes": {}}},
+            },
+            "actions": actions_schema,
+        }
+    }
+
+    try:
+        avp_client.put_schema(
+            policyStoreId=store_id,
+            definition={"cedarJson": json.dumps(schema)},
+        )
+    except Exception as exc:
+        return {"success": False, "error": f"PutSchema failed on audit store: {exc}"}
+
+    # Write static policy into audit store (description capped to 140 chars per AVP constraints)
+    desc = f"req={request_id[:8]} rationale={rationale}"[:140]
+    try:
+        cp_resp = avp_client.create_policy(
+            policyStoreId=store_id,
+            definition={
+                "static": {
+                    "description": desc,
+                    "statement": cedar_policy_text,
+                }
+            },
+        )
+        return {
+            "success": True,
+            "policy_id": cp_resp["policyId"],
+            "policy_store_id": store_id,
+        }
+    except Exception as exc:
+        return {"success": False, "error": f"CreatePolicy failed on audit store: {exc}"}
+
+
+# ─────────────────────────────────────────────────────────────────
+# Enforcement & Apply Flow (Section 4 & 5)
+# ─────────────────────────────────────────────────────────────────
+
+def handle_apply_enforcement(
+    args: argparse.Namespace,
+    item: Dict[str, Any],
+    region: Optional[str] = None,
+) -> int:
+    """
+    Handles human-in-the-loop diff, confirmation, snapshotting,
+    PutRolePolicy execution, read-back verification, and persistent audit recording.
+    """
+    table_name = os.environ.get("RESULTS_TABLE_NAME", "cedar-sentinel-results")
+    request_id = item.get("request_id", "")
+    role_arn = args.role_arn
+    role_name = role_arn.split("/")[-1] if "/" in role_arn else role_arn.split(":")[-1]
+    policy_name = args.policy_name
+    iam_policy = item.get("iam_policy")
+    if isinstance(iam_policy, str):
+        try:
+            iam_policy = json.loads(iam_policy)
+        except Exception:
+            pass
+
+    if not iam_policy:
+        print("Error: No translated IAM policy found in result item to apply.", file=sys.stderr)
+        return 1
+
+    iam_client = boto3.client("iam", region_name=region)
+
+    # 1. Section 5.1: Confirm --policy-name exists on the target role
+    try:
+        list_resp = iam_client.list_role_policies(RoleName=role_name)
+        existing_inline_policies = list_resp.get("PolicyNames", [])
+    except ClientError as err:
+        print(f"Error listing inline policies for role '{role_name}': {err}", file=sys.stderr)
+        return 1
+
+    if policy_name not in existing_inline_policies:
+        print(
+            f"\n[FAIL] Target inline policy name '{policy_name}' does not exist on role '{role_name}'.",
+            file=sys.stderr,
+        )
+        print(f"Actual inline policies on role: {existing_inline_policies}", file=sys.stderr)
+        print("Refusing to create a new parallel policy. Specify an existing inline policy name to overwrite.", file=sys.stderr)
+        return 1
+
+    # 2. Section 4.4: Print clear before/after diff + metadata
+    requested_policy_raw = item.get("requested_policy")
+    try:
+        requested_policy = json.loads(requested_policy_raw) if isinstance(requested_policy_raw, str) else requested_policy_raw
+    except Exception:
+        requested_policy = requested_policy_raw
+
+    print("\n" + "=" * 60)
+    print("  PROPOSED IAM POLICY TO APPLY (Tightened & Verified)")
+    print(f"  Target Role               : {role_arn}")
+    print(f"  Target Inline Policy Name : {policy_name}")
+    print("=" * 60)
+    print("--- BEFORE: Requested Policy ---")
+    print(json.dumps(requested_policy, indent=2) if isinstance(requested_policy, dict) else str(requested_policy))
+    print("\n+++ AFTER: Translated Tightened Policy +++")
+    print(json.dumps(iam_policy, indent=2))
+
+    mappings = item.get("action_mappings_applied", {})
+    if mappings:
+        print(f"\n  Action mappings applied: {mappings}")
+    unmatched = item.get("unmatched_actions", [])
+    if unmatched:
+        print(f"  [NOTE] Unmatched actions excluded without widening: {unmatched}")
+
+    analyzer_val = item.get("analyzer_validation", {})
+    findings = analyzer_val.get("findings", [])
+    if findings:
+        print(f"  Non-blocking Access Analyzer findings: {findings}")
+
+    # 3. Prompt user explicitly: [y/N]
+    prompt_msg = f"\nApply this policy to {role_arn}? [y/N]: "
+    try:
+        confirm = input(prompt_msg).strip()
+    except (EOFError, KeyboardInterrupt):
+        confirm = "n"
+
+    if confirm.lower() != "y":
+        print("\nApply declined by user. No changes applied.")
+        _update_result_status(table_name, request_id, "DECLINED", region=region)
+        return 0
+
+    # 4. Section 5.3: Snapshot existing policy before overwrite
+    print(f"\nSnapshotting existing inline policy '{policy_name}' on role '{role_name}'...")
+    previous_policy = None
+    try:
+        prev_resp = iam_client.get_role_policy(RoleName=role_name, PolicyName=policy_name)
+        previous_policy = prev_resp.get("PolicyDocument")
+        print("[OK] Policy snapshotted successfully.")
+    except ClientError as err:
+        print(f"Warning: Could not snapshot existing policy: {err}", file=sys.stderr)
+
+    # 5. Section 5.2: Apply via iam:PutRolePolicy with retry / backoff
+    print(f"Applying tightened policy to role '{role_name}' (overwriting '{policy_name}')...")
+    max_attempts = 3
+    backoff = 1
+    put_succeeded = False
+    apply_error = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            iam_client.put_role_policy(
+                RoleName=role_name,
+                PolicyName=policy_name,
+                PolicyDocument=json.dumps(iam_policy),
+            )
+            put_succeeded = True
+            break
+        except ClientError as exc:
+            code = exc.response["Error"]["Code"]
+            msg = exc.response["Error"]["Message"]
+            if code in ("Throttling", "ThrottlingException") and attempt < max_attempts:
+                print(f"  [Attempt {attempt}] Throttled. Backing off {backoff}s...")
+                time.sleep(backoff)
+                backoff *= 2
+                continue
+            elif code in ("MalformedPolicyDocumentException", "LimitExceededException"):
+                apply_error = f"{code}: {msg}"
+                print(f"\n[FAIL] PutRolePolicy rejected: {apply_error}", file=sys.stderr)
+                break
+            else:
+                apply_error = f"{code}: {msg}"
+                print(f"\n[FAIL] PutRolePolicy failed: {apply_error}", file=sys.stderr)
+                break
+
+    if not put_succeeded:
+        _update_result_status(
+            table_name=table_name,
+            request_id=request_id,
+            status="APPLY_FAILED",
+            error_message=apply_error,
+            previous_policy=previous_policy,
+            region=region,
+        )
+        return 1
+
+    # 6. Section 5.4: Read-back verification with eventual-consistency retries
+    print("Verifying applied policy via iam:GetRolePolicy read-back...")
+    verified = False
+    readback_doc = None
+    for attempt in range(1, 4):
+        time.sleep(1)
+        try:
+            rb_resp = iam_client.get_role_policy(RoleName=role_name, PolicyName=policy_name)
+            readback_doc = rb_resp.get("PolicyDocument")
+            if _policies_equal(readback_doc, iam_policy):
+                verified = True
+                break
+        except ClientError as exc:
+            pass
+
+    final_status = "APPLIED" if verified else "APPLIED_UNVERIFIED"
+
+    if verified:
+        print(f"[SUCCESS] Policy successfully applied and verified on '{role_name}'.")
+    else:
+        print(f"[WARNING] PutRolePolicy succeeded, but read-back verification could not confirm consistency.")
+        print(f"Status set to: APPLIED_UNVERIFIED. Please inspect role '{role_name}' manually.")
+
+    # 7. Check for any other attached or inline policies on the role
+    other_policies: List[str] = []
+    try:
+        post_inline = iam_client.list_role_policies(RoleName=role_name).get("PolicyNames", [])
+        other_inline = [p for p in post_inline if p != policy_name]
+        attached = iam_client.list_attached_role_policies(RoleName=role_name).get("AttachedPolicies", [])
+        other_attached = [p.get("PolicyName", "") for p in attached]
+        other_policies = other_inline + other_attached
+    except ClientError as err:
+        print(f"Warning: Could not check other attached policies: {err}", file=sys.stderr)
+
+    if other_policies:
+        print(f"\n[WARNING] Role has other policies that may still grant broad access: {', '.join(other_policies)}. Effective access is not fully tightened by this change.")
+
+    # 8. Update DynamoDB result
+    _update_result_enforcement(
+        table_name=table_name,
+        request_id=request_id,
+        status=final_status,
+        previous_policy=previous_policy,
+        other_policies=other_policies,
+        region=region,
+    )
+
+    # 9. Section 6: Audit trail write to persistent AVP audit store (only on APPLIED)
+    if final_status == "APPLIED":
+        cedar_policy = item.get("cedar_policy", "")
+        rationale = item.get("rationale", "")
+        print("\nRecording approved policy in persistent AVP audit store...")
+        audit_res = _record_persistent_audit_policy(
+            cedar_policy_text=cedar_policy,
+            rationale=rationale,
+            request_id=request_id,
+            region=region,
+        )
+        if audit_res.get("success"):
+            print(f"[AUDIT] Policy recorded in persistent AVP store {audit_res.get('policy_store_id')} (Policy ID: {audit_res.get('policy_id')})")
+        else:
+            print(f"[WARNING] Persistent audit store write failed: {audit_res.get('error')}", file=sys.stderr)
+            _update_result_audit_failure(table_name, request_id, str(audit_res.get("error")), region=region)
+
+    return 0
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -502,6 +991,10 @@ def handle_analyze(args: argparse.Namespace) -> int:
         print(json.dumps(p["policy_document"], indent=6))
         print("-" * 50)
 
+    # If --apply is specified without --publish, auto-enable publish since pipeline is required
+    if args.apply:
+        args.publish = True
+
     # Publish + pipeline path
     bus_name = args.event_bus or os.environ.get("EVENT_BUS_NAME")
     if not (args.publish or bus_name):
@@ -514,22 +1007,46 @@ def handle_analyze(args: argparse.Namespace) -> int:
         )
         return 1
 
-    # ── Self-analysis guard (Section 2 fix) ───────────────────────────────────
-    # If the target role matches Cedar Sentinel's own Lambda execution role, the
-    # analysis would reflect the tool's own AWS calls, not a real workload's.
+    # ── Section 4.2 Guards on --apply (checked before dispatch / prompt) ──────
+    role_arn_str = args.role_arn.strip()
+    role_name = role_arn_str.split("/")[-1] if "/" in role_arn_str else role_arn_str.split(":")[-1]
     lambda_exec_role_arn = os.environ.get("LAMBDA_EXECUTION_ROLE_ARN", "").strip()
-    if lambda_exec_role_arn and args.role_arn.strip() == lambda_exec_role_arn:
-        if not getattr(args, "allow_self_analysis", False):
+
+    if args.apply:
+        if not args.policy_name:
+            print("Error: --policy-name is required when --apply is specified.", file=sys.stderr)
+            return 1
+
+        # Guard 1: Refuse self-analysis / self-enforcement on Lambda execution role
+        if lambda_exec_role_arn and role_arn_str == lambda_exec_role_arn:
             print(
-                "[WARNING] Target role matches Cedar Sentinel's own execution role — results will reflect\n"
-                "the tool's own AWS calls, not a real workload.",
-                file=sys.stderr,
-            )
-            print(
-                "Pass --allow-self-analysis to proceed anyway (not recommended for real analysis).",
+                "Error: Target role matches Cedar Sentinel Lambda execution role. Self-modification via --apply is forbidden.",
                 file=sys.stderr,
             )
             return 1
+
+        # Guard 2: Refuse any role name not matching cedar-sentinel-*
+        if not role_name.startswith("cedar-sentinel-"):
+            print(
+                f"Error: Target role '{role_name}' does not match allowed pattern 'cedar-sentinel-*'.\n"
+                f"--apply is strictly restricted to roles named cedar-sentinel-*.",
+                file=sys.stderr,
+            )
+            return 1
+    else:
+        # Self-analysis warning for read-only analyze
+        if lambda_exec_role_arn and role_arn_str == lambda_exec_role_arn:
+            if not getattr(args, "allow_self_analysis", False):
+                print(
+                    "[WARNING] Target role matches Cedar Sentinel's own execution role — results will reflect\n"
+                    "the tool's own AWS calls, not a real workload.",
+                    file=sys.stderr,
+                )
+                print(
+                    "Pass --allow-self-analysis to proceed anyway (not recommended for real analysis).",
+                    file=sys.stderr,
+                )
+                return 1
 
     effective_bus = bus_name or "cedar-sentinel-events"
     source = args.source or "cedar.sentinel"
@@ -585,6 +1102,28 @@ def handle_analyze(args: argparse.Namespace) -> int:
 
     status = result.get("status", "UNKNOWN")
 
+    # Guard 3: If --apply was requested, only COMPLETE status proceeds to enforcement
+    if args.apply:
+        if status != "COMPLETE":
+            print(f"\n[REFUSED] Cannot apply: Pipeline result status is '{status}' (expected 'COMPLETE').", file=sys.stderr)
+            if status == "BLOCKED":
+                return _render_blocked_result(result)
+            elif status == "CEDAR_INVALID":
+                _render_cedar_invalid_result(result)
+                return 1
+            elif status == "ANALYZER_INVALID":
+                _render_analyzer_invalid_result(result)
+                return 1
+            elif status == "ERROR":
+                print(f"Error: {result.get('error_message', 'No details available.')}", file=sys.stderr)
+                return 1
+            else:
+                return 1
+
+        # Proceed to human approval and apply
+        return handle_apply_enforcement(args, result, region=args.region)
+
+    # Read-only render flow (Phase 2 & Phase 3 print-only)
     if status == "COMPLETE":
         _render_complete_result(result)
         return 0
@@ -592,6 +1131,9 @@ def handle_analyze(args: argparse.Namespace) -> int:
         return _render_blocked_result(result)
     elif status == "CEDAR_INVALID":
         _render_cedar_invalid_result(result)
+        return 1
+    elif status == "ANALYZER_INVALID":
+        _render_analyzer_invalid_result(result)
         return 1
     elif status == "ERROR":
         print(f"\n[ERROR] Pipeline error for request_id={request_id}", file=sys.stderr)
@@ -610,7 +1152,7 @@ def handle_analyze(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     """Builds the CLI argument parser."""
     parser = argparse.ArgumentParser(
-        description="Cedar Sentinel CLI — IAM Policy Extraction, Bedrock Reasoning & Cedar Verification"
+        description="Cedar Sentinel CLI — IAM Policy Extraction, Bedrock Reasoning, Cedar Verification & IAM Enforcement"
     )
     parser.add_argument(
         "--region",
@@ -627,7 +1169,7 @@ def build_parser() -> argparse.ArgumentParser:
     # Subcommand: analyze
     parser_analyze = subparsers.add_parser(
         "analyze",
-        help="Analyze Terraform plan JSON, extract IAM policies, reason with Bedrock, verify with Cedar",
+        help="Analyze Terraform plan JSON, extract IAM policies, reason with Bedrock, verify with Cedar & Access Analyzer, and safely apply",
     )
     parser_analyze.add_argument(
         "--plan-file",
@@ -637,12 +1179,22 @@ def build_parser() -> argparse.ArgumentParser:
     parser_analyze.add_argument(
         "--role-arn",
         default=None,
-        help="ARN of the IAM role to query CloudTrail history for (required when --publish is set)",
+        help="ARN of the IAM role to query CloudTrail history for (required when --publish or --apply is set)",
     )
     parser_analyze.add_argument(
         "--publish",
         action="store_true",
         help="Publish extracted policy event to EventBridge and poll for pipeline result",
+    )
+    parser_analyze.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply the verified tightened IAM policy to the target role (requires confirmation prompt)",
+    )
+    parser_analyze.add_argument(
+        "--policy-name",
+        default=None,
+        help="Name of the existing inline policy to overwrite on target role (required when --apply is specified)",
     )
     parser_analyze.add_argument(
         "--event-bus",
@@ -658,7 +1210,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--allow-self-analysis",
         action="store_true",
         dest="allow_self_analysis",
-        help="Allow analysis of Cedar Sentinel's own Lambda execution role (not recommended; for testing only)",
+        help="Allow analysis of Cedar Sentinel's own Lambda execution role (for read-only testing only; never permits --apply)",
     )
     parser_analyze.set_defaults(func=handle_analyze)
 
