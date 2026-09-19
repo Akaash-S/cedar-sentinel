@@ -41,8 +41,8 @@ LAMBDA_EXECUTION_ROLE_ARN = os.environ.get("LAMBDA_EXECUTION_ROLE_ARN", "")
 # Cedar Sentinel namespace used in all Cedar policies and schemas
 CS_NAMESPACE = "CedarSentinel"
 
-# Maximum Bedrock output tokens (cost-discipline cap per Phase 2 spec)
-BEDROCK_MAX_TOKENS = 1024
+# Maximum Bedrock output tokens
+BEDROCK_MAX_TOKENS = 2048
 
 # CloudWatch Insights query lookback window in days
 CWL_LOOKBACK_DAYS = 7
@@ -273,6 +273,7 @@ def stage_bedrock_call(
     Returns ({"cedar_policy": str, "rationale": str, "model_used": str}, start_iso, end_iso).
     """
     start_iso = _now_iso()
+    logger.info("Resolved BEDROCK_MODEL_ID: %s", model_id)
     client = boto3.client("bedrock-runtime", region_name=region)
 
     # Build a compact representation of observed actions for the prompt
@@ -289,16 +290,22 @@ def stage_bedrock_call(
         f"principal actually needs, based on observed CloudTrail usage.\n"
         f"Use namespace '{CS_NAMESPACE}'.\n"
         "Output MUST be a single valid JSON object with exactly two keys: 'cedar_policy' (a string containing Cedar policy text) and 'rationale' (a string explaining changes).\n"
-        "Example output format:\n"
+        "Example output format when observed actions exist:\n"
         "{\n"
-        f'  "cedar_policy": "permit(principal, action in [{CS_NAMESPACE}::Action::\\"logs:CreateLogGroup\\", {CS_NAMESPACE}::Action::\\"logs:PutLogEvents\\"], resource);",\n'
+        f'  "cedar_policy": "permit(\\n    principal,\\n    action in [\\n        {CS_NAMESPACE}::Action::\\"logs:CreateLogGroup\\",\\n        {CS_NAMESPACE}::Action::\\"logs:PutLogEvents\\"\\n    ],\\n    resource\\n);",\n'
         '  "rationale": "Tightened policy to include only observed CloudTrail actions."\n'
         "}\n\n"
+        "Example output format for ZERO observed actions (empty list):\n"
+        "{\n"
+        f'  "cedar_policy": "forbid(\\n    principal,\\n    action in [\\n        {CS_NAMESPACE}::Action::\\"none\\"\\n    ],\\n    resource\\n);",\n'
+        '  "rationale": "No API activity observed in the lookback window. Access denied by default."\n'
+        "}\n\n"
         "Rules:\n"
-        f"1. 'cedar_policy' MUST be a STRING (not a nested JSON object), containing valid Cedar syntax.\n"
+        "1. 'cedar_policy' MUST be a STRING containing a single valid Cedar policy statement.\n"
         f"2. Every action must be formatted as '{CS_NAMESPACE}::Action::\"service:ActionName\"' — the service prefix is already included in each observed action string.\n"
-        "3. Every observed action MUST be preserved in the draft policy actions array.\n"
-        "4. Do NOT include markdown fences, code blocks, or text outside the JSON."
+        "3. When observed actions exist: output a single 'permit' statement listing all observed actions. Do NOT include a forbid statement.\n"
+        f"4. When ZERO actions are observed: output a single 'forbid(principal, action in [{CS_NAMESPACE}::Action::\"none\"], resource);' statement. NEVER output free-text like 'deny all;'.\n"
+        "5. Do NOT include markdown fences, code blocks, or text outside the JSON."
     )
 
     hint_section = f"\n\n## Feedback / Re-evaluation Hint\n{reevaluate_hint}" if reevaluate_hint else ""
@@ -335,16 +342,36 @@ def stage_bedrock_call(
     logger.info("Bedrock raw response (first 500 chars): %s", raw_text[:500])
 
     # Strip accidental markdown fences if present
-    if raw_text.startswith("```"):
-        raw_text = re.sub(r"^```[a-z]*\n?", "", raw_text)
-        raw_text = re.sub(r"\n?```$", "", raw_text.strip())
+    clean_text = raw_text.strip()
+    if clean_text.startswith("```"):
+        clean_text = re.sub(r"^```[a-z]*\n?", "", clean_text)
+        clean_text = re.sub(r"\n?```$", "", clean_text.strip())
 
+    parsed: Dict[str, Any] = {}
     try:
-        parsed = json.loads(raw_text)
-    except json.JSONDecodeError as exc:
-        raise ValueError(
-            f"Bedrock response is not valid JSON. Raw response: {raw_text[:300]}"
-        ) from exc
+        parsed = json.loads(clean_text)
+    except json.JSONDecodeError:
+        # Try extracting JSON object substring
+        json_match = re.search(r"\{[\s\S]*\}", clean_text)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group(0))
+            except json.JSONDecodeError:
+                pass
+
+        if not parsed:
+            # Resilient fallback: extract permit/forbid statement and rationale directly
+            stmt_match = re.search(r'(permit\s*\([\s\S]*?\);|forbid\s*\([\s\S]*?\);)', clean_text)
+            rat_match = re.search(r'"rationale"\s*:\s*"([^"]*)"', clean_text)
+            if stmt_match:
+                parsed = {
+                    "cedar_policy": stmt_match.group(1).strip(),
+                    "rationale": rat_match.group(1) if rat_match else "Tightened policy to include only observed CloudTrail actions.",
+                }
+            else:
+                raise ValueError(
+                    f"Bedrock response is not valid JSON and could not extract Cedar statement. Raw: {raw_text[:300]}"
+                )
 
     if "cedar_policy" not in parsed or "rationale" not in parsed:
         raise ValueError(
@@ -365,16 +392,21 @@ def stage_bedrock_call(
 # ─────────────────────────────────────────────────────────────────
 
 def _normalize_cedar_policy_text(cedar_policy_raw: Any) -> str:
-    """Ensures cedar_policy is a valid Cedar text string even if model returned a dict or list."""
+    """Ensures cedar_policy is a valid Cedar text string even if model returned a dict, list, or escaped string."""
     if isinstance(cedar_policy_raw, str):
-        return cedar_policy_raw
+        text = cedar_policy_raw
+        if r'\"' in text:
+            text = text.replace(r'\"', '"')
+        if r'\n' in text and '\n' not in text:
+            text = text.replace(r'\n', '\n')
+        return text
     if isinstance(cedar_policy_raw, dict) or isinstance(cedar_policy_raw, list):
         raw_str = json.dumps(cedar_policy_raw)
         actions = []
-        for m in re.finditer(r'Action::"([^"]+)"', raw_str):
+        for m in re.finditer(r'Action::\\?"([^\\"]+)\\?"', raw_str):
             actions.append(m.group(1))
         if not actions:
-            for m in re.finditer(r'"([a-zA-Z0-9_*]+:[a-zA-Z0-9_*]+)"', raw_str):
+            for m in re.finditer(r'\\?"([a-zA-Z0-9_*]+:[a-zA-Z0-9_*]+)\\?"', raw_str):
                 actions.append(m.group(1))
         if actions:
             action_items = ",\n        ".join(f'{CS_NAMESPACE}::Action::"{a}"' for a in sorted(set(actions)))
@@ -388,19 +420,22 @@ def _extract_cedar_actions(cedar_policy_text: Any) -> List[str]:
     Extracts the list of action strings from a Cedar policy text.
     Handles:
       action in [CS::Action::"s3:GetObject", ...]
+      action in [CS::Action::\"s3:GetObject\", ...]
       action == CS::Action::"logs:PutLogEvents"
     Returns a list of action strings.
     """
     if not isinstance(cedar_policy_text, str):
         cedar_policy_text = _normalize_cedar_policy_text(cedar_policy_text)
+    else:
+        cedar_policy_text = _normalize_cedar_policy_text(cedar_policy_text)
 
     actions: List[str] = []
-    pattern = re.compile(r'Action::"([^"]+)"')
+    pattern = re.compile(r'Action::\\?"([^\\"]+)\\?"')
     for match in pattern.finditer(cedar_policy_text):
         actions.append(match.group(1))
 
     if not actions:
-        pattern2 = re.compile(r'"([a-zA-Z0-9_*]+:[a-zA-Z0-9_*]+)"')
+        pattern2 = re.compile(r'\\?"([a-zA-Z0-9_*]+:[a-zA-Z0-9_*]+)\\?"')
         for match in pattern2.finditer(cedar_policy_text):
             actions.append(match.group(1))
 
@@ -859,10 +894,18 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             )
 
             # ── Write final result ──────────────────────────────────
+            final_status = "COMPLETE" if cedar_result.get("passed", False) else "CEDAR_INVALID"
+            if final_status == "CEDAR_INVALID":
+                logger.warning(
+                    "Cedar validation failed for request_id='%s'. Writing status 'CEDAR_INVALID'. Messages: %s",
+                    request_id,
+                    cedar_result.get("messages", []),
+                )
+
             write_result(
                 table_name=RESULTS_TABLE_NAME,
                 request_id=request_id,
-                status="COMPLETE",
+                status=final_status,
                 region=aws_region,
                 role_arn=role_arn,
                 observed_actions=observed_actions,

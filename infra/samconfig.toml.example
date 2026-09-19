@@ -1,7 +1,5 @@
-# SAM Configuration file for Cedar Sentinel Phase 2 Infrastructure
-# NOTE: samconfig.toml is gitignored (may contain account-specific values).
-# Before deploying, replace <YOUR_CLOUDTRAIL_LOG_GROUP> with the real log group name
-# from your .env file (CLOUDWATCH_LOG_GROUP_NAME).
+# SAM Configuration template for Cedar Sentinel Phase 2 Infrastructure
+# Copy this file to samconfig.toml and populate with your environment values
 version = 0.1
 
 [default]

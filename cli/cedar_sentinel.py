@@ -274,6 +274,46 @@ def _render_complete_result(item: Dict[str, Any]) -> None:
     print("\n" + "=" * 60)
 
 
+def _render_cedar_invalid_result(item: Dict[str, Any]) -> None:
+    """Renders a CEDAR_INVALID pipeline result to stdout."""
+    requested_policy_raw = item.get("requested_policy")
+    cedar_policy = item.get("cedar_policy", "(no Cedar policy returned)")
+    rationale = item.get("rationale", "")
+    model_used = item.get("model_used", "")
+    cedar_val = item.get("cedar_validation", {})
+
+    try:
+        requested_policy = json.loads(requested_policy_raw) if isinstance(requested_policy_raw, str) else requested_policy_raw
+    except Exception:
+        requested_policy = requested_policy_raw
+
+    _render_before_after_diff(requested_policy, cedar_policy, model_used=model_used)
+
+    print("\n" + "-" * 60)
+    print("  RATIONALE")
+    print("-" * 60)
+    print(rationale)
+
+    print("\n" + "=" * 60)
+    print("  [FAIL] Cedar formal verification rejected the draft policy!")
+    print("=" * 60)
+    store_id = cedar_val.get("policy_store_id", "")
+    if store_id:
+        print(f"Policy Store: {store_id}")
+    print("Validation Error(s):")
+    messages = cedar_val.get("messages", [])
+    if messages:
+        for msg in messages:
+            print(f"  * {msg}")
+    else:
+        print("  * Schema validation failed (no specific message returned).")
+    print("\nOffending Cedar Policy Text:")
+    print("-" * 40)
+    print(cedar_policy)
+    print("-" * 40)
+    print("\nResult: Deployment blocked due to invalid Cedar policy syntax / schema mismatch.")
+
+
 def _render_blocked_result(item: Dict[str, Any]) -> int:
     """
     Renders the hard-block warning and interactive [1]/[2]/[3] menu.
@@ -403,6 +443,9 @@ def _handle_reevaluate(item: Dict[str, Any], blocked_actions: List[Dict]) -> int
         return 0
     elif status == "BLOCKED":
         return _render_blocked_result(result)
+    elif status == "CEDAR_INVALID":
+        _render_cedar_invalid_result(result)
+        return 1
     else:
         print(f"Re-evaluation ended with status: {status}", file=sys.stderr)
         err_msg = result.get("error_message", "")
@@ -547,6 +590,9 @@ def handle_analyze(args: argparse.Namespace) -> int:
         return 0
     elif status == "BLOCKED":
         return _render_blocked_result(result)
+    elif status == "CEDAR_INVALID":
+        _render_cedar_invalid_result(result)
+        return 1
     elif status == "ERROR":
         print(f"\n[ERROR] Pipeline error for request_id={request_id}", file=sys.stderr)
         err_msg = result.get("error_message", "No details available.")
