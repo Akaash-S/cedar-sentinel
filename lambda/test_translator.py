@@ -8,7 +8,7 @@ import json
 import sys
 import unittest
 
-from handler import stage_iam_translation
+from handler import stage_iam_translation, _sanitize_and_guard_cedar_policy
 
 
 class TestCedarToIamTranslator(unittest.TestCase):
@@ -203,6 +203,59 @@ class TestCedarToIamTranslator(unittest.TestCase):
         self.assertIn("forbid", str(ctx.exception))
         print("\n[Test 5 PASS] Forbid statement refusal verified:")
         print(str(ctx.exception))
+
+    def test_6_unobserved_action_guard_regression(self):
+        """Regression test for bug where Bedrock included ec2/logs actions not in observed_actions."""
+        # Simulated raw Bedrock output containing unobserved ec2 and logs actions alongside observed s3 actions
+        draft_with_hallucinations = """
+        permit(
+            principal,
+            action in [
+                CedarSentinel::Action::"ec2:DescribeInstances",
+                CedarSentinel::Action::"ec2:ListBuckets",
+                CedarSentinel::Action::"logs:CreateLogGroup",
+                CedarSentinel::Action::"logs:PutLogEvents",
+                CedarSentinel::Action::"s3:GetObject",
+                CedarSentinel::Action::"s3:PutObject"
+            ],
+            resource
+        );
+        """
+        observed_actions = {
+            "s3:GetObject": 2,
+            "s3:PutObject": 1,
+            "s3:CreateBucket": 1,
+        }
+
+        sanitized = _sanitize_and_guard_cedar_policy(draft_with_hallucinations, observed_actions)
+        print("\n[Test 6 PASS] Sanitized Cedar policy:")
+        print(sanitized)
+
+        # Must retain observed s3 actions
+        self.assertIn('CedarSentinel::Action::"s3:GetObject"', sanitized)
+        self.assertIn('CedarSentinel::Action::"s3:PutObject"', sanitized)
+        # Must strip unobserved ec2 and logs actions
+        self.assertNotIn('ec2:DescribeInstances', sanitized)
+        self.assertNotIn('ec2:ListBuckets', sanitized)
+        self.assertNotIn('logs:CreateLogGroup', sanitized)
+        self.assertNotIn('logs:PutLogEvents', sanitized)
+
+    def test_7_zero_observed_actions_guard(self):
+        """Zero observed actions must yield canonical forbid statement on Action::'none'."""
+        draft_policy = """
+        permit(
+            principal,
+            action in [CedarSentinel::Action::"s3:GetObject"],
+            resource
+        );
+        """
+        observed_actions = {}
+        sanitized = _sanitize_and_guard_cedar_policy(draft_policy, observed_actions)
+        self.assertIn('forbid(', sanitized)
+        self.assertIn('CedarSentinel::Action::"none"', sanitized)
+        self.assertNotIn('permit(', sanitized)
+        print("\n[Test 7 PASS] Zero observed actions forbid statement verified:")
+        print(sanitized)
 
 
 if __name__ == "__main__":

@@ -19,10 +19,12 @@ DEFAULT_OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "..", "dashboard",
 
 
 def sanitize_value(val: Any) -> Any:
-    """Recursively replaces AWS account IDs and sensitive paths."""
+    """Recursively replaces AWS account IDs, policy store IDs, and sensitive paths."""
     if isinstance(val, str):
         # Replace 12-digit AWS account ID with placeholder
         sanitized = re.sub(r"\b\d{12}\b", "<ACCOUNT_ID>", val)
+        # Redact 22-character alphanumeric AVP store IDs
+        sanitized = re.sub(r"\b[A-Za-z0-9]{22}\b", "<AVP_STORE_ID>", sanitized)
         return sanitized
     elif isinstance(val, dict):
         return {k: sanitize_value(v) for k, v in val.items()}

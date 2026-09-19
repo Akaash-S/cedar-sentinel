@@ -74,9 +74,9 @@ START RequestId: bba3df1d-95c8-574c-bb53-bc35acdf2103 Version: $LATEST
 }
 [INFO]	2026-09-19T07:16:49.957Z	bba3df1d-95c8-574c-bb53-bc35acdf2103	Draft Cedar policy allows actions: ['logs:CreateLogGroup', 'logs:PutLogEvents', 's3:CreateBucket', 's3:GetBucketLocation', 's3:ListBuckets']
 [INFO]	2026-09-19T07:16:49.957Z	bba3df1d-95c8-574c-bb53-bc35acdf2103	Coverage check PASSED — all observed actions present in draft policy.
-[INFO]	2026-09-19T07:16:50.407Z	bba3df1d-95c8-574c-bb53-bc35acdf2103	Reusing existing disposable AVP policy store: EMy9MHuQZWowj9VGtHpKFR
-[INFO]	2026-09-19T07:16:50.407Z	bba3df1d-95c8-574c-bb53-bc35acdf2103	Registering Cedar schema on store EMy9MHuQZWowj9VGtHpKFR (STRICT mode).
-[INFO]	2026-09-19T07:16:50.427Z	bba3df1d-95c8-574c-bb53-bc35acdf2103	Validating draft Cedar policy via CreatePolicy on disposable store EMy9MHuQZWowj9VGtHpKFR.
+[INFO]	2026-09-19T07:16:50.407Z	bba3df1d-95c8-574c-bb53-bc35acdf2103	Reusing existing disposable AVP policy store: <AVP_STORE_ID>
+[INFO]	2026-09-19T07:16:50.407Z	bba3df1d-95c8-574c-bb53-bc35acdf2103	Registering Cedar schema on store <AVP_STORE_ID> (STRICT mode).
+[INFO]	2026-09-19T07:16:50.427Z	bba3df1d-95c8-574c-bb53-bc35acdf2103	Validating draft Cedar policy via CreatePolicy on disposable store <AVP_STORE_ID>.
 [INFO]	2026-09-19T07:16:50.473Z	bba3df1d-95c8-574c-bb53-bc35acdf2103	Cedar validation PASSED. Policy ID on disposable store: 2tgAYU81v5zFJvvu65GnVE
 [INFO]	2026-09-19T07:16:50.508Z	bba3df1d-95c8-574c-bb53-bc35acdf2103	Cleaned up disposable policy 2tgAYU81v5zFJvvu65GnVE from store.
 [INFO]	2026-09-19T07:16:50.980Z	bba3df1d-95c8-574c-bb53-bc35acdf2103	Result written to DynamoDB table 'cedar-sentinel-results' with status 'COMPLETE'.
@@ -131,7 +131,7 @@ Tightened policy to include only observed CloudTrail actions.
 ============================================================
   [FAIL] Cedar formal verification rejected the draft policy!
 ============================================================
-Policy Store: EMy9MHuQZWowj9VGtHpKFR
+Policy Store: <AVP_STORE_ID>
 Validation Error(s):
   * ValidationException: Invalid input
 
@@ -302,7 +302,7 @@ Tightened policy to include only observed CloudTrail actions.
   CEDAR FORMAL VERIFICATION
 ------------------------------------------------------------
 [PASS] draft Cedar policy is schema-valid (STRICT mode).
-  (Validated against disposable AVP policy store: EMy9MHuQZWowj9VGtHpKFR)
+  (Validated against disposable AVP policy store: <AVP_STORE_ID>)
 
 ============================================================
 ```

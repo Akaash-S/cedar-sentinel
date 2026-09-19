@@ -441,9 +441,48 @@ def _normalize_cedar_policy_text(cedar_policy_raw: Any) -> str:
     return str(cedar_policy_raw)
 
 
+CLOUDTRAIL_TO_IAM_ACTION_MAP: Dict[str, str] = {
+    "s3:ListBuckets": "s3:ListAllMyBuckets",  # CloudTrail eventName ListBuckets maps to IAM s3:ListAllMyBuckets
+    "s3:GetBucketLocation": "s3:GetBucketLocation",
+    "s3:CreateBucket": "s3:CreateBucket",
+    "s3:DeleteBucket": "s3:DeleteBucket",
+    "s3:PutObject": "s3:PutObject",
+    "s3:GetObject": "s3:GetObject",
+    "s3:HeadObject": "s3:GetObject",          # CloudTrail eventName HeadObject authorizes against IAM s3:GetObject
+    "s3:HeadBucket": "s3:ListBucket",         # CloudTrail eventName HeadBucket authorizes against IAM s3:ListBucket
+    "s3:DeleteObject": "s3:DeleteObject",
+    "s3:ListObjects": "s3:ListBucket",
+    "s3:ListObjectsV2": "s3:ListBucket",
+    "ec2:DescribeInstanceOfferings": "ec2:DescribeInstanceTypeOfferings",
+}
+
+
+def _is_action_observed_or_mapped(action: str, observed_actions: Dict[str, Any]) -> bool:
+    """
+    Checks if a given action is covered by the observed actions (considering
+    CloudTrail-to-IAM action mappings and case-insensitivity).
+    """
+    obs_set = {str(k).lower() for k, v in observed_actions.items() if int(v) > 0}
+    act_lower = action.lower()
+
+    if act_lower in obs_set:
+        return True
+
+    for obs in obs_set:
+        mapped = CLOUDTRAIL_TO_IAM_ACTION_MAP.get(obs, obs).lower()
+        if act_lower == mapped:
+            return True
+        if CLOUDTRAIL_TO_IAM_ACTION_MAP.get(act_lower, act_lower) == obs:
+            return True
+        if CLOUDTRAIL_TO_IAM_ACTION_MAP.get(act_lower, act_lower) == mapped:
+            return True
+
+    return False
+
+
 def _sanitize_and_guard_cedar_policy(
     raw_policy: Any,
-    observed_actions: Dict[str, int],
+    observed_actions: Dict[str, Any],
 ) -> str:
     """
     Deterministic code-level guard that cleans, normalizes, and validates the
@@ -451,19 +490,23 @@ def _sanitize_and_guard_cedar_policy(
     1. If observed actions exist:
        - Extracts all action references.
        - Discards spurious 'none' action or forbid statements.
+       - Filters out unobserved actions (actions absent from observed_actions).
        - Strips concatenated forbid blocks (e.g. 'permit(...); forbid(...)').
        - Formats into a clean, canonical single permit statement.
     2. If zero observed actions:
        - Ensures a single valid forbid statement on Action::'none'.
     """
     text = _normalize_cedar_policy_text(raw_policy)
-    has_observed = any(count > 0 for count in observed_actions.values())
+    has_observed = any(int(count) > 0 for count in observed_actions.values())
 
     if has_observed:
         # Extract actions present in the policy
         extracted = _extract_cedar_actions(text)
-        # Filter out spurious "none" or invalid action names
-        valid_actions = [a for a in extracted if a != "none" and ":" in a]
+        # Filter out spurious "none", unobserved actions, or invalid action names
+        valid_actions = [
+            a for a in extracted
+            if a != "none" and ":" in a and _is_action_observed_or_mapped(a, observed_actions)
+        ]
 
         # If valid actions were found in the text, use them
         if valid_actions:
@@ -479,9 +522,9 @@ def _sanitize_and_guard_cedar_policy(
                 f"    resource\n"
                 f");"
             )
-        # Fallback to observed actions if model output had no parseable service actions
+        # Fallback to observed actions if model output had no parseable observed actions
         action_items = ",\n        ".join(
-            f'{CS_NAMESPACE}::Action::"{a}"' for a in sorted(observed_actions.keys()) if observed_actions[a] > 0
+            f'{CS_NAMESPACE}::Action::"{a}"' for a in sorted(observed_actions.keys()) if int(observed_actions[a]) > 0
         )
         return (
             f"permit(\n"
@@ -778,20 +821,6 @@ def stage_cedar_validation(
 # ─────────────────────────────────────────────────────────────────
 
 
-CLOUDTRAIL_TO_IAM_ACTION_MAP: Dict[str, str] = {
-    "s3:ListBuckets": "s3:ListAllMyBuckets",  # CloudTrail eventName ListBuckets maps to IAM s3:ListAllMyBuckets
-    "s3:GetBucketLocation": "s3:GetBucketLocation",
-    "s3:CreateBucket": "s3:CreateBucket",
-    "s3:DeleteBucket": "s3:DeleteBucket",
-    "s3:PutObject": "s3:PutObject",
-    "s3:GetObject": "s3:GetObject",
-    "s3:HeadObject": "s3:GetObject",          # CloudTrail eventName HeadObject authorizes against IAM s3:GetObject
-    "s3:HeadBucket": "s3:ListBucket",         # CloudTrail eventName HeadBucket authorizes against IAM s3:ListBucket
-    "s3:DeleteObject": "s3:DeleteObject",
-    "s3:ListObjects": "s3:ListBucket",
-    "s3:ListObjectsV2": "s3:ListBucket",
-    "ec2:DescribeInstanceOfferings": "ec2:DescribeInstanceTypeOfferings",
-}
 
 
 def _action_matches_pattern(action: str, pattern: str) -> bool:

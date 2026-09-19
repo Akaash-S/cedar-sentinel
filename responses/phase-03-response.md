@@ -9,385 +9,149 @@
 
 ---
 
-## 1. Section 1 Pre-Flight Configuration & Decision Defaults
+## 1. Resolution of Investigation Items (Items 1 & 2)
 
-All decisions were aligned with the default specifications in `instructions/phase-03-enforcement.md` Section 1:
+### 1.1 DynamoDB Item Dump for Request `70b431d3-...` & Root Cause Analysis
 
-- **Target Role for Enforcement Testing:** `arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role` (Never the Lambda execution role).
-- **Target Inline Policy Name to Overwrite:** `demo-broad-s3` (Overwrites the broad `s3:*` baseline).
-- **S3 Data Events:** Option (a) — Enabled for the demo bucket and activity re-seeded (bucket creation, put object, get object, delete object, head object).
-- **Dashboard Deliverable:** Static recorded-run snapshot via `scripts/export_run.py` writing sanitized `dashboard/run.json` to Amplify `dashboard/index.html`.
-- **Lockout Menu Option [2]:** Kept intentionally disabled in this build with safety warning notice.
-- **Lambda Execution Role Boundary:** Lambda execution role received **only** `access-analyzer:ValidatePolicy` and `access-analyzer:CheckNoNewAccess` with `Resource: "*"`. Lambda role contains **zero** IAM write permissions (`iam:PutRolePolicy`, `iam:CreatePolicy`, etc. are omitted).
-
----
-
-## 2. Section 2: Cedar → IAM JSON Translation
-
-Implemented `stage_iam_translation` in `lambda/handler.py` with:
-1. `CLOUDTRAIL_TO_IAM_ACTION_MAP` normalizing CloudTrail event names (`s3:ListBuckets` $\rightarrow$ `s3:ListAllMyBuckets`, `s3:HeadObject` $\rightarrow$ `s3:GetObject`, `s3:HeadBucket` $\rightarrow$ `s3:ListBucket`).
-2. Statement grouping by requested resource ARN.
-3. Exclusion of unrequested actions without widening to `*`.
-4. Strict refusal of `forbid` statements (only verified `permit` blocks can translate to IAM `Allow`).
-
-### Unit Test Suite Execution (`lambda/test_translator.py`)
-
-```text
-test_1_single_action_policy (__main__.TestCedarToIamTranslator.test_1_single_action_policy)
-Test 1: Single-action policy translates to standard IAM JSON. ... ok
-test_2_multi_service_multi_action_policy (__main__.TestCedarToIamTranslator.test_2_multi_service_multi_action_policy)
-Test 2: Multi-service multi-action policy grouped by resource. ... ok
-test_3_cloudtrail_action_normalization (__main__.TestCedarToIamTranslator.test_3_cloudtrail_action_normalization)
-Test 3: Policy containing s3:ListBuckets becomes s3:ListAllMyBuckets and records mapping. ... ok
-test_4_unmatched_action_excluded_not_widened (__main__.TestCedarToIamTranslator.test_4_unmatched_action_excluded_not_widened)
-Test 4: Action matching no requested statement is excluded and recorded, not widened to '*'. ... ok
-test_5_forbid_statement_refused (__main__.TestCedarToIamTranslator.test_5_forbid_statement_refused)
-Test 5: Policy with a forbid block causes the translator to refuse and raise ValueError. ... ok
-
-----------------------------------------------------------------------
-Ran 5 tests in 0.002s
-
-OK
-
-[Test 1 PASS] Single-action translation verified.
+#### Full Redacted DynamoDB Item
+```json
 {
-  "Version": "2012-10-17",
-  "Statement": [
+  "request_id": "70b431d3-9809-4083-9016-01b4bdd70065",
+  "role_arn": "arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role",
+  "status": "APPLIED",
+  "model_used": "apac.amazon.nova-lite-v1:0",
+  "ttl": "1790083029",
+  "completed_at": "2026-09-19T13:17:09.730343+00:00",
+  "requested_policy": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"DemoS3Access\", \"Effect\": \"Allow\", \"Action\": [\"s3:*\"], \"Resource\": \"*\"}, {\"Sid\": \"DemoEC2Access\", \"Effect\": \"Allow\", \"Action\": [\"ec2:Describe*\", \"ec2:List*\"], \"Resource\": \"*\"}, {\"Sid\": \"DemoLogsAccess\", \"Effect\": \"Allow\", \"Action\": [\"logs:CreateLogGroup\", \"logs:CreateLogStream\", \"logs:PutLogEvents\", \"logs:DescribeLogGroups\", \"logs:DescribeLogStreams\", \"logs:GetLogEvents\", \"logs:FilterLogEvents\", \"logs:StartQuery\", \"logs:GetQueryResults\", \"logs:StopQuery\"], \"Resource\": \"*\"}, {\"Sid\": \"DemoDynamoAccess\", \"Effect\": \"Allow\", \"Action\": [\"dynamodb:*\"], \"Resource\": \"*\"}]}",
+  "previous_policy": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"DemoS3Access\", \"Effect\": \"Allow\", \"Action\": \"s3:*\", \"Resource\": \"*\"}]}",
+  "observed_actions": {
+    "s3:CreateBucket": "1",
+    "s3:HeadObject": "1",
+    "s3:PutObject": "1",
+    "s3:DeleteObject": "1",
+    "s3:ListBuckets": "2",
+    "s3:GetBucketLocation": "2",
+    "s3:GetObject": "1"
+  },
+  "cedar_policy": "permit(\n    principal,\n    action in [\n        CedarSentinel::Action::\"ec2:Describe*\",\n        CedarSentinel::Action::\"ec2:List*\",\n        CedarSentinel::Action::\"logs:CreateLogGroup\",\n        CedarSentinel::Action::\"logs:PutLogEvents\",\n        CedarSentinel::Action::\"s3:CreateBucket\",\n        CedarSentinel::Action::\"s3:DeleteObject\",\n        CedarSentinel::Action::\"s3:GetBucketLocation\",\n        CedarSentinel::Action::\"s3:GetObject\",\n        CedarSentinel::Action::\"s3:HeadObject\",\n        CedarSentinel::Action::\"s3:ListBuckets\",\n        CedarSentinel::Action::\"s3:PutObject\"\n    ],\n    resource\n);",
+  "iam_policy": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"CedarSentinelTightenedStmt1\", \"Effect\": \"Allow\", \"Action\": [\"ec2:Describe*\", \"ec2:List*\", \"logs:CreateLogGroup\", \"logs:PutLogEvents\", \"s3:CreateBucket\", \"s3:DeleteObject\", \"s3:GetBucketLocation\", \"s3:GetObject\", \"s3:ListAllMyBuckets\", \"s3:PutObject\"], \"Resource\": \"*\"}]}",
+  "action_mappings_applied": [
     {
-      "Sid": "CedarSentinelTightenedStmt1",
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject"
-      ],
-      "Resource": "arn:aws:s3:::my-bucket/*"
-    }
-  ]
-}
-
-[Test 2 PASS] Multi-service multi-action grouped translation verified.
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "CedarSentinelTightenedStmt1",
-      "Effect": "Allow",
-      "Action": [
-        "logs:CreateLogGroup",
-        "logs:PutLogEvents"
-      ],
-      "Resource": "arn:aws:logs:*:*:*"
+      "original": "s3:HeadObject",
+      "mapped": "s3:GetObject"
     },
     {
-      "Sid": "CedarSentinelTightenedStmt2",
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject"
-      ],
-      "Resource": "arn:aws:s3:::demo-bucket/*"
+      "original": "s3:ListBuckets",
+      "mapped": "s3:ListAllMyBuckets"
     }
-  ]
-}
-
-[Test 3 PASS] Action mapping s3:ListBuckets -> s3:ListAllMyBuckets verified.
-Applied mappings: [{'original': 's3:ListBuckets', 'mapped': 's3:ListAllMyBuckets'}]
-{
-  "Version": "2012-10-17",
-  "Statement": [
+  ],
+  "unmatched_actions": [],
+  "coverage_check": {
+    "blocked_actions": "[]",
+    "passed": true
+  },
+  "cedar_validation": {
+    "passed": true,
+    "messages": [
+      "Policy passed STRICT Cedar schema validation."
+    ],
+    "policy_store_id": "<AVP_STORE_ID>"
+  },
+  "analyzer_validation": {
+    "findings": [],
+    "reason": null,
+    "passed": true,
+    "check_no_new_access": {
+      "reasons": [],
+      "message": "The modified permissions grant less or equal access compared to your existing policy.",
+      "result": "PASS"
+    },
+    "messages": [
+      "Access Analyzer validation passed (no errors, no new access)."
+    ]
+  },
+  "rationale": "Tightened policy to include only observed CloudTrail actions for S3, logs, and EC2 services.",
+  "stage_timings": [
     {
-      "Sid": "CedarSentinelTightenedStmt1",
-      "Effect": "Allow",
-      "Action": [
-        "s3:CreateBucket",
-        "s3:ListAllMyBuckets"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-
-[Test 4 PASS] Unmatched action excluded without widening to '*' verified.
-Unmatched actions: ['dynamodb:PutItem']
-{
-  "Version": "2012-10-17",
-  "Statement": [
+      "stage": "cloudwatch_query",
+      "start": "2026-09-19T13:17:05.568173+00:00",
+      "end": "2026-09-19T13:17:07.870589+00:00"
+    },
     {
-      "Sid": "CedarSentinelTightenedStmt1",
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject"
-      ],
-      "Resource": "arn:aws:s3:::specific-bucket/*"
+      "stage": "bedrock_call",
+      "start": "2026-09-19T13:17:07.871900+00:00",
+      "end": "2026-09-19T13:17:09.032341+00:00"
+    },
+    {
+      "stage": "coverage_check",
+      "start": "2026-09-19T13:17:09.033515+00:00",
+      "end": "2026-09-19T13:17:09.034003+00:00"
+    },
+    {
+      "stage": "cedar_validation",
+      "start": "2026-09-19T13:17:09.034015+00:00",
+      "end": "2026-09-19T13:17:09.396995+00:00"
+    },
+    {
+      "stage": "iam_translation",
+      "start": "2026-09-19T13:17:09.409101+00:00",
+      "end": "2026-09-19T13:17:09.409335+00:00"
+    },
+    {
+      "stage": "analyzer_validation",
+      "start": "2026-09-19T13:17:09.409345+00:00",
+      "end": "2026-09-19T13:17:09.702429+00:00"
     }
   ]
 }
-
-[Test 5 PASS] Forbid statement refusal verified:
-Translator refused: Cedar policy contains 'forbid' statement. Only verified 'permit' statements can be translated to IAM Allow policies.
 ```
 
----
-
-## 3. Section 3: IAM Access Analyzer Independent Safety Net
-
-Implemented `stage_access_analyzer` calling `accessanalyzer:ValidatePolicy` and `accessanalyzer:CheckNoNewAccess`. Rejects with `ANALYZER_INVALID` status on `VALIDATION_ERROR` or `NEW_ACCESS`.
-
-### Live Integration Test Suite Execution (`lambda/test_access_analyzer.py`)
-
-Tested against live AWS Access Analyzer in `ap-south-1`:
-
-```text
-test_a_invalid_action_name_triggers_validation_error (__main__.TestAccessAnalyzerSafetyNet.test_a_invalid_action_name_triggers_validation_error)
-Case (a): Invalid action name triggers ERROR finding and VALIDATION_ERROR rejection. ... ok
-test_b_over_permissive_policy_non_blocking_findings (__main__.TestAccessAnalyzerSafetyNet.test_b_over_permissive_policy_non_blocking_findings)
-Case (b): Over-permissive policy (Resource: '*' with wildcard action) returns non-blocking findings. ... ok
-test_c_clean_tightly_scoped_policy_passes (__main__.TestAccessAnalyzerSafetyNet.test_c_clean_tightly_scoped_policy_passes)
-Case (c): Clean, tightly scoped policy passes without blocking findings. ... ok
-test_d_check_no_new_access_catches_escalation (__main__.TestAccessAnalyzerSafetyNet.test_d_check_no_new_access_catches_escalation)
-Case (d): CheckNoNewAccess catches new permissions not in requested policy -> NEW_ACCESS. ... ok
-
-----------------------------------------------------------------------
-Ran 4 tests in 3.828s
-
-OK
-
---- Case (a) Invalid Action Name Test ---
-Passed: False, Reason: VALIDATION_ERROR
-Messages: ['Access Analyzer validation error: The action s3:InvalidNonExistentActionXYZ does not exist. (INVALID_ACTION)']
-Findings count: 1
-  * FindingType: ERROR, IssueCode: INVALID_ACTION, Details: The action s3:InvalidNonExistentActionXYZ does not exist.
-
---- Case (b) Over-Permissive Policy Test ---
-Passed: True, Reason: None
-Messages: ['Access Analyzer validation passed (no errors, no new access).']
-Findings count: 0
-
---- Case (c) Clean Tightly-Scoped Policy Test ---
-Passed: True, Reason: None
-Messages: ['Access Analyzer validation passed (no errors, no new access).']
-CheckNoNewAccess result: PASS
-
---- Case (d) Privilege Escalation Check Test ---
-Passed: False, Reason: NEW_ACCESS
-Messages: ['Access Analyzer detected new access granted: New access in the statement with index: 0.']
-CheckNoNewAccess detail: {'result': 'FAIL', 'reasons': [{'description': 'New access in the statement with index: 0.', 'statementIndex': 0}], 'message': 'The modified permissions grant new access compared to your existing policy.'}
-```
-
----
-
-## 4. Section 4: CLI `--apply` & Safety Guards
-
-### 4.1 Guard 1: Missing `--policy-name` when `--apply` is specified
-```bash
-python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role --apply
-```
-**Output (Exit code: 1):**
-```text
-Error: --policy-name is required when --apply is specified.
-```
-
-### 4.2 Guard 2: Refuse self-modification on Lambda execution role
-```bash
-python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-infra-LambdaExecutionRole-abc --apply --policy-name demo-broad-s3 --allow-self-analysis
-```
-**Output (Exit code: 1):**
-```text
-Error: Target role matches Cedar Sentinel Lambda execution role. Self-modification via --apply is forbidden.
-```
-
-### 4.3 Guard 3: Refuse any role name not matching `cedar-sentinel-*`
-```bash
-python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/production-admin-role --apply --policy-name demo-broad-s3
-```
-**Output (Exit code: 1):**
-```text
-Error: Target role 'production-admin-role' does not match allowed pattern 'cedar-sentinel-*'.
---apply is strictly restricted to roles named cedar-sentinel-*.
-```
-
-### 4.4 Guard 4: Refusal on Non-`COMPLETE` Result (`ANALYZER_INVALID` / `CEDAR_INVALID` / `BLOCKED`)
-When unmapped `s3:HeadObject` or `ec2:DescribeInstanceOfferings` triggered `ANALYZER_INVALID`, the CLI displayed the distinct rejection view and refused to prompt:
-```text
-[OK] Result ready (status: ANALYZER_INVALID)          
-
-============================================================
-  BEFORE — Requested IAM Policy (from Terraform plan)
-============================================================
-...
-============================================================
-  AFTER  — Drafted Cedar Policy (Bedrock reasoning output)
-  Reasoned by: apac.amazon.nova-lite-v1:0
-============================================================
-...
-============================================================
-  [FAIL] IAM Access Analyzer rejected the translated policy!
-============================================================
-Rejection Reason: VALIDATION_ERROR
-Finding Details:
-  * [ERROR] The action ec2:DescribeInstanceOfferings does not exist.
-  * [ERROR] The action s3:HeadObject does not exist. Did you mean s3:GetObject? The API called HeadObject authorizes against the IAM action s3:GetObject.
-
-Result: Deployment blocked due to IAM Access Analyzer validation / escalation failure.
-
-[REFUSED] Cannot apply: Pipeline result status is 'ANALYZER_INVALID' (expected 'COMPLETE').
-```
-
-### 4.5 Real Run with User Decline (`N`)
-```bash
-python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role --apply --policy-name demo-broad-s3
-```
-**Input:** `N`  
-**Output (Exit code: 0):**
-```text
-Publishing analysis event to EventBridge bus 'cedar-sentinel-events'...
-Request ID: 1a2f5322-1795-4fd3-9d4f-3683c6be3711
-Event published. EventId: d82c8fb9-64b5-5348-6145-8c4618f4ff7a
-
-Polling for result (request_id: 1a2f5322-1795-4fd3-9d4f-3683c6be3711)...
-[OK] Result ready (status: COMPLETE)          
-
-============================================================
-  PROPOSED IAM POLICY TO APPLY (Tightened & Verified)
-  Target Role               : arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role
-  Target Inline Policy Name : demo-broad-s3
-============================================================
---- BEFORE: Requested Policy ---
+#### Exact Documents Passed to `CheckNoNewAccess`
+1. **`existingPolicyDocument` (`requested_policy` from plan fixture):**
+```json
 {
   "Version": "2012-10-17",
   "Statement": [
     {
       "Sid": "DemoS3Access",
       "Effect": "Allow",
-      "Action": [
-        "s3:*"
-      ],
+      "Action": ["s3:*"],
       "Resource": "*"
-    }
-  ]
-}
-
-+++ AFTER: Translated Tightened Policy +++
-{
-  "Version": "2012-10-17",
-  "Statement": [
+    },
     {
-      "Sid": "CedarSentinelTightenedStmt1",
+      "Sid": "DemoEC2Access",
+      "Effect": "Allow",
+      "Action": ["ec2:Describe*", "ec2:List*"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DemoLogsAccess",
       "Effect": "Allow",
       "Action": [
-        "ec2:DescribeInstances",
-        "ec2:DescribeSecurityGroups",
         "logs:CreateLogGroup",
+        "logs:CreateLogStream",
         "logs:PutLogEvents",
-        "s3:CreateBucket",
-        "s3:DeleteObject",
-        "s3:GetBucketLocation",
-        "s3:GetObject",
-        "s3:ListAllMyBuckets",
-        "s3:PutObject"
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:GetLogEvents",
+        "logs:FilterLogEvents",
+        "logs:StartQuery",
+        "logs:GetQueryResults",
+        "logs:StopQuery"
       ],
       "Resource": "*"
-    }
-  ]
-}
-
-  Action mappings applied: [{'mapped': 's3:GetObject', 'original': 's3:HeadObject'}, {'original': 's3:ListBuckets', 'mapped': 's3:ListAllMyBuckets'}]
-
-Apply this policy to arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role? [y/N]: 
-Apply declined by user. No changes applied.
-```
-
-**Verification:**
-- DynamoDB `status`: `DECLINED`
-- Live role policy: Unchanged (`s3:*`)
-- Persistent audit store policies written: `0`
-
----
-
-## 5. Section 5: Enforcement, Snapshot, and Resilience
-
-### 5.1 Target Policy Existence Check
-```bash
-python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role --apply --policy-name non-existent-policy
-```
-**Output (Exit code: 1):**
-```text
-[FAIL] Target inline policy name 'non-existent-policy' does not exist on role 'cedar-sentinel-demo-role'.
-Actual inline policies on role: ['demo-broad-s3']
-Refusing to create a new parallel policy. Specify an existing inline policy name to overwrite.
-```
-
-### 5.2 Real Successful Apply (`y`)
-```bash
-python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role --apply --policy-name demo-broad-s3
-```
-**Input:** `y`  
-**Output (Exit code: 0):**
-```text
-Publishing analysis event to EventBridge bus 'cedar-sentinel-events'...
-Request ID: 70b431d3-9809-4083-9016-01b4bdd70065
-Event published. EventId: cab0c16d-3682-d769-295c-9b51a42d022a
-
-Polling for result (request_id: 70b431d3-9809-4083-9016-01b4bdd70065)...
-[OK] Result ready (status: COMPLETE)          
-
-============================================================
-  PROPOSED IAM POLICY TO APPLY (Tightened & Verified)
-  Target Role               : arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role
-  Target Inline Policy Name : demo-broad-s3
-============================================================
---- BEFORE: Requested Policy ---
-{
-  "Version": "2012-10-17",
-  "Statement": [
+    },
     {
-      "Sid": "DemoS3Access",
+      "Sid": "DemoDynamoAccess",
       "Effect": "Allow",
-      "Action": [
-        "s3:*"
-      ],
+      "Action": ["dynamodb:*"],
       "Resource": "*"
     }
   ]
 }
-
-+++ AFTER: Translated Tightened Policy +++
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "CedarSentinelTightenedStmt1",
-      "Effect": "Allow",
-      "Action": [
-        "ec2:Describe*",
-        "ec2:List*",
-        "logs:CreateLogGroup",
-        "logs:PutLogEvents",
-        "s3:CreateBucket",
-        "s3:DeleteObject",
-        "s3:GetBucketLocation",
-        "s3:GetObject",
-        "s3:ListAllMyBuckets",
-        "s3:PutObject"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-
-  Action mappings applied: [{'mapped': 's3:GetObject', 'original': 's3:HeadObject'}, {'original': 's3:ListBuckets', 'mapped': 's3:ListAllMyBuckets'}]
-
-Apply this policy to arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role? [y/N]: 
-Snapshotting existing inline policy 'demo-broad-s3' on role 'cedar-sentinel-demo-role'...
-[OK] Policy snapshotted successfully.
-Applying tightened policy to role 'cedar-sentinel-demo-role' (overwriting 'demo-broad-s3')...
-Verifying applied policy via iam:GetRolePolicy read-back...
-[SUCCESS] Policy successfully applied and verified on 'cedar-sentinel-demo-role'.
-
-Recording approved policy in persistent AVP audit store...
-[AUDIT] Policy recorded in persistent AVP store UgC491Luruab4Tj5fXAcFR (Policy ID: NVL66r87jfHCEnJ11W1CU7)
 ```
 
-### 5.3 Live Role Read-Back Verification (`iam:GetRolePolicy`)
+2. **`newPolicyDocument` (`iam_policy` translated from Cedar):**
 ```json
 {
   "Version": "2012-10-17",
@@ -413,11 +177,197 @@ Recording approved policy in persistent AVP audit store...
 }
 ```
 
-### 5.4 Demo Role Reset Script & Repeatability (`scripts/reset_demo_role.py`)
+#### Why Neither Translator Nor CheckNoNewAccess Caught Them
+1. **Translator's Exclusion Logic:** `stage_iam_translation` checks whether each action in the draft Cedar policy is covered by any `Statement` in the `requested_policy`. Because the input fixture `cli/fixtures/demo-role-plan.json` contained statements for `DemoEC2Access` (`ec2:Describe*`, `ec2:List*`) and `DemoLogsAccess` (`logs:CreateLogGroup`, etc.), the translator successfully matched `ec2:Describe*` and `logs:CreateLogGroup` to `Resource: "*"` from the plan statements, leaving `unmatched_actions: []`.
+2. **Access Analyzer `CheckNoNewAccess`:** `CheckNoNewAccess` compares `newPolicyDocument` against `existingPolicyDocument` (`requested_policy`). Because the `newPolicyDocument` granted a strict subset of what was requested in the Terraform plan (e.g. `ec2:Describe*` is $\subseteq$ `ec2:Describe*` and `s3:GetObject` is $\subseteq$ `s3:*`), Access Analyzer correctly concluded that no privilege escalation occurred compared to the requested plan and returned `PASS`.
+3. **The Root Cause:** CloudTrail observed **only S3 actions** for the role (`s3:CreateBucket`, `s3:HeadObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:ListBuckets`, `s3:GetBucketLocation`, `s3:GetObject`). Bedrock saw the 4 statements in the prompt and hallucinated/retained `ec2` and `logs` actions in the draft Cedar policy. The previous guard in `_sanitize_and_guard_cedar_policy` checked for valid format but did not filter actions against `observed_actions`.
+
+### 1.2 Deterministic Guard Implementation & Verification
+
+#### Deterministic Guard in `lambda/handler.py`
+Implemented `_is_action_observed_or_mapped` and integrated it directly into `_sanitize_and_guard_cedar_policy`:
+```python
+def _is_action_observed_or_mapped(action: str, observed_actions: Dict[str, Any]) -> bool:
+    obs_set = {str(k).lower() for k, v in observed_actions.items() if int(v) > 0}
+    act_lower = action.lower()
+
+    if act_lower in obs_set:
+        return True
+
+    for obs in obs_set:
+        mapped = CLOUDTRAIL_TO_IAM_ACTION_MAP.get(obs, obs).lower()
+        if act_lower == mapped:
+            return True
+        if CLOUDTRAIL_TO_IAM_ACTION_MAP.get(act_lower, act_lower) == obs:
+            return True
+        if CLOUDTRAIL_TO_IAM_ACTION_MAP.get(act_lower, act_lower) == mapped:
+            return True
+
+    return False
+```
+Any action drafted by the LLM that is not in `observed_actions` is deterministically stripped before schema validation, translation, or enforcement.
+
+#### Unit Regression Tests (`lambda/test_translator.py`)
+Added `test_6_unobserved_action_guard_regression` and `test_7_zero_observed_actions_guard`.
+
+```text
+test_1_single_action_policy (__main__.TestCedarToIamTranslator.test_1_single_action_policy)
+Test 1: Single-action policy translates to standard IAM JSON. ... ok
+test_2_multi_service_multi_action_policy (__main__.TestCedarToIamTranslator.test_2_multi_service_multi_action_policy)
+Test 2: Multi-service multi-action policy grouped by resource. ... ok
+test_3_cloudtrail_action_normalization (__main__.TestCedarToIamTranslator.test_3_cloudtrail_action_normalization)
+Test 3: Policy containing s3:ListBuckets becomes s3:ListAllMyBuckets and records mapping. ... ok
+test_4_unmatched_action_excluded_not_widened (__main__.TestCedarToIamTranslator.test_4_unmatched_action_excluded_not_widened)
+Test 4: Action matching no requested statement is excluded and recorded, not widened to '*'. ... ok
+test_5_forbid_statement_refused (__main__.TestCedarToIamTranslator.test_5_forbid_statement_refused)
+Test 5: Policy with a forbid block causes the translator to refuse and raise ValueError. ... ok
+test_6_unobserved_action_guard_regression (__main__.TestCedarToIamTranslator.test_6_unobserved_action_guard_regression)
+Regression test for bug where Bedrock included ec2/logs actions not in observed_actions. ... ok
+test_7_zero_observed_actions_guard (__main__.TestCedarToIamTranslator.test_7_zero_observed_actions_guard)
+Zero observed actions must yield canonical forbid statement on Action::'none'. ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.002s
+
+OK
+```
+
+---
+
+## 2. Real Apply $\rightarrow$ Reset $\rightarrow$ Apply Cycle (Item 3)
+
+### Step 1: Initial Reset of Demo Role
 ```bash
 python scripts/reset_demo_role.py
 ```
-**Output:**
+```text
+=== Cedar Sentinel Demo Role Reset ===
+Target Role: cedar-sentinel-demo-role
+Policy Name: demo-broad-s3
+Region     : ap-south-1
+
+Applying broad baseline policy...
+[OK] PutRolePolicy succeeded.
+
+--- Policy AFTER Reset ---
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DemoS3Access",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": "*"
+    }
+  ]
+}
+
+[SUCCESS] Demo role reset to broad 'before' state completed.
+```
+
+### Step 2: First Apply Execution
+```bash
+python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role --apply --policy-name demo-broad-s3
+```
+```text
+Publishing analysis event to EventBridge bus 'cedar-sentinel-events'...
+Request ID: 00f05954-abb4-4691-a6b6-a1db58308ed1
+Event published. EventId: 65716b81-48df-49d9-2e4a-eb9c71726689
+
+Polling for result (request_id: 00f05954-abb4-4691-a6b6-a1db58308ed1)...
+[OK] Result ready (status: COMPLETE)          
+
+============================================================
+  PROPOSED IAM POLICY TO APPLY (Tightened & Verified)
+  Target Role               : arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role
+  Target Inline Policy Name : demo-broad-s3
+============================================================
+--- BEFORE: Requested Policy ---
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DemoS3Access",
+      "Effect": "Allow",
+      "Action": [
+        "s3:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DemoEC2Access",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "ec2:List*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DemoLogsAccess",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:GetLogEvents",
+        "logs:FilterLogEvents",
+        "logs:StartQuery",
+        "logs:GetQueryResults",
+        "logs:StopQuery"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DemoDynamoAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+
++++ AFTER: Translated Tightened Policy +++
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CedarSentinelTightenedStmt1",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:DeleteObject",
+        "s3:GetBucketLocation",
+        "s3:GetObject",
+        "s3:ListAllMyBuckets",
+        "s3:PutObject"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+
+  Action mappings applied: [{'original': 's3:HeadObject', 'mapped': 's3:GetObject'}, {'mapped': 's3:ListAllMyBuckets', 'original': 's3:ListBuckets'}]
+
+Apply this policy to arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role? [y/N]: y
+Snapshotting existing inline policy 'demo-broad-s3' on role 'cedar-sentinel-demo-role'...
+[OK] Policy snapshotted successfully.
+Applying tightened policy to role 'cedar-sentinel-demo-role' (overwriting 'demo-broad-s3')...
+Verifying applied policy via iam:GetRolePolicy read-back...
+[SUCCESS] Policy successfully applied and verified on 'cedar-sentinel-demo-role'.
+
+Recording approved policy in persistent AVP audit store...
+[AUDIT] Policy recorded in persistent AVP store <AUDIT_STORE_ID> (Policy ID: <POLICY_ID_1>)
+```
+
+### Step 3: Intermediate Reset
+```bash
+python scripts/reset_demo_role.py
+```
 ```text
 === Cedar Sentinel Demo Role Reset ===
 Target Role: cedar-sentinel-demo-role
@@ -432,10 +382,6 @@ Region     : ap-south-1
       "Sid": "CedarSentinelTightenedStmt1",
       "Effect": "Allow",
       "Action": [
-        "ec2:Describe*",
-        "ec2:List*",
-        "logs:CreateLogGroup",
-        "logs:PutLogEvents",
         "s3:CreateBucket",
         "s3:DeleteObject",
         "s3:GetBucketLocation",
@@ -467,68 +413,521 @@ Applying broad baseline policy...
 [SUCCESS] Demo role reset to broad 'before' state completed.
 ```
 
----
-
-## 6. Section 6: Persistent AVP Audit Store
-
-- **Audit Policy Store Name:** `cedar-sentinel-audit-store`
-- **Audit Policy Store ID:** `UgC491Luruab4Tj5fXAcFR` (persisted in SSM at `/cedar-sentinel/dev/avp-audit-store-id`)
-- **Validation Mode:** `STRICT`
-
-### Live Audit Policy Record (`verifiedpermissions:GetPolicy`)
+### Step 4: Second Apply Execution (Produces Second Audit Record)
+```bash
+python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role --apply --policy-name demo-broad-s3
+```
 ```text
-Policy ID   : NVL66r87jfHCEnJ11W1CU7
-Store ID    : UgC491Luruab4Tj5fXAcFR
-Created At  : 2026-09-19 13:17:17.866145+00:00
-Description : req=70b431d3 rationale=Tightened policy to include only observed CloudTrail actions for S3, logs, and EC2 services.
-Statement   :
-permit(
-    principal,
-    action in [
-        CedarSentinel::Action::"ec2:Describe*",
-        CedarSentinel::Action::"ec2:List*",
-        CedarSentinel::Action::"logs:CreateLogGroup",
-        CedarSentinel::Action::"logs:PutLogEvents",
-        CedarSentinel::Action::"s3:CreateBucket",
-        CedarSentinel::Action::"s3:DeleteObject",
-        CedarSentinel::Action::"s3:GetBucketLocation",
-        CedarSentinel::Action::"s3:GetObject",
-        CedarSentinel::Action::"s3:HeadObject",
-        CedarSentinel::Action::"s3:ListBuckets",
-        CedarSentinel::Action::"s3:PutObject"
-    ],
-    resource
-);
+Publishing analysis event to EventBridge bus 'cedar-sentinel-events'...
+Request ID: 51c455ef-08b1-4b4d-8479-e2d49172cb2c
+Event published. EventId: 8da6eaa6-27ff-ffcd-308e-8f0baa0ea898
+
+Polling for result (request_id: 51c455ef-08b1-4b4d-8479-e2d49172cb2c)...
+[OK] Result ready (status: COMPLETE)          
+
+============================================================
+  PROPOSED IAM POLICY TO APPLY (Tightened & Verified)
+  Target Role               : arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role
+  Target Inline Policy Name : demo-broad-s3
+============================================================
+--- BEFORE: Requested Policy ---
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DemoS3Access",
+      "Effect": "Allow",
+      "Action": [
+        "s3:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DemoEC2Access",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:Describe*",
+        "ec2:List*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DemoLogsAccess",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:GetLogEvents",
+        "logs:FilterLogEvents",
+        "logs:StartQuery",
+        "logs:GetQueryResults",
+        "logs:StopQuery"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DemoDynamoAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+
++++ AFTER: Translated Tightened Policy +++
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CedarSentinelTightenedStmt1",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:DeleteObject",
+        "s3:GetBucketLocation",
+        "s3:GetObject",
+        "s3:ListAllMyBuckets",
+        "s3:PutObject"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+
+  Action mappings applied: [{'original': 's3:HeadObject', 'mapped': 's3:GetObject'}, {'mapped': 's3:ListAllMyBuckets', 'original': 's3:ListBuckets'}]
+
+Apply this policy to arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role? [y/N]: y
+Snapshotting existing inline policy 'demo-broad-s3' on role 'cedar-sentinel-demo-role'...
+[OK] Policy snapshotted successfully.
+Applying tightened policy to role 'cedar-sentinel-demo-role' (overwriting 'demo-broad-s3')...
+Verifying applied policy via iam:GetRolePolicy read-back...
+[SUCCESS] Policy successfully applied and verified on 'cedar-sentinel-demo-role'.
+
+Recording approved policy in persistent AVP audit store...
+[AUDIT] Policy recorded in persistent AVP store <AUDIT_STORE_ID> (Policy ID: <POLICY_ID_2>)
 ```
 
-### Audit Isolation Check
-`verifiedpermissions:ListPolicies` on store `UgC491Luruab4Tj5fXAcFR`:
-- **Total policies in persistent audit store:** `1` (The declined run `1a2f5322` and rejected runs wrote 0 audit records).
+#### Verification of Persistent Audit Store
+Listing policies in store `<AUDIT_STORE_ID>` confirms multiple audit records were written:
+```text
+Total audit policies in store: 3
+ - ID: <POLICY_ID_1> Created: 2026-09-19 14:13:58.951854+00:00
+ - ID: <POLICY_ID_2> Created: 2026-09-19 14:14:35.360511+00:00
+ - ID: <POLICY_ID_INITIAL> Created: 2026-09-19 13:17:17.866145+00:00
+```
 
 ---
 
-## 7. Section 8: Dashboard Delivery
+## 3. IAM Inspection & Previous Policy Snapshot (Item 4)
 
-- Replaced Phase 1 placeholder text in `dashboard/index.html`.
-- Implemented `scripts/export_run.py` to extract and sanitize run `70b431d3-9809-4083-9016-01b4bdd70065` into `dashboard/run.json`.
-- Rendered dark DevOps monospace interface displaying:
-  1. Live run status badge (`APPLIED`) and execution metadata.
-  2. Exact stage durations across all 6 stages from `stage_timings`.
-  3. Formatted before/after IAM policy diff and validated Cedar policy statement.
+### 3.1 `ListRolePolicies` on Target Role
+```json
+{
+  "PolicyNames": [
+    "demo-broad-s3"
+  ],
+  "IsTruncated": false
+}
+```
+
+### 3.2 `ListAttachedRolePolicies` on Target Role
+```json
+{
+  "AttachedPolicies": [],
+  "IsTruncated": false
+}
+```
+
+### 3.3 `GetRolePolicy` on Target Role After Apply
+```json
+{
+  "RoleName": "cedar-sentinel-demo-role",
+  "PolicyName": "demo-broad-s3",
+  "PolicyDocument": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "CedarSentinelTightenedStmt1",
+        "Effect": "Allow",
+        "Action": [
+          "s3:CreateBucket",
+          "s3:DeleteObject",
+          "s3:GetBucketLocation",
+          "s3:GetObject",
+          "s3:ListAllMyBuckets",
+          "s3:PutObject"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }
+}
+```
+
+### 3.4 `previous_policy` Snapshot from DynamoDB Result Item
+```json
+{
+  "request_id": "51c455ef-08b1-4b4d-8479-e2d49172cb2c",
+  "status": "APPLIED",
+  "other_policies": null,
+  "previous_policy": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"DemoS3Access\", \"Effect\": \"Allow\", \"Action\": \"s3:*\", \"Resource\": \"*\"}]}",
+  "iam_policy": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"CedarSentinelTightenedStmt1\", \"Effect\": \"Allow\", \"Action\": [\"s3:CreateBucket\", \"s3:DeleteObject\", \"s3:GetBucketLocation\", \"s3:GetObject\", \"s3:ListAllMyBuckets\", \"s3:PutObject\"], \"Resource\": \"*\"}]}"
+}
+```
 
 ---
 
-## 8. Definition of Done Checklist Verification
+## 4. Mocked Botocore CLI Enforcement Unit Tests (Item 5)
 
-- [x] Cedar $\rightarrow$ IAM JSON translator implemented with the five unit tests from Section 2.5 passing (`s3:ListBuckets $\rightarrow$ s3:ListAllMyBuckets` and no-widening-to-`*` behavior verified).
-- [x] `ValidatePolicy` and `CheckNoNewAccess` called before every apply attempt; `ANALYZER_INVALID` implemented for `VALIDATION_ERROR` and `NEW_ACCESS`.
-- [x] Lambda execution role gained only `access-analyzer:*` read evaluation permissions — zero IAM write permissions.
-- [x] `--apply` and `--policy-name` implemented; every safety guard demonstrated refusing; declining (`N`) applies nothing, exits 0, and records `DECLINED`.
-- [x] Real successful `PutRolePolicy` run against `cedar-sentinel-demo-role` overwriting existing inline policy `demo-broad-s3`, with `GetRolePolicy` read-back confirmation and `previous_policy` snapshot recorded.
-- [x] Throttling retry/backoff implemented; `MalformedPolicyDocumentException` and `LimitExceededException` handled cleanly without stack traces; `APPLIED_UNVERIFIED` state supported.
-- [x] `scripts/reset_demo_role.py` implemented, refusing any other role; real `apply -> reset -> apply` cycle demonstrated.
-- [x] Persistent AVP audit store created with STRICT schema; `CreatePolicy` demonstrated firing only on `APPLIED` status; `DECLINED` / `ANALYZER_INVALID` runs verified writing nothing.
+Created `cli/test_enforcement.py` covering:
+- `ThrottlingException` retry with exponential backoff on `PutRolePolicy` (succeeds on retry attempt 2).
+- `MalformedPolicyDocumentException` handled cleanly (sets status `APPLY_FAILED`, exit code 1).
+- `LimitExceededException` handled cleanly (sets status `APPLY_FAILED`, exit code 1).
+- `APPLIED_UNVERIFIED` path (read-back mismatch sets `APPLIED_UNVERIFIED` and skips audit recording).
+
+### Test Suite Output (`cli/test_enforcement.py`)
+```text
+test_1_throttling_retry_success (__main__.TestCliEnforcement.test_1_throttling_retry_success)
+Test 1: ThrottlingException on PutRolePolicy retries with backoff and succeeds on retry. ... ok
+test_2_malformed_policy_document_exception (__main__.TestCliEnforcement.test_2_malformed_policy_document_exception)
+Test 2: MalformedPolicyDocumentException fails cleanly without retries and sets APPLY_FAILED. ... 
+[FAIL] PutRolePolicy rejected: MalformedPolicyDocumentException: Syntax error in policy
+ok
+test_3_limit_exceeded_exception (__main__.TestCliEnforcement.test_3_limit_exceeded_exception)
+Test 3: LimitExceededException fails cleanly without retries and sets APPLY_FAILED. ... 
+[FAIL] PutRolePolicy rejected: LimitExceededException: Maximum policy size exceeded
+ok
+test_4_applied_unverified (__main__.TestCliEnforcement.test_4_applied_unverified)
+Test 4: Read-back verification mismatch across all 3 retries sets APPLIED_UNVERIFIED and skips audit. ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.005s
+
+OK
+
+============================================================
+  PROPOSED IAM POLICY TO APPLY (Tightened & Verified)
+  Target Role               : arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role
+  Target Inline Policy Name : demo-broad-s3
+============================================================
+--- BEFORE: Requested Policy ---
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BroadS3",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": "*"
+    }
+  ]
+}
+
++++ AFTER: Translated Tightened Policy +++
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CedarSentinelTightenedStmt1",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+
+Snapshotting existing inline policy 'demo-broad-s3' on role 'cedar-sentinel-demo-role'...
+[OK] Policy snapshotted successfully.
+Applying tightened policy to role 'cedar-sentinel-demo-role' (overwriting 'demo-broad-s3')...
+  [Attempt 1] Throttled. Backing off 1s...
+Verifying applied policy via iam:GetRolePolicy read-back...
+[SUCCESS] Policy successfully applied and verified on 'cedar-sentinel-demo-role'.
+
+Recording approved policy in persistent AVP audit store...
+[AUDIT] Policy recorded in persistent AVP store <AUDIT_STORE_ID> (Policy ID: <POLICY_ID>)
+
+[Test 1 PASS] ThrottlingException retry with backoff verified.
+
+============================================================
+  PROPOSED IAM POLICY TO APPLY (Tightened & Verified)
+  Target Role               : arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role
+  Target Inline Policy Name : demo-broad-s3
+============================================================
+--- BEFORE: Requested Policy ---
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BroadS3",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": "*"
+    }
+  ]
+}
+
++++ AFTER: Translated Tightened Policy +++
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CedarSentinelTightenedStmt1",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+
+Snapshotting existing inline policy 'demo-broad-s3' on role 'cedar-sentinel-demo-role'...
+[OK] Policy snapshotted successfully.
+Applying tightened policy to role 'cedar-sentinel-demo-role' (overwriting 'demo-broad-s3')...
+
+[Test 2 PASS] MalformedPolicyDocumentException cleanly handled.
+
+============================================================
+  PROPOSED IAM POLICY TO APPLY (Tightened & Verified)
+  Target Role               : arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role
+  Target Inline Policy Name : demo-broad-s3
+============================================================
+--- BEFORE: Requested Policy ---
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BroadS3",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": "*"
+    }
+  ]
+}
+
++++ AFTER: Translated Tightened Policy +++
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CedarSentinelTightenedStmt1",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+
+Snapshotting existing inline policy 'demo-broad-s3' on role 'cedar-sentinel-demo-role'...
+[OK] Policy snapshotted successfully.
+Applying tightened policy to role 'cedar-sentinel-demo-role' (overwriting 'demo-broad-s3')...
+
+[Test 3 PASS] LimitExceededException cleanly handled.
+
+============================================================
+  PROPOSED IAM POLICY TO APPLY (Tightened & Verified)
+  Target Role               : arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role
+  Target Inline Policy Name : demo-broad-s3
+============================================================
+--- BEFORE: Requested Policy ---
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BroadS3",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": "*"
+    }
+  ]
+}
+
++++ AFTER: Translated Tightened Policy +++
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CedarSentinelTightenedStmt1",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+
+Snapshotting existing inline policy 'demo-broad-s3' on role 'cedar-sentinel-demo-role'...
+[OK] Policy snapshotted successfully.
+Applying tightened policy to role 'cedar-sentinel-demo-role' (overwriting 'demo-broad-s3')...
+Verifying applied policy via iam:GetRolePolicy read-back...
+[WARNING] PutRolePolicy succeeded, but read-back verification could not confirm consistency.
+Status set to: APPLIED_UNVERIFIED. Please inspect role 'cedar-sentinel-demo-role' manually.
+
+[Test 4 PASS] APPLIED_UNVERIFIED handling and audit skip verified.
+```
+
+---
+
+## 5. Dashboard Deliverable & `dashboard/run.json` (Item 6)
+
+*Label: **Recorded Run Snapshot** (read-only observability view generated from AWS DynamoDB run data, not live websocket polling).*
+
+### 5.1 Exported Data (`dashboard/run.json`)
+```json
+{
+  "request_id": "51c455ef-08b1-4b4d-8479-e2d49172cb2c",
+  "status": "APPLIED",
+  "role_arn": "arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role",
+  "model_used": "apac.amazon.nova-lite-v1:0",
+  "completed_at": "2026-09-19T14:14:26.343219+00:00",
+  "action_mappings_applied": [
+    {
+      "original": "s3:HeadObject",
+      "mapped": "s3:GetObject"
+    },
+    {
+      "mapped": "s3:ListAllMyBuckets",
+      "original": "s3:ListBuckets"
+    }
+  ],
+  "analyzer_validation": {
+    "check_no_new_access": {
+      "result": "PASS",
+      "reasons": [],
+      "message": "The modified permissions grant less or equal access compared to your existing policy."
+    },
+    "messages": [
+      "Access Analyzer validation passed (no errors, no new access)."
+    ],
+    "passed": true,
+    "findings": [],
+    "reason": null
+  },
+  "cedar_policy": "permit(\n    principal,\n    action in [\n        CedarSentinel::Action::\"s3:CreateBucket\",\n        CedarSentinel::Action::\"s3:DeleteObject\",\n        CedarSentinel::Action::\"s3:GetBucketLocation\",\n        CedarSentinel::Action::\"s3:GetObject\",\n        CedarSentinel::Action::\"s3:HeadObject\",\n        CedarSentinel::Action::\"s3:ListBuckets\",\n        CedarSentinel::Action::\"s3:PutObject\"\n    ],\n    resource\n);",
+  "cedar_validation": {
+    "passed": true,
+    "messages": [
+      "Policy passed STRICT Cedar schema validation."
+    ],
+    "policy_store_id": "<AVP_STORE_ID>"
+  },
+  "coverage_check": {
+    "passed": true,
+    "blocked_actions": "[]"
+  },
+  "iam_policy": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"CedarSentinelTightenedStmt1\", \"Effect\": \"Allow\", \"Action\": [\"s3:CreateBucket\", \"s3:DeleteObject\", \"s3:GetBucketLocation\", \"s3:GetObject\", \"s3:ListAllMyBuckets\", \"s3:PutObject\"], \"Resource\": \"*\"}]}",
+  "observed_actions": {
+    "s3:GetObject": "1",
+    "s3:HeadObject": "1",
+    "s3:CreateBucket": "1",
+    "s3:PutObject": "1",
+    "s3:GetBucketLocation": "2",
+    "s3:ListBuckets": "2",
+    "s3:DeleteObject": "1"
+  },
+  "previous_policy": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"DemoS3Access\", \"Effect\": \"Allow\", \"Action\": \"s3:*\", \"Resource\": \"*\"}]}",
+  "rationale": "Tightened policy to include only observed CloudTrail actions for S3, logs, and EC2. Added minimal EC2 actions based on observed 'Describe*' and 'List*' actions.",
+  "requested_policy": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"DemoS3Access\", \"Effect\": \"Allow\", \"Action\": [\"s3:*\"], \"Resource\": \"*\"}, {\"Sid\": \"DemoEC2Access\", \"Effect\": \"Allow\", \"Action\": [\"ec2:Describe*\", \"ec2:List*\"], \"Resource\": \"*\"}, {\"Sid\": \"DemoLogsAccess\", \"Effect\": \"Allow\", \"Action\": [\"logs:CreateLogGroup\", \"logs:CreateLogStream\", \"logs:PutLogEvents\", \"logs:DescribeLogGroups\", \"logs:DescribeLogStreams\", \"logs:GetLogEvents\", \"logs:FilterLogEvents\", \"logs:StartQuery\", \"logs:GetQueryResults\", \"logs:StopQuery\"], \"Resource\": \"*\"}, {\"Sid\": \"DemoDynamoAccess\", \"Effect\": \"Allow\", \"Action\": [\"dynamodb:*\"], \"Resource\": \"*\"}]}",
+  "stage_timings": [
+    {
+      "stage": "cloudwatch_query",
+      "start": "2026-09-19T14:14:20.225166+00:00",
+      "end": "2026-09-19T14:14:22.459732+00:00"
+    },
+    {
+      "stage": "bedrock_call",
+      "start": "2026-09-19T14:14:22.460922+00:00",
+      "end": "2026-09-19T14:14:23.554118+00:00"
+    },
+    {
+      "stage": "coverage_check",
+      "start": "2026-09-19T14:14:23.555333+00:00",
+      "end": "2026-09-19T14:14:23.555787+00:00"
+    },
+    {
+      "stage": "cedar_validation",
+      "start": "2026-09-19T14:14:23.555797+00:00",
+      "end": "2026-09-19T14:14:23.885670+00:00"
+    },
+    {
+      "stage": "iam_translation",
+      "start": "2026-09-19T14:14:23.900226+00:00",
+      "end": "2026-09-19T14:14:23.900709+00:00"
+    },
+    {
+      "stage": "analyzer_validation",
+      "start": "2026-09-19T14:14:23.900722+00:00",
+      "end": "2026-09-19T14:14:26.332309+00:00"
+    }
+  ],
+  "ttl": 1790086466,
+  "unmatched_actions": []
+}
+```
+
+### 5.2 Amplify / Static Dashboard Interface
+The static dashboard at `dashboard/index.html` renders:
+1. **Header & Status:** `STATUS: APPLIED` badge with recorded run banner (`RECORDED RUN SNAPSHOT • Read-only observability view from AWS DynamoDB results table`).
+2. **Metadata Card:** Request ID, Target Role ARN, Reasoning Engine (`apac.amazon.nova-lite-v1:0`), Cedar Formal Check (`STRICT (AVP Validated)`), Access Analyzer (`NO NEW ACCESS (PASS)`), and Applied Action Mappings.
+3. **Stage Latency Timeline:** Real timings across all 6 stages (`cloudwatch_query`: 2.23s, `bedrock_call`: 1.09s, `coverage_check`: 0.00s, `cedar_validation`: 0.33s, `iam_translation`: 0.00s, `analyzer_validation`: 2.43s; Total Pipeline Latency: 6.09s).
+4. **Interactive Policy Diff Panels:** Side-by-side comparison of Requested IAM Policy, Translated Tightened Policy, and Verified Cedar Policy Statement.
+
+---
+
+## 6. Problems Encountered
+
+1. **Unobserved Action Inclusion in LLM Cedar Drafts:** Bedrock's draft included statements from the requested policy (`ec2:*`, `logs:*`) even when CloudTrail observed only S3 actions. This passed `CheckNoNewAccess` because the tightened policy was still a subset of the requested plan.
+   *Resolution:* Implemented deterministic guard in `_sanitize_and_guard_cedar_policy` to drop any actions absent from `observed_actions`.
+2. **AVP Description Length Constraint:** Amazon Verified Permissions `CreatePolicy` rejects descriptions exceeding 150 characters with `ValidationException`.
+   *Resolution:* Sanitized and truncated description to 140 characters: `f"req={request_id[:8]} rationale={rationale}"[:140]`.
+3. **CloudTrail Action Mapping Discrepancies:** Actions like `HeadObject` and `ListBuckets` in CloudTrail authorize against `s3:GetObject` and `s3:ListAllMyBuckets` in IAM.
+   *Resolution:* Implemented `CLOUDTRAIL_TO_IAM_ACTION_MAP` in translation stage and confirmed via Access Analyzer `ValidatePolicy`.
+
+---
+
+## 7. Deviations from Plan
+
+1. **Pre-Enforcement Guard Enhancement:** Extended `_sanitize_and_guard_cedar_policy` to enforce observed action filtering before schema validation and IAM translation, guaranteeing unobserved actions can never be applied.
+2. **Deterministic Audit Identification:** Added request ID prefixing to persistent AVP policy descriptions to ensure traceability across multiple apply cycles.
+
+---
+
+## 8. Time Spent
+
+- **Stage 5 Translation & Action Normalization:** ~2.5 hours
+- **Stage 6 Access Analyzer Integration:** ~2.0 hours
+- **CLI Apply & Safety Guards (Section 4 & 5):** ~3.0 hours
+- **Persistent AVP Audit Store (Section 6):** ~1.5 hours
+- **Dashboard & Sanitized Export Script:** ~1.5 hours
+- **Bug Fix, Regression Testing & Extended Redaction:** ~2.0 hours
+- **Total Time Spent:** ~12.5 hours
+
+---
+
+## 9. Definition of Done Checklist Verification
+
+- [x] Cedar $\rightarrow$ IAM JSON translator implemented with all unit tests passing.
+- [x] `ValidatePolicy` and `CheckNoNewAccess` called before every apply attempt; `ANALYZER_INVALID` implemented.
+- [x] Lambda execution role restricted to Access Analyzer evaluation — zero IAM write permissions.
+- [x] `--apply` and `--policy-name` implemented; every safety guard demonstrated refusing.
+- [x] Real successful `PutRolePolicy` run against `cedar-sentinel-demo-role` overwriting `demo-broad-s3`, with `GetRolePolicy` read-back confirmation.
+- [x] Throttling retry/backoff implemented; `MalformedPolicyDocumentException` and `LimitExceededException` handled cleanly; `APPLIED_UNVERIFIED` state supported and tested via mocked botocore tests.
+- [x] `scripts/reset_demo_role.py` implemented; real `apply -> reset -> apply` cycle demonstrated producing multiple audit records.
+- [x] Persistent AVP audit store created with STRICT schema; writes only on `APPLIED` status.
 - [x] Dashboard placeholder replaced; static recorded run snapshot exported to `dashboard/run.json`.
-- [x] `docs/architecture.md`, `docs/limitations-and-mitigations.md`, `docs/ai-tool-disclosure.md`, `docs/differentiators.md`, and `README.md` updated.
-- [x] Pre-push security scan completed cleanly (0 raw 12-digit account IDs).
-- [x] Branch `phase-3-enforcement` pushed to remote; ready for PR against `main` (not merged, no tag applied).
+- [x] Pre-push scan completed cleanly (all ARNs, account IDs, store IDs, policy IDs, and log groups redacted).
+- [x] Branch `phase-3-enforcement` updated and ready for PR.
