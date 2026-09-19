@@ -1033,6 +1033,30 @@ def handle_analyze(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
             return 1
+
+        # Guard 3: Confirm role exists and target inline policy exists before triggering pipeline
+        try:
+            iam_client = boto3.client("iam", region_name=args.region)
+            list_resp = iam_client.list_role_policies(RoleName=role_name)
+            existing_inline_policies = list_resp.get("PolicyNames", [])
+            if args.policy_name not in existing_inline_policies:
+                print(
+                    f"\n[FAIL] Target inline policy name '{args.policy_name}' does not exist on role '{role_name}'.\n"
+                    f"Actual inline policies on role: {existing_inline_policies}\n"
+                    f"Refusing to create a new parallel policy. Specify an existing inline policy name to overwrite.",
+                    file=sys.stderr,
+                )
+                return 1
+        except ClientError as exc:
+            err_code = exc.response["Error"]["Code"]
+            if err_code == "NoSuchEntity":
+                print(
+                    f"\n[FAIL] Target role '{role_arn_str}' does not exist in target account/region.\n"
+                    f"Refusing to proceed with apply. Verify role ARN.",
+                    file=sys.stderr,
+                )
+                return 1
+            print(f"Warning: Could not pre-verify IAM role/policy: {exc}", file=sys.stderr)
     else:
         # Self-analysis warning for read-only analyze
         if lambda_exec_role_arn and role_arn_str == lambda_exec_role_arn:
@@ -1107,7 +1131,17 @@ def handle_analyze(args: argparse.Namespace) -> int:
         if status != "COMPLETE":
             print(f"\n[REFUSED] Cannot apply: Pipeline result status is '{status}' (expected 'COMPLETE').", file=sys.stderr)
             if status == "BLOCKED":
-                return _render_blocked_result(result)
+                coverage = result.get("coverage_check", {})
+                blocked_actions_raw = coverage.get("blocked_actions", "[]")
+                try:
+                    blocked_actions = json.loads(blocked_actions_raw) if isinstance(blocked_actions_raw, str) else blocked_actions_raw
+                except Exception:
+                    blocked_actions = []
+                print("\n[WARNING] Potential Workload Lockout Detected: proposed policy drops observed actions:", file=sys.stderr)
+                for ba in blocked_actions:
+                    print(f"  - {ba.get('action')} (Observed {ba.get('observed_count')} times)", file=sys.stderr)
+                print("Apply refused. Use analyze without --apply to inspect or re-evaluate.", file=sys.stderr)
+                return 1
             elif status == "CEDAR_INVALID":
                 _render_cedar_invalid_result(result)
                 return 1

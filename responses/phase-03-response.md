@@ -7,6 +7,9 @@
 **Branch:** `phase-3-enforcement`  
 **Region:** `ap-south-1`  
 
+> [!NOTE]
+> **Audit Note:** Sections 3 and 4 were reconciled and updated directly from live raw executions recorded in [`responses/phase-03-audit-and-guard-verification.md`](file:///d:/Projects/aws-builder-center/cedar-sentinel/responses/phase-03-audit-and-guard-verification.md).
+
 ---
 
 ## 1. Section 1 Pre-Flight Configuration & Decision Defaults
@@ -148,119 +151,322 @@ Executed against live AWS IAM Access Analyzer API in `ap-south-1`:
 
 ```text
 test_a_invalid_action_name_triggers_validation_error (__main__.TestAccessAnalyzerSafetyNet.test_a_invalid_action_name_triggers_validation_error)
-Test A: Non-existent action name triggers VALIDATION_ERROR and blocks enforcement. ... ok
+Case (a): Invalid action name triggers ERROR finding and VALIDATION_ERROR rejection. ... ok
 test_b_over_permissive_policy_non_blocking_findings (__main__.TestAccessAnalyzerSafetyNet.test_b_over_permissive_policy_non_blocking_findings)
-Test B: Over-permissive policy produces WARNING/SECURITY_WARNING findings but passes. ... ok
+Case (b): Over-permissive policy (Resource: '*' with wildcard action) returns non-blocking findings. ... ok
 test_c_clean_tightly_scoped_policy_passes (__main__.TestAccessAnalyzerSafetyNet.test_c_clean_tightly_scoped_policy_passes)
-Test C: Clean, tightly scoped translated policy passes validation with zero findings. ... ok
+Case (c): Clean, tightly scoped policy passes without blocking findings. ... ok
 test_d_check_no_new_access_catches_escalation (__main__.TestAccessAnalyzerSafetyNet.test_d_check_no_new_access_catches_escalation)
-Test D: CheckNoNewAccess detects new access and blocks with NEW_ACCESS. ... ok
+Case (d): CheckNoNewAccess catches new permissions not in requested policy -> NEW_ACCESS. ... ok
 
 ----------------------------------------------------------------------
-Ran 4 tests in 2.84s
+Ran 4 tests in 5.551s
 
 OK
 ```
 
-#### Test A Output — `INVALID_ACTION_NAME` (Rejected with `ANALYZER_INVALID`):
-```json
-{
-  "passed": false,
-  "reason": "VALIDATION_ERROR",
-  "findings": [
-    {
-      "findingType": "ERROR",
-      "findingDetails": "The action s3:NonExistentActionName does not exist for the service s3.",
-      "code": "INVALID_ACTION_NAME",
-      "learnMoreLink": "https://docs.aws.amazon.com/IAM/latest/UserGuide/access-analyzer-reference-policy-checks.html#access-analyzer-reference-policy-checks-error-invalid-action-name"
-    }
-  ]
-}
-```
+#### Raw Verbatim Output for All 4 Cases:
 
-#### Test B Output — `PASS_WITH_FINDINGS` (Warnings logged, non-blocking):
-```json
-{
-  "passed": true,
-  "reason": null,
-  "findings": [
-    {
-      "findingType": "WARNING",
-      "findingDetails": "The policy statement contains a wildcard (*) action for s3.",
-      "code": "GENERIC_WILDCARD_PASSTHROUGH"
-    }
-  ]
-}
-```
+```text
+--- Case (a) Invalid Action Name Test ---
+Passed: False, Reason: VALIDATION_ERROR
+Messages: ['Access Analyzer validation error: The action s3:InvalidNonExistentActionXYZ does not exist. (INVALID_ACTION)']
+Findings count: 1
+  * FindingType: ERROR, IssueCode: INVALID_ACTION, Details: The action s3:InvalidNonExistentActionXYZ does not exist.
 
-#### Test C Output — Clean Tightened Policy (`PASS`):
-```json
-{
-  "passed": true,
-  "reason": null,
-  "findings": [],
-  "check_no_new_access": {
-    "result": "PASS",
-    "message": "The modified permissions grant less or equal access compared to your existing policy.",
-    "reasons": []
-  }
-}
-```
+--- Case (b) Over-Permissive Policy Test ---
+Passed: True, Reason: None
+Messages: ['Access Analyzer validation passed (no errors, no new access).']
+Findings count: 0
 
-#### Test D Output — Privilege Escalation Caught (`NEW_ACCESS` $\rightarrow$ Rejected):
-```json
-{
-  "passed": false,
-  "reason": "NEW_ACCESS",
-  "check_no_new_access": {
-    "result": "FAIL",
-    "message": "The modified permissions grant new access compared to your existing policy.",
-    "reasons": [
-      {
-        "description": "The updated policy grants new actions: iam:CreateUser",
-        "statementIndex": 0
-      }
-    ]
-  }
-}
+--- Case (c) Clean Tightly-Scoped Policy Test ---
+Passed: True, Reason: None
+Messages: ['Access Analyzer validation passed (no errors, no new access).']
+CheckNoNewAccess result: PASS
+
+--- Case (d) Privilege Escalation Check Test ---
+Passed: False, Reason: NEW_ACCESS
+Messages: ['Access Analyzer detected new access granted: New access in the statement with index: 0.']
+CheckNoNewAccess detail: {'result': 'FAIL', 'reasons': [{'description': 'New access in the statement with index: 0.', 'statementIndex': 0}], 'message': 'The modified permissions grant new access compared to your existing policy.'}
 ```
 
 ---
 
-## 4. Section 4: CLI Guard Testing (Guard Refusals & Decline Run)
+## 4. Section 4: CLI Guard Testing (Guard Refusals, Mock Tests & Decline Run)
 
-### 4.1 Guard Refusal 1: Missing Role ARN when `--apply` is specified
+### 4.1 Guard Refusal 1: Refuse Self-Modification on Lambda Execution Role
 ```bash
-python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --apply
+$env:LAMBDA_EXECUTION_ROLE_ARN="arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-lambda-exec-ap-south-1" ; python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-lambda-exec-ap-south-1 --apply --policy-name demo-broad-s3
 ```
-**Output (Exit code: 1):**
+**Raw Verbatim Output (Exit code: 1):**
 ```text
-[FAIL] --role-arn is required when --apply is specified.
-Example: python cli/cedar_sentinel.py analyze --plan-file ... --role-arn arn:aws:iam::<ACCOUNT_ID>:role/role-name --apply
+Error: Target role matches Cedar Sentinel Lambda execution role. Self-modification via --apply is forbidden.
+=== Terraform Plan IAM Policy Extraction ===
+Plan file: cli/fixtures/demo-role-plan.json
+Found 1 IAM policy definition(s):
+
+[1] Resource: aws_iam_role_policy.cedar_sentinel_demo (aws_iam_role_policy)
+    Target Role: cedar-sentinel-demo-role
+    Policy Name: demo-broad-s3
+    Policy Document:
+{
+      "Version": "2012-10-17",
+      "Statement": [
+            {
+                  "Sid": "DemoS3Access",
+                  "Effect": "Allow",
+                  "Action": [
+                        "s3:*"
+                  ],
+                  "Resource": "*"
+            },
+            {
+                  "Sid": "DemoEC2Access",
+                  "Effect": "Allow",
+                  "Action": [
+                        "ec2:Describe*",
+                        "ec2:List*"
+                  ],
+                  "Resource": "*"
+            },
+            {
+                  "Sid": "DemoLogsAccess",
+                  "Effect": "Allow",
+                  "Action": [
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                        "logs:DescribeLogGroups",
+                        "logs:DescribeLogStreams",
+                        "logs:GetLogEvents",
+                        "logs:FilterLogEvents",
+                        "logs:StartQuery",
+                        "logs:GetQueryResults",
+                        "logs:StopQuery"
+                  ],
+                  "Resource": "*"
+            },
+            {
+                  "Sid": "DemoDynamoAccess",
+                  "Effect": "Allow",
+                  "Action": [
+                        "dynamodb:*"
+                  ],
+                  "Resource": "*"
+            }
+      ]
+}
+--------------------------------------------------
 ```
 
-### 4.2 Guard Refusal 2: Role Does Not Exist in Target Account
+### 4.2 Guard Refusal 2: Role Does Not Match Pattern `cedar-sentinel-*`
 ```bash
-python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/non-existent-role-xyz --apply
+python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/my-unmatched-workload-role --apply --policy-name demo-broad-s3
 ```
-**Output (Exit code: 1):**
+**Raw Verbatim Output (Exit code: 1):**
 ```text
-[FAIL] Target role 'arn:aws:iam::<ACCOUNT_ID>:role/non-existent-role-xyz' does not exist in target account/region.
-Refusing to proceed with apply. Verify role ARN.
+Error: Target role 'my-unmatched-workload-role' does not match allowed pattern 'cedar-sentinel-*'.
+--apply is strictly restricted to roles named cedar-sentinel-*.
+=== Terraform Plan IAM Policy Extraction ===
+Plan file: cli/fixtures/demo-role-plan.json
+Found 1 IAM policy definition(s):
+
+[1] Resource: aws_iam_role_policy.cedar_sentinel_demo (aws_iam_role_policy)
+    Target Role: cedar-sentinel-demo-role
+    Policy Name: demo-broad-s3
+    Policy Document:
+{
+      "Version": "2012-10-17",
+      "Statement": [
+            {
+                  "Sid": "DemoS3Access",
+                  "Effect": "Allow",
+                  "Action": [
+                        "s3:*"
+                  ],
+                  "Resource": "*"
+            },
+            {
+                  "Sid": "DemoEC2Access",
+                  "Effect": "Allow",
+                  "Action": [
+                        "ec2:Describe*",
+                        "ec2:List*"
+                  ],
+                  "Resource": "*"
+            },
+            {
+                  "Sid": "DemoLogsAccess",
+                  "Effect": "Allow",
+                  "Action": [
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                        "logs:DescribeLogGroups",
+                        "logs:DescribeLogStreams",
+                        "logs:GetLogEvents",
+                        "logs:FilterLogEvents",
+                        "logs:StartQuery",
+                        "logs:GetQueryResults",
+                        "logs:StopQuery"
+                  ],
+                  "Resource": "*"
+            },
+            {
+                  "Sid": "DemoDynamoAccess",
+                  "Effect": "Allow",
+                  "Action": [
+                        "dynamodb:*"
+                  ],
+                  "Resource": "*"
+            }
+      ]
+}
+--------------------------------------------------
 ```
 
-### 4.3 Guard Refusal 3: Invalid Policy Name (Refuses to Create Parallel Policy)
+### 4.3 Guard Refusal 3: Missing `--policy-name` when `--apply` is Specified
+```bash
+python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role --apply
+```
+**Raw Verbatim Output (Exit code: 1):**
+```text
+Error: --policy-name is required when --apply is specified.
+=== Terraform Plan IAM Policy Extraction ===
+Plan file: cli/fixtures/demo-role-plan.json
+Found 1 IAM policy definition(s):
+
+[1] Resource: aws_iam_role_policy.cedar_sentinel_demo (aws_iam_role_policy)
+    Target Role: cedar-sentinel-demo-role
+    Policy Name: demo-broad-s3
+    Policy Document:
+{
+      "Version": "2012-10-17",
+      "Statement": [
+            {
+                  "Sid": "DemoS3Access",
+                  "Effect": "Allow",
+                  "Action": [
+                        "s3:*"
+                  ],
+                  "Resource": "*"
+            },
+            {
+                  "Sid": "DemoEC2Access",
+                  "Effect": "Allow",
+                  "Action": [
+                        "ec2:Describe*",
+                        "ec2:List*"
+                  ],
+                  "Resource": "*"
+            },
+            {
+                  "Sid": "DemoLogsAccess",
+                  "Effect": "Allow",
+                  "Action": [
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                        "logs:DescribeLogGroups",
+                        "logs:DescribeLogStreams",
+                        "logs:GetLogEvents",
+                        "logs:FilterLogEvents",
+                        "logs:StartQuery",
+                        "logs:GetQueryResults",
+                        "logs:StopQuery"
+                  ],
+                  "Resource": "*"
+            },
+            {
+                  "Sid": "DemoDynamoAccess",
+                  "Effect": "Allow",
+                  "Action": [
+                        "dynamodb:*"
+                  ],
+                  "Resource": "*"
+            }
+      ]
+}
+--------------------------------------------------
+```
+
+### 4.4 Guard Refusal 4: Non-Existent Inline Policy Name (Pre-Publish Refusal)
 ```bash
 python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role --apply --policy-name non-existent-policy
 ```
-**Output (Exit code: 1):**
+**Raw Verbatim Output (Exit code: 1):**
 ```text
 [FAIL] Target inline policy name 'non-existent-policy' does not exist on role 'cedar-sentinel-demo-role'.
 Actual inline policies on role: ['demo-broad-s3']
 Refusing to create a new parallel policy. Specify an existing inline policy name to overwrite.
+=== Terraform Plan IAM Policy Extraction ===
+Plan file: cli/fixtures/demo-role-plan.json
+Found 1 IAM policy definition(s):
+
+[1] Resource: aws_iam_role_policy.cedar_sentinel_demo (aws_iam_role_policy)
+    Target Role: cedar-sentinel-demo-role
+    Policy Name: demo-broad-s3
+    Policy Document:
+{
+      "Version": "2012-10-17",
+      "Statement": [
+            {
+                  "Sid": "DemoS3Access",
+                  "Effect": "Allow",
+                  "Action": [
+                        "s3:*"
+                  ],
+                  "Resource": "*"
+            },
+            {
+                  "Sid": "DemoEC2Access",
+                  "Effect": "Allow",
+                  "Action": [
+                        "ec2:Describe*",
+                        "ec2:List*"
+                  ],
+                  "Resource": "*"
+            },
+            {
+                  "Sid": "DemoLogsAccess",
+                  "Effect": "Allow",
+                  "Action": [
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                        "logs:DescribeLogGroups",
+                        "logs:DescribeLogStreams",
+                        "logs:GetLogEvents",
+                        "logs:FilterLogEvents",
+                        "logs:StartQuery",
+                        "logs:GetQueryResults",
+                        "logs:StopQuery"
+                  ],
+                  "Resource": "*"
+            },
+            {
+                  "Sid": "DemoDynamoAccess",
+                  "Effect": "Allow",
+                  "Action": [
+                        "dynamodb:*"
+                  ],
+                  "Resource": "*"
+            }
+      ]
+}
+--------------------------------------------------
 ```
 
-### 4.4 Decline Run: Developer Declines (`N`)
+### 4.5 Mocked Unit Test: Non-COMPLETE Statuses Refuse to Prompt or Apply (`cli/test_enforcement.py`)
+```bash
+python cli/test_enforcement.py
+```
+**Output (Test 5 PASS):**
+```text
+[Test 5 PASS] Verified --apply refuses to prompt or call PutRolePolicy for all non-COMPLETE statuses (ANALYZER_INVALID, CEDAR_INVALID, BLOCKED, ERROR, PROCESSING).
+```
+
+### 4.6 Decline Run: Developer Declines (`N`)
 ```bash
 python cli/cedar_sentinel.py analyze --plan-file cli/fixtures/demo-role-plan.json --role-arn arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role --apply --policy-name demo-broad-s3
 ```

@@ -255,6 +255,10 @@
             <span class="meta-label">Action Normalization</span>
             <span class="meta-value" id="meta-mappings">s3:ListBuckets &rarr; ListAllMyBuckets</span>
           </li>
+          <li id="meta-guard-row" style="display: none;">
+            <span class="meta-label">Deterministic Guard</span>
+            <span class="meta-value" style="color: var(--accent-amber);" id="meta-guard-actions">None</span>
+          </li>
         </ul>
       </div>
 
@@ -265,6 +269,12 @@
           <!-- Populated by JS -->
         </div>
       </div>
+    </div>
+
+    <!-- Rationale & Guard Banner -->
+    <div class="card" style="margin-bottom: 2rem;" id="card-rationale">
+      <h2>Pipeline Rationale & Guard Actions</h2>
+      <p id="text-rationale" style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary);">Loading...</p>
     </div>
 
     <!-- Policy Diffs -->
@@ -307,6 +317,15 @@
 
         if (data.action_mappings_applied && data.action_mappings_applied.length > 0) {
           document.getElementById('meta-mappings').textContent = data.action_mappings_applied.map(m => `${m.original} \u2192 ${m.mapped}`).join(', ');
+        }
+
+        if (data.guard_removed_actions && data.guard_removed_actions.length > 0) {
+          document.getElementById('meta-guard-row').style.display = 'flex';
+          document.getElementById('meta-guard-actions').textContent = `Excluded ${data.guard_removed_actions.length} unobserved action(s): ${data.guard_removed_actions.join(', ')}`;
+        }
+
+        if (data.rationale) {
+          document.getElementById('text-rationale').textContent = data.rationale;
         }
 
         // Render timeline

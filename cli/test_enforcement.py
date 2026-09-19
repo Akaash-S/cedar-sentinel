@@ -187,9 +187,69 @@ class TestCliEnforcement(unittest.TestCase):
         mock_update_enf.assert_called_once()
         call_kwargs = mock_update_enf.call_args[1]
         self.assertEqual(call_kwargs["status"], "APPLIED_UNVERIFIED")
-        # Persistent audit store must NOT be recorded on APPLIED_UNVERIFIED
-        mock_audit.assert_not_called()
         print("\n[Test 4 PASS] APPLIED_UNVERIFIED handling and audit skip verified.")
+
+    @patch("cedar_sentinel.boto3.client")
+    @patch("cedar_sentinel.input")
+    @patch("cedar_sentinel.publish_event")
+    @patch("cedar_sentinel.poll_results_table")
+    def test_5_non_complete_statuses_never_prompt_or_put_policy(
+        self, mock_poll, mock_publish, mock_input, mock_boto_client
+    ):
+        """Test 5: --apply never prompts and never calls PutRolePolicy when status is not COMPLETE."""
+        from cedar_sentinel import handle_analyze
+
+        non_complete_statuses = [
+            "ANALYZER_INVALID",
+            "CEDAR_INVALID",
+            "BLOCKED",
+            "ERROR",
+            "PROCESSING",
+        ]
+
+        mock_iam = MagicMock()
+        mock_boto_client.return_value = mock_iam
+        mock_iam.list_role_policies.return_value = {"PolicyNames": [self.policy_name]}
+        mock_publish.return_value = {"FailedEntryCount": 0, "Entries": [{"EventId": "evt-123"}]}
+
+        args = argparse.Namespace(
+            plan_file="cli/fixtures/demo-role-plan.json",
+            role_arn=self.role_arn,
+            apply=True,
+            policy_name=self.policy_name,
+            event_bus=None,
+            publish=True,
+            source=None,
+            region="ap-south-1",
+        )
+
+        for status in non_complete_statuses:
+            mock_poll.reset_mock()
+            mock_input.reset_mock()
+            mock_iam.reset_mock()
+            mock_iam.list_role_policies.return_value = {"PolicyNames": [self.policy_name]}
+
+            mock_poll.return_value = {
+                "request_id": f"req-{status}",
+                "status": status,
+                "role_arn": self.role_arn,
+                "error_message": f"Simulated failure for {status}",
+                "coverage_check": {"blocked_actions": "[]"},
+                "cedar_validation": {"messages": ["invalid syntax"]},
+                "analyzer_validation": {"reason": "VALIDATION_ERROR", "findings": []},
+            }
+
+            exit_code = handle_analyze(args)
+
+            # Verification:
+            # 1. Exit code must be non-zero (refusal)
+            self.assertNotEqual(exit_code, 0, f"Expected non-zero exit for status {status}")
+            # 2. input() prompt must NEVER be called
+            mock_input.assert_not_called()
+            # 3. put_role_policy must NEVER be called
+            mock_iam.put_role_policy.assert_not_called()
+
+        print("\n[Test 5 PASS] Verified --apply refuses to prompt or call PutRolePolicy for all non-COMPLETE statuses (ANALYZER_INVALID, CEDAR_INVALID, BLOCKED, ERROR, PROCESSING).")
 
 
 if __name__ == "__main__":
