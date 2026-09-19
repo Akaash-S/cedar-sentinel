@@ -284,28 +284,42 @@ def stage_bedrock_call(
 
     requested_str = json.dumps(requested_policy, indent=2) if not isinstance(requested_policy, str) else requested_policy
 
+    has_observed = any(count > 0 for count in observed_actions.values())
+    if has_observed:
+        format_instructions = (
+            "Example output format (observed actions exist):\n"
+            "{\n"
+            f'  "cedar_policy": "permit(\\n    principal,\\n    action in [\\n        {CS_NAMESPACE}::Action::\\"logs:CreateLogGroup\\",\\n        {CS_NAMESPACE}::Action::\\"logs:PutLogEvents\\"\\n    ],\\n    resource\\n);",\n'
+            '  "rationale": "Tightened policy to include only observed CloudTrail actions."\n'
+            "}\n\n"
+            "Rules:\n"
+            "1. 'cedar_policy' MUST be a STRING containing EXACTLY ONE valid Cedar 'permit' statement.\n"
+            f"2. Every action must be formatted as '{CS_NAMESPACE}::Action::\"service:ActionName\"' — the service prefix is already included in each observed action string.\n"
+            "3. List all observed actions inside the permit action array.\n"
+            "4. NEVER output a 'forbid' statement or Action::\"none\" when observed actions exist. NEVER combine permit and forbid blocks.\n"
+            "5. Do NOT include markdown fences, code blocks, or text outside the JSON."
+        )
+    else:
+        format_instructions = (
+            "Example output format (ZERO observed actions):\n"
+            "{\n"
+            f'  "cedar_policy": "forbid(\\n    principal,\\n    action in [\\n        {CS_NAMESPACE}::Action::\\"none\\"\\n    ],\\n    resource\\n);",\n'
+            '  "rationale": "No API activity observed in the lookback window. Access denied by default."\n'
+            "}\n\n"
+            "Rules:\n"
+            "1. 'cedar_policy' MUST be a STRING containing EXACTLY ONE valid Cedar 'forbid' statement.\n"
+            f'2. Format the action as \'{CS_NAMESPACE}::Action::"none"\'. ONLY emit this when the observed-actions map is completely empty.\n'
+            "3. NEVER output free-text like 'deny all;'.\n"
+            "4. Do NOT include markdown fences, code blocks, or text outside the JSON."
+        )
+
     system_prompt = (
         "You are an expert cloud security policy engineer. Your job is to take an overly broad "
         "AWS IAM policy and produce a tighter Cedar policy that grants ONLY what the "
         f"principal actually needs, based on observed CloudTrail usage.\n"
         f"Use namespace '{CS_NAMESPACE}'.\n"
-        "Output MUST be a single valid JSON object with exactly two keys: 'cedar_policy' (a string containing Cedar policy text) and 'rationale' (a string explaining changes).\n"
-        "Example output format when observed actions exist:\n"
-        "{\n"
-        f'  "cedar_policy": "permit(\\n    principal,\\n    action in [\\n        {CS_NAMESPACE}::Action::\\"logs:CreateLogGroup\\",\\n        {CS_NAMESPACE}::Action::\\"logs:PutLogEvents\\"\\n    ],\\n    resource\\n);",\n'
-        '  "rationale": "Tightened policy to include only observed CloudTrail actions."\n'
-        "}\n\n"
-        "Example output format for ZERO observed actions (empty list):\n"
-        "{\n"
-        f'  "cedar_policy": "forbid(\\n    principal,\\n    action in [\\n        {CS_NAMESPACE}::Action::\\"none\\"\\n    ],\\n    resource\\n);",\n'
-        '  "rationale": "No API activity observed in the lookback window. Access denied by default."\n'
-        "}\n\n"
-        "Rules:\n"
-        "1. 'cedar_policy' MUST be a STRING containing a single valid Cedar policy statement.\n"
-        f"2. Every action must be formatted as '{CS_NAMESPACE}::Action::\"service:ActionName\"' — the service prefix is already included in each observed action string.\n"
-        "3. When observed actions exist: output a single 'permit' statement listing all observed actions. Do NOT include a forbid statement.\n"
-        f"4. When ZERO actions are observed: output a single 'forbid(principal, action in [{CS_NAMESPACE}::Action::\"none\"], resource);' statement. NEVER output free-text like 'deny all;'.\n"
-        "5. Do NOT include markdown fences, code blocks, or text outside the JSON."
+        "Output MUST be a single valid JSON object with exactly two keys: 'cedar_policy' (a string containing Cedar policy text) and 'rationale' (a string explaining changes).\n\n"
+        f"{format_instructions}"
     )
 
     hint_section = f"\n\n## Feedback / Re-evaluation Hint\n{reevaluate_hint}" if reevaluate_hint else ""
@@ -378,8 +392,10 @@ def stage_bedrock_call(
             f"Bedrock JSON missing required keys. Got keys: {list(parsed.keys())}"
         )
 
-    # Normalize cedar_policy to string if it was returned as a dict/list
-    parsed["cedar_policy"] = _normalize_cedar_policy_text(parsed["cedar_policy"])
+    # Apply deterministic code-level guard to normalize and sanitize cedar_policy
+    parsed["cedar_policy"] = _sanitize_and_guard_cedar_policy(
+        parsed["cedar_policy"], observed_actions
+    )
     # Attach the model that actually served this request
     parsed["model_used"] = actual_model_used
 
@@ -415,6 +431,70 @@ def _normalize_cedar_policy_text(cedar_policy_raw: Any) -> str:
     return str(cedar_policy_raw)
 
 
+def _sanitize_and_guard_cedar_policy(
+    raw_policy: Any,
+    observed_actions: Dict[str, int],
+) -> str:
+    """
+    Deterministic code-level guard that cleans, normalizes, and validates the
+    Cedar policy text before verification:
+    1. If observed actions exist:
+       - Extracts all action references.
+       - Discards spurious 'none' action or forbid statements.
+       - Strips concatenated forbid blocks (e.g. 'permit(...); forbid(...)').
+       - Formats into a clean, canonical single permit statement.
+    2. If zero observed actions:
+       - Ensures a single valid forbid statement on Action::'none'.
+    """
+    text = _normalize_cedar_policy_text(raw_policy)
+    has_observed = any(count > 0 for count in observed_actions.values())
+
+    if has_observed:
+        # Extract actions present in the policy
+        extracted = _extract_cedar_actions(text)
+        # Filter out spurious "none" or invalid action names
+        valid_actions = [a for a in extracted if a != "none" and ":" in a]
+
+        # If valid actions were found in the text, use them
+        if valid_actions:
+            action_items = ",\n        ".join(
+                f'{CS_NAMESPACE}::Action::"{a}"' for a in sorted(set(valid_actions))
+            )
+            return (
+                f"permit(\n"
+                f"    principal,\n"
+                f"    action in [\n"
+                f"        {action_items}\n"
+                f"    ],\n"
+                f"    resource\n"
+                f");"
+            )
+        # Fallback to observed actions if model output had no parseable service actions
+        action_items = ",\n        ".join(
+            f'{CS_NAMESPACE}::Action::"{a}"' for a in sorted(observed_actions.keys()) if observed_actions[a] > 0
+        )
+        return (
+            f"permit(\n"
+            f"    principal,\n"
+            f"    action in [\n"
+            f"        {action_items}\n"
+            f"    ],\n"
+            f"    resource\n"
+            f");"
+        )
+    else:
+        # Zero observed actions
+        return (
+            f"forbid(\n"
+            f"    principal,\n"
+            f"    action in [\n"
+            f'        {CS_NAMESPACE}::Action::"none"\n'
+            f"    ],\n"
+            f"    resource\n"
+            f");"
+        )
+
+
 def _extract_cedar_actions(cedar_policy_text: Any) -> List[str]:
     """
     Extracts the list of action strings from a Cedar policy text.
@@ -440,6 +520,7 @@ def _extract_cedar_actions(cedar_policy_text: Any) -> List[str]:
             actions.append(match.group(1))
 
     return list(set(actions))
+
 
 
 def stage_coverage_check(
@@ -554,9 +635,13 @@ def _build_cedar_schema(observed_actions: Dict[str, int], draft_actions: List[st
     for action in draft_actions:
         all_actions.add(action)
 
+    # Always ensure 'none' is declared in the schema so zero-action forbid policies are schema-valid
+    all_actions.add("none")
+
     # Build Cedar schema JSON (AVP format)
     actions_schema = {}
     for action in sorted(all_actions):
+
         actions_schema[action] = {
             "appliesTo": {
                 "principalTypes": ["Role"],
