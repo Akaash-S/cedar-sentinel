@@ -37,7 +37,12 @@ venv.bak/
 
 # AWS SAM & Terraform
 .aws-sam/
+samconfig.toml
+**/samconfig.toml
 samconfig.toml.local
+**/samconfig.toml.local
+!samconfig.toml.example
+!**/samconfig.toml.example
 *.tfstate
 *.tfstate.*
 *.tfvars
@@ -60,3 +65,7 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Local non-repo documentation
+phase-02-complete-chronicle.md
+

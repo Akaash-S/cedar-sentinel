@@ -172,22 +172,21 @@ you've received (or can trigger a test of) the alert email setup.
 
 ## Step 5 — Enable Bedrock model access
 
-Most Bedrock foundation models are enabled by default as of late 2025 — no manual
-request step. **Anthropic models are the one exception**: they still need a one-time
-usage form before first invocation.
+**Update (Sep 19, 2026):** The primary Bedrock model has been switched from Anthropic Claude
+to **Amazon Nova Lite** (`apac.amazon.nova-lite-v1:0`). Nova Lite is a first-party Amazon model —
+no AWS Marketplace subscription is required, and no manual access-request form is needed. It
+is enabled by default in all standard AWS accounts.
 
+If you still wish to verify model availability:
 1. Console → **Amazon Bedrock**, confirm you're in the region from Step 1.
-2. Go to **Model access** (or open the **Playground** and pick an Anthropic model
-   directly — either path triggers the form if it's needed).
-3. Select a current-generation Claude model. Submit the one-time usage form if
-   prompted — this is typically instant approval, not a multi-day wait.
-4. Confirm the model shows **Access granted**.
-5. Note the exact model ID (e.g. `anthropic.claude-sonnet-4-6`) somewhere you'll copy it
-   from on Day 1 — don't hardcode it into any doc or code before then, since availability
-   can shift.
+2. Go to **Model access** → confirm `amazon.nova-lite-v1:0` shows **Access granted** (it
+   should by default).
+3. The inference profile used is `apac.amazon.nova-lite-v1:0` — confirm it appears under
+   **Cross-region inference** in the Bedrock console if available in your region.
 
-**Acceptance check:** the model shows **Access granted** in the console, in the same
-region your Lambda and CLI will run in.
+**Acceptance check:** `amazon.nova-lite-v1:0` shows **Access granted** in Bedrock Model access.
+No Marketplace subscription or payment instrument is required for this model.
+
 
 ---
 

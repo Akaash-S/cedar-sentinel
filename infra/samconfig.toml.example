@@ -1,0 +1,23 @@
+# SAM Configuration template for Cedar Sentinel Phase 2 Infrastructure
+# Copy this file to samconfig.toml and populate with your environment values
+version = 0.1
+
+[default]
+[default.global.parameters]
+stack_name = "cedar-sentinel-infra"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_NAMED_IAM"
+confirm_changeset = false
+resolve_s3 = true
+stack_name = "cedar-sentinel-infra"
+region = "ap-south-1"
+parameter_overrides = "EventBusName=\"cedar-sentinel-events\" DynamoDBTableName=\"cedar-sentinel-results\" BedrockModelId=\"apac.amazon.nova-lite-v1:0\" CloudWatchLogGroupName=\"<YOUR_CLOUDTRAIL_LOG_GROUP>\" AVPPolicyStoreSSMParam=\"/cedar-sentinel/dev/avp-policy-store-id\""
+image_repositories = []

@@ -1,0 +1,39 @@
+{
+  "format_version": "1.1",
+  "terraform_version": "1.9.0",
+  "resource_changes": [
+    {
+      "address": "aws_iam_role_policy.cedar_sentinel_full_scope",
+      "module_address": null,
+      "mode": "managed",
+      "type": "aws_iam_role_policy",
+      "name": "cedar_sentinel_full_scope",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "name": "cedar-sentinel-pipeline-policy",
+          "role": "cedar-sentinel-lambda-exec-ap-south-1",
+          "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"AllowAllLogs\",\"Effect\":\"Allow\",\"Action\":[\"logs:*\"],\"Resource\":\"*\"},{\"Sid\":\"AllowAllBedrock\",\"Effect\":\"Allow\",\"Action\":[\"bedrock:*\"],\"Resource\":\"*\"},{\"Sid\":\"AllowAllAVP\",\"Effect\":\"Allow\",\"Action\":[\"verifiedpermissions:*\"],\"Resource\":\"*\"},{\"Sid\":\"AllowAllSSM\",\"Effect\":\"Allow\",\"Action\":[\"ssm:*\"],\"Resource\":\"*\"},{\"Sid\":\"AllowAllMarketplace\",\"Effect\":\"Allow\",\"Action\":[\"aws-marketplace:*\"],\"Resource\":\"*\"},{\"Sid\":\"AllowAllKMS\",\"Effect\":\"Allow\",\"Action\":[\"kms:*\"],\"Resource\":\"*\"}]}"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_iam_role_policy.cedar_sentinel_full_scope",
+          "mode": "managed",
+          "type": "aws_iam_role_policy",
+          "name": "cedar_sentinel_full_scope",
+          "provider_config_key": "aws"
+        }
+      ]
+    }
+  }
+}

@@ -52,7 +52,21 @@ terraform plan -out=tfplan.binary
 terraform show -json tfplan.binary > tfplan.json
 ```
 
-### 3. CLI Usage
+### 3. Infrastructure Deployment (SAM)
+
+1. Copy the SAM configuration template:
+   ```bash
+   cp infra/samconfig.toml.example infra/samconfig.toml
+   ```
+2. Populate `infra/samconfig.toml` (and `.env`) with your environment-specific values (`CloudWatchLogGroupName`, `BedrockModelId`, etc.).
+3. Build and deploy the serverless stack:
+   ```bash
+   cd infra
+   sam build
+   sam deploy
+   ```
+
+### 4. CLI Usage
 
 ```bash
 # Navigate to CLI directory
@@ -68,9 +82,10 @@ pip install -r requirements.txt
 # Verify AWS connectivity
 python cedar_sentinel.py check-aws
 
-# Analyze Terraform plan and extract IAM policies
-python cedar_sentinel.py analyze --plan-file ../cli/fixtures/sample_tfplan.json
+# Analyze Terraform plan and dispatch synthesis pipeline
+python cedar_sentinel.py analyze --plan-file fixtures/demo-role-plan.json
 ```
+
 
 ---
 

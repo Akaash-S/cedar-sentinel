@@ -9,7 +9,12 @@ used. Do not reconstruct this list on submission day.
 |---|---|---|---|
 | Sep 11–13, 2026 | Claude (Anthropic) | Project ideation, problem-statement validation, architecture design (including catching and correcting the Cedar/AVP vs. IAM enforcement misconception), AWS rules research, drafting the master blueprint and Phase 1 instructions | Planning phase only, before the event clock started Sep 17 — no event-window code written at this stage |
 | Sep 17, 2026 | Antigravity (agentic IDE) | Phase 1 scaffold implementation: CLI skeleton, SAM infrastructure template, Lambda handler, CloudWatch Logs query verification, Amplify hosting, and test orchestration | Day 1 kickoff / Phase 1 setup |
+| Sep 18, 2026 | Antigravity (agentic IDE) | Phase 2 core reasoning & verification pipeline: Lambda 4-stage handler (CloudWatch Logs Insights query, Bedrock structured call, coverage/lockout check, Cedar/AVP validation), DynamoDB results table, CLI result polling and hard-block menu, SAM template IAM extensions | Day 2 / Phase 2 implementation |
+| Sep 19, 2026 | Antigravity (agentic IDE) | Phase 2 hardening pass (phase-02-fixes): Nova Lite model switch, CLI self-analysis guard, eventSource-based action prefix fix, model-used logging (`BEDROCK MODEL USED` / `FALLBACK MODEL USED`), `aws-marketplace:*` removal, Bedrock policy resource scoping, `instructions/aws-console-setup.md` Step 5 update, architecture.md deviation entries, ai-tool-disclosure.md update | Day 2–3 / Phase 2 fixes pre-merge |
+| Sep 19, 2026 | Antigravity (agentic IDE) | Phase 2 fixes round 2 (phase-02-fixes-round2): added `CEDAR_INVALID` DynamoDB/CLI status handling on verification failure, resolved BEDROCK_MODEL_ID logging at Bedrock stage start, zero-observed-actions Cedar forbid prompt rule and validation testing, SAM deployment verification | Day 3 / Phase 2 fixes round 2 |
 | — | — | — | — |
+
+
 
 ---
 
