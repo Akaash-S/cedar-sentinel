@@ -11,9 +11,9 @@
   ],
   "analyzer_validation": {
     "check_no_new_access": {
+      "message": "The modified permissions grant less or equal access compared to your existing policy.",
       "result": "PASS",
-      "reasons": [],
-      "message": "The modified permissions grant less or equal access compared to your existing policy."
+      "reasons": []
     },
     "messages": [
       "Access Analyzer validation passed (no errors, no new access)."
@@ -30,60 +30,73 @@
     ],
     "policy_store_id": "<AVP_STORE_ID>"
   },
-  "completed_at": "2026-09-19T14:14:26.343219+00:00",
+  "completed_at": "2026-09-19T14:34:49.511038+00:00",
   "coverage_check": {
-    "passed": true,
-    "blocked_actions": "[]"
+    "blocked_actions": "[]",
+    "passed": true
   },
+  "guard_removed_actions": [
+    "ec2:Describe*",
+    "ec2:List*",
+    "logs:CreateLogGroup",
+    "logs:DescribeLogGroups",
+    "logs:DescribeLogStreams",
+    "logs:FilterLogEvents",
+    "logs:GetLogEvents",
+    "logs:GetQueryResults",
+    "logs:PutLogEvents",
+    "logs:StartQuery",
+    "logs:StopQuery"
+  ],
   "iam_policy": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"CedarSentinelTightenedStmt1\", \"Effect\": \"Allow\", \"Action\": [\"s3:CreateBucket\", \"s3:DeleteObject\", \"s3:GetBucketLocation\", \"s3:GetObject\", \"s3:ListAllMyBuckets\", \"s3:PutObject\"], \"Resource\": \"*\"}]}",
   "model_used": "apac.amazon.nova-lite-v1:0",
   "observed_actions": {
     "s3:GetObject": "1",
     "s3:HeadObject": "1",
-    "s3:CreateBucket": "1",
     "s3:PutObject": "1",
     "s3:GetBucketLocation": "2",
-    "s3:ListBuckets": "2",
-    "s3:DeleteObject": "1"
+    "s3:DeleteObject": "1",
+    "s3:ListBuckets": "3",
+    "s3:CreateBucket": "1"
   },
   "previous_policy": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"DemoS3Access\", \"Effect\": \"Allow\", \"Action\": \"s3:*\", \"Resource\": \"*\"}]}",
-  "rationale": "Tightened policy to include only observed CloudTrail actions for S3, logs, and EC2. Added minimal EC2 actions based on observed 'Describe*' and 'List*' actions.",
-  "request_id": "51c455ef-08b1-4b4d-8479-e2d49172cb2c",
+  "rationale": "Tightened policy to include only observed CloudTrail actions for s3 service(s). [Deterministic guard excluded 11 unobserved action(s): ec2:Describe*, ec2:List*, logs:CreateLogGroup, logs:DescribeLogGroups, logs:DescribeLogStreams, logs:FilterLogEvents, logs:GetLogEvents, logs:GetQueryResults, logs:PutLogEvents, logs:StartQuery, logs:StopQuery]",
+  "request_id": "db48ddbc-b4dd-4978-947c-c81f2131b1ab",
   "requested_policy": "{\"Version\": \"2012-10-17\", \"Statement\": [{\"Sid\": \"DemoS3Access\", \"Effect\": \"Allow\", \"Action\": [\"s3:*\"], \"Resource\": \"*\"}, {\"Sid\": \"DemoEC2Access\", \"Effect\": \"Allow\", \"Action\": [\"ec2:Describe*\", \"ec2:List*\"], \"Resource\": \"*\"}, {\"Sid\": \"DemoLogsAccess\", \"Effect\": \"Allow\", \"Action\": [\"logs:CreateLogGroup\", \"logs:CreateLogStream\", \"logs:PutLogEvents\", \"logs:DescribeLogGroups\", \"logs:DescribeLogStreams\", \"logs:GetLogEvents\", \"logs:FilterLogEvents\", \"logs:StartQuery\", \"logs:GetQueryResults\", \"logs:StopQuery\"], \"Resource\": \"*\"}, {\"Sid\": \"DemoDynamoAccess\", \"Effect\": \"Allow\", \"Action\": [\"dynamodb:*\"], \"Resource\": \"*\"}]}",
   "role_arn": "arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role",
   "stage_timings": [
     {
-      "stage": "cloudwatch_query",
-      "start": "2026-09-19T14:14:20.225166+00:00",
-      "end": "2026-09-19T14:14:22.459732+00:00"
+      "end": "2026-09-19T14:34:46.788658+00:00",
+      "start": "2026-09-19T14:34:43.636058+00:00",
+      "stage": "cloudwatch_query"
     },
     {
-      "end": "2026-09-19T14:14:23.554118+00:00",
-      "stage": "bedrock_call",
-      "start": "2026-09-19T14:14:22.460922+00:00"
+      "end": "2026-09-19T14:34:48.256822+00:00",
+      "start": "2026-09-19T14:34:46.789751+00:00",
+      "stage": "bedrock_call"
     },
     {
-      "start": "2026-09-19T14:14:23.555333+00:00",
       "stage": "coverage_check",
-      "end": "2026-09-19T14:14:23.555787+00:00"
+      "end": "2026-09-19T14:34:48.258482+00:00",
+      "start": "2026-09-19T14:34:48.257904+00:00"
     },
     {
-      "start": "2026-09-19T14:14:23.555797+00:00",
       "stage": "cedar_validation",
-      "end": "2026-09-19T14:14:23.885670+00:00"
+      "start": "2026-09-19T14:34:48.258493+00:00",
+      "end": "2026-09-19T14:34:48.809482+00:00"
     },
     {
-      "start": "2026-09-19T14:14:23.900226+00:00",
+      "end": "2026-09-19T14:34:48.812560+00:00",
       "stage": "iam_translation",
-      "end": "2026-09-19T14:14:23.900709+00:00"
+      "start": "2026-09-19T14:34:48.811932+00:00"
     },
     {
-      "end": "2026-09-19T14:14:26.332309+00:00",
-      "start": "2026-09-19T14:14:23.900722+00:00",
-      "stage": "analyzer_validation"
+      "stage": "analyzer_validation",
+      "start": "2026-09-19T14:34:48.812572+00:00",
+      "end": "2026-09-19T14:34:49.184240+00:00"
     }
   ],
   "status": "APPLIED",
-  "ttl": 1790086466,
+  "ttl": 1790087689,
   "unmatched_actions": []
 }

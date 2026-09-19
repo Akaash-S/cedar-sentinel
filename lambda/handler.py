@@ -403,9 +403,21 @@ def stage_bedrock_call(
         )
 
     # Apply deterministic code-level guard to normalize and sanitize cedar_policy
-    parsed["cedar_policy"] = _sanitize_and_guard_cedar_policy(
+    sanitized_policy, removed_actions = _sanitize_and_guard_cedar_policy(
         parsed["cedar_policy"], observed_actions
     )
+    parsed["cedar_policy"] = sanitized_policy
+    parsed["guard_removed_actions"] = removed_actions
+
+    # Adjust rationale if actions were stripped by the deterministic guard
+    if removed_actions:
+        observed_services = sorted(set(k.split(":")[0] for k in observed_actions if int(observed_actions[k]) > 0))
+        svc_str = ", ".join(observed_services) if observed_services else "observed"
+        parsed["rationale"] = (
+            f"Tightened policy to include only observed CloudTrail actions for {svc_str} service(s). "
+            f"[Deterministic guard excluded {len(removed_actions)} unobserved action(s): {', '.join(sorted(removed_actions))}]"
+        )
+
     # Attach the model that actually served this request
     parsed["model_used"] = actual_model_used
 
@@ -456,6 +468,13 @@ CLOUDTRAIL_TO_IAM_ACTION_MAP: Dict[str, str] = {
     "ec2:DescribeInstanceOfferings": "ec2:DescribeInstanceTypeOfferings",
 }
 
+CLOUDTRAIL_TO_IAM_ACTION_MAP_LOWER: Dict[str, str] = {
+    k.lower(): v.lower() for k, v in CLOUDTRAIL_TO_IAM_ACTION_MAP.items()
+}
+IAM_TO_CLOUDTRAIL_ACTION_MAP_LOWER: Dict[str, str] = {
+    v.lower(): k.lower() for k, v in CLOUDTRAIL_TO_IAM_ACTION_MAP.items()
+}
+
 
 def _is_action_observed_or_mapped(action: str, observed_actions: Dict[str, Any]) -> bool:
     """
@@ -469,12 +488,16 @@ def _is_action_observed_or_mapped(action: str, observed_actions: Dict[str, Any])
         return True
 
     for obs in obs_set:
-        mapped = CLOUDTRAIL_TO_IAM_ACTION_MAP.get(obs, obs).lower()
-        if act_lower == mapped:
+        mapped_iam = CLOUDTRAIL_TO_IAM_ACTION_MAP_LOWER.get(obs, obs)
+        if act_lower == mapped_iam:
             return True
-        if CLOUDTRAIL_TO_IAM_ACTION_MAP.get(act_lower, act_lower) == obs:
+        if CLOUDTRAIL_TO_IAM_ACTION_MAP_LOWER.get(obs) == act_lower:
             return True
-        if CLOUDTRAIL_TO_IAM_ACTION_MAP.get(act_lower, act_lower) == mapped:
+
+    # Check if the drafted action is an IAM name mapping back to an observed CloudTrail action
+    if act_lower in IAM_TO_CLOUDTRAIL_ACTION_MAP_LOWER:
+        orig_ct = IAM_TO_CLOUDTRAIL_ACTION_MAP_LOWER[act_lower]
+        if orig_ct in obs_set:
             return True
 
     return False
@@ -483,7 +506,7 @@ def _is_action_observed_or_mapped(action: str, observed_actions: Dict[str, Any])
 def _sanitize_and_guard_cedar_policy(
     raw_policy: Any,
     observed_actions: Dict[str, Any],
-) -> str:
+) -> Tuple[str, List[str]]:
     """
     Deterministic code-level guard that cleans, normalizes, and validates the
     Cedar policy text before verification:
@@ -493,8 +516,10 @@ def _sanitize_and_guard_cedar_policy(
        - Filters out unobserved actions (actions absent from observed_actions).
        - Strips concatenated forbid blocks (e.g. 'permit(...); forbid(...)').
        - Formats into a clean, canonical single permit statement.
+       - Returns (policy_text, list_of_removed_actions).
     2. If zero observed actions:
        - Ensures a single valid forbid statement on Action::'none'.
+       - Returns (policy_text, []).
     """
     text = _normalize_cedar_policy_text(raw_policy)
     has_observed = any(int(count) > 0 for count in observed_actions.values())
@@ -506,6 +531,10 @@ def _sanitize_and_guard_cedar_policy(
         valid_actions = [
             a for a in extracted
             if a != "none" and ":" in a and _is_action_observed_or_mapped(a, observed_actions)
+        ]
+        removed_actions = [
+            a for a in extracted
+            if a != "none" and ":" in a and not _is_action_observed_or_mapped(a, observed_actions)
         ]
 
         # If valid actions were found in the text, use them
@@ -520,7 +549,8 @@ def _sanitize_and_guard_cedar_policy(
                 f"        {action_items}\n"
                 f"    ],\n"
                 f"    resource\n"
-                f");"
+                f");",
+                sorted(set(removed_actions)),
             )
         # Fallback to observed actions if model output had no parseable observed actions
         action_items = ",\n        ".join(
@@ -533,7 +563,8 @@ def _sanitize_and_guard_cedar_policy(
             f"        {action_items}\n"
             f"    ],\n"
             f"    resource\n"
-            f");"
+            f");",
+            sorted(set(removed_actions)),
         )
     else:
         # Zero observed actions
@@ -544,7 +575,8 @@ def _sanitize_and_guard_cedar_policy(
             f'        {CS_NAMESPACE}::Action::"none"\n'
             f"    ],\n"
             f"    resource\n"
-            f");"
+            f");",
+            [],
         )
 
 
@@ -1067,6 +1099,7 @@ def write_result(
     iam_policy: Optional[Any] = None,
     action_mappings_applied: Optional[List[Dict[str, str]]] = None,
     unmatched_actions: Optional[List[str]] = None,
+    guard_removed_actions: Optional[List[str]] = None,
     analyzer_validation: Optional[Dict] = None,
     stage_timings: Optional[List[Dict]] = None,
     error_message: Optional[str] = None,
@@ -1131,6 +1164,9 @@ def write_result(
 
     if unmatched_actions is not None:
         item["unmatched_actions"] = unmatched_actions
+
+    if guard_removed_actions is not None:
+        item["guard_removed_actions"] = guard_removed_actions
 
     if analyzer_validation is not None:
         item["analyzer_validation"] = {
@@ -1245,6 +1281,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             cedar_policy_text: str = bedrock_result.get("cedar_policy", "")
             rationale: str = bedrock_result.get("rationale", "")
             model_used: str = bedrock_result.get("model_used", BEDROCK_MODEL_ID)
+            guard_removed_actions: List[str] = bedrock_result.get("guard_removed_actions", [])
 
             # ── Stage 3: Coverage / lockout check ──────────────────
             coverage_result, s3_start, s3_end = stage_coverage_check(
@@ -1273,6 +1310,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     requested_policy=requested_policy,
                     coverage_check=coverage_result,
                     cedar_validation=None,
+                    guard_removed_actions=guard_removed_actions,
                     stage_timings=stage_timings + [
                         {"stage": "cedar_validation", "start": _now_iso(), "end": _now_iso(), "skipped": True}
                     ],
@@ -1309,6 +1347,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     requested_policy=requested_policy,
                     coverage_check=coverage_result,
                     cedar_validation=cedar_result,
+                    guard_removed_actions=guard_removed_actions,
                     stage_timings=stage_timings,
                 )
                 continue
@@ -1362,6 +1401,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 iam_policy=iam_policy,
                 action_mappings_applied=action_mappings,
                 unmatched_actions=unmatched,
+                guard_removed_actions=guard_removed_actions,
                 analyzer_validation=analyzer_result,
                 stage_timings=stage_timings,
             )
@@ -1383,6 +1423,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 iam_policy=translation_result.get("iam_policy") if translation_result else None,
                 action_mappings_applied=translation_result.get("action_mappings_applied") if translation_result else None,
                 unmatched_actions=translation_result.get("unmatched_actions") if translation_result else None,
+                guard_removed_actions=bedrock_result.get("guard_removed_actions", []),
                 analyzer_validation=analyzer_result or None,
                 stage_timings=stage_timings,
                 error_message=str(exc),

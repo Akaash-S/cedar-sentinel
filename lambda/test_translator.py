@@ -206,7 +206,6 @@ class TestCedarToIamTranslator(unittest.TestCase):
 
     def test_6_unobserved_action_guard_regression(self):
         """Regression test for bug where Bedrock included ec2/logs actions not in observed_actions."""
-        # Simulated raw Bedrock output containing unobserved ec2 and logs actions alongside observed s3 actions
         draft_with_hallucinations = """
         permit(
             principal,
@@ -227,9 +226,10 @@ class TestCedarToIamTranslator(unittest.TestCase):
             "s3:CreateBucket": 1,
         }
 
-        sanitized = _sanitize_and_guard_cedar_policy(draft_with_hallucinations, observed_actions)
+        sanitized, removed = _sanitize_and_guard_cedar_policy(draft_with_hallucinations, observed_actions)
         print("\n[Test 6 PASS] Sanitized Cedar policy:")
         print(sanitized)
+        print("Guard removed actions:", removed)
 
         # Must retain observed s3 actions
         self.assertIn('CedarSentinel::Action::"s3:GetObject"', sanitized)
@@ -239,6 +239,11 @@ class TestCedarToIamTranslator(unittest.TestCase):
         self.assertNotIn('ec2:ListBuckets', sanitized)
         self.assertNotIn('logs:CreateLogGroup', sanitized)
         self.assertNotIn('logs:PutLogEvents', sanitized)
+        # Check removed list contains the 4 unobserved actions
+        self.assertEqual(
+            removed,
+            ["ec2:DescribeInstances", "ec2:ListBuckets", "logs:CreateLogGroup", "logs:PutLogEvents"]
+        )
 
     def test_7_zero_observed_actions_guard(self):
         """Zero observed actions must yield canonical forbid statement on Action::'none'."""
@@ -250,12 +255,45 @@ class TestCedarToIamTranslator(unittest.TestCase):
         );
         """
         observed_actions = {}
-        sanitized = _sanitize_and_guard_cedar_policy(draft_policy, observed_actions)
+        sanitized, removed = _sanitize_and_guard_cedar_policy(draft_policy, observed_actions)
         self.assertIn('forbid(', sanitized)
         self.assertIn('CedarSentinel::Action::"none"', sanitized)
         self.assertNotIn('permit(', sanitized)
+        self.assertEqual(removed, [])
         print("\n[Test 7 PASS] Zero observed actions forbid statement verified:")
         print(sanitized)
+
+    def test_8_mapped_iam_name_in_draft(self):
+        """Draft Cedar policy using IAM mapped names (e.g. s3:ListAllMyBuckets) is recognized when s3:ListBuckets was observed."""
+        draft_policy = """
+        permit(
+            principal,
+            action in [
+                CedarSentinel::Action::"s3:ListAllMyBuckets",
+                CedarSentinel::Action::"s3:GetObject",
+                CedarSentinel::Action::"ec2:DescribeInstances"
+            ],
+            resource
+        );
+        """
+        # Observed actions use CloudTrail event names: ListBuckets, HeadObject
+        observed_actions = {
+            "s3:ListBuckets": 1,
+            "s3:HeadObject": 1,
+        }
+
+        sanitized, removed = _sanitize_and_guard_cedar_policy(draft_policy, observed_actions)
+        print("\n[Test 8 PASS] Mapped IAM action draft test:")
+        print(sanitized)
+        print("Removed actions:", removed)
+
+        # s3:ListAllMyBuckets maps to observed s3:ListBuckets -> KEEP
+        self.assertIn('CedarSentinel::Action::"s3:ListAllMyBuckets"', sanitized)
+        # s3:GetObject maps to observed s3:HeadObject -> KEEP
+        self.assertIn('CedarSentinel::Action::"s3:GetObject"', sanitized)
+        # ec2:DescribeInstances was not observed -> REMOVE
+        self.assertNotIn("ec2:DescribeInstances", sanitized)
+        self.assertEqual(removed, ["ec2:DescribeInstances"])
 
 
 if __name__ == "__main__":
