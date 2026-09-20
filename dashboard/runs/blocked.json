@@ -1,0 +1,102 @@
+{
+  "role_arn": "arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role",
+  "requested_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DemoS3Access",
+        "Effect": "Allow",
+        "Action": [
+          "s3:*"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoEC2Access",
+        "Effect": "Allow",
+        "Action": [
+          "ec2:Describe*",
+          "ec2:List*"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoLogsAccess",
+        "Effect": "Allow",
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents",
+          "logs:StartQuery",
+          "logs:GetQueryResults",
+          "logs:StopQuery"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoDynamoAccess",
+        "Effect": "Allow",
+        "Action": [
+          "dynamodb:*"
+        ],
+        "Resource": "*"
+      }
+    ]
+  },
+  "completed_at": "2026-09-19T07:03:56.298468+00:00",
+  "observed_actions": {
+    "s3:ListBuckets": 2,
+    "s3:GetBucketLocation": 2,
+    "s3:CreateBucket": 1
+  },
+  "rationale": "Tightened policy to include only observed CloudTrail actions.",
+  "request_id": "414a50fa-6f1d-4f64-9f18-d70d612989f0",
+  "status": "BLOCKED",
+  "model_used": "apac.amazon.nova-lite-v1:0",
+  "stage_timings": [
+    {
+      "end": "2026-09-19T07:03:50.944537+00:00",
+      "stage": "cloudwatch_query",
+      "start": "2026-09-19T07:03:47.722936+00:00"
+    },
+    {
+      "start": "2026-09-19T07:03:50.945584+00:00",
+      "stage": "bedrock_call",
+      "end": "2026-09-19T07:03:55.974763+00:00"
+    },
+    {
+      "start": "2026-09-19T07:03:55.975819+00:00",
+      "end": "2026-09-19T07:03:55.976503+00:00",
+      "stage": "coverage_check"
+    },
+    {
+      "start": "2026-09-19T07:03:55.976552+00:00",
+      "end": "2026-09-19T07:03:55.976556+00:00",
+      "stage": "cedar_validation",
+      "skipped": true
+    }
+  ],
+  "coverage_check": {
+    "passed": false,
+    "blocked_actions": [
+      {
+        "action": "s3:GetBucketLocation",
+        "observed_count": 2
+      },
+      {
+        "action": "s3:ListBuckets",
+        "observed_count": 2
+      },
+      {
+        "action": "s3:CreateBucket",
+        "observed_count": 1
+      }
+    ]
+  },
+  "cedar_policy": "permit(\\n    principal,\\n    action in [\\n        CedarSentinel::Action::\\\"s3:GetBucketLocation\\\",\\n        CedarSentinel::Action::\\\"s3:ListBuckets\\\",\\n        CedarSentinel::Action::\\\"s3:CreateBucket\\\"\\n    ],\\n    resource\\n);",
+  "synthetic": false
+}

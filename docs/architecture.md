@@ -72,7 +72,7 @@ Lookback window: 7 days. Result: `{eventName: count}` map handed to Bedrock.
 | 2026-09-19 | **Persistent AVP Audit Store (`cedar-sentinel-audit-store`)** | Persistent Amazon Verified Permissions policy store (SSM: `/cedar-sentinel/dev/avp-audit-store-id`) where the CLI writes approved Cedar policies via `CreatePolicy` exclusively after successful apply. Separate from disposable validation store. |
 | 2026-09-19 | **CLI Enforcement & Snapshotting (`--apply`, `previous_policy`)** | CLI workflow enforcing target role verification, inline policy overwrite check (`iam:ListRolePolicies`), snapshotting existing policy (`iam:GetRolePolicy`), executing `iam:PutRolePolicy` with throttling retry, and performing read-back verification. |
 | 2026-09-19 | **Demo Role Reset Script (`scripts/reset_demo_role.py`)** | Standalone script hard-coded for `cedar-sentinel-demo-role` that restores the broad baseline `s3:*` policy for repeatable demo testing. |
-| 2026-09-19 | **Sanitized Dashboard Run Exporter (`scripts/export_run.py`)** | Exports completed DynamoDB run data into a sanitized `dashboard/run.json` with account IDs redacted for static dashboard replay. |
+| 2026-09-19 | **Sanitized Dashboard Run Exporter (`scripts/export_run.py`)** | Exports completed DynamoDB run data into sanitized `dashboard/runs/<name>.json` files with account IDs redacted and generates `dashboard/runs/index.json` for static dashboard replay. |
 
 ---
 
@@ -129,5 +129,7 @@ The pipeline and CLI support the following 10 explicit status states:
 | 2026-09-19 | Added IAM Access Analyzer validation stage (`stage_access_analyzer`) | Added independent safety net calling `ValidatePolicy` and `CheckNoNewAccess`. Rejects invalid actions (`VALIDATION_ERROR`) and privilege escalations (`NEW_ACCESS`) with distinct `ANALYZER_INVALID` status before human review. |
 | 2026-09-19 | Lockout menu option `[2]` disabled with safety notice | Option `[2]` (force-apply draft Cedar policy) intentionally disabled in this build to prevent bypassing the safety net when dropped actions are detected. |
 | 2026-09-19 | Added persistent AVP audit store (`cedar-sentinel-audit-store`) | Added a persistent AVP policy store (distinct from the disposable verification store) where the CLI records approved Cedar policies via `CreatePolicy` exclusively upon confirmed `APPLIED` status. |
+| 2026-09-19 | Dashboard rebuilt as static recorded-run replay | The dashboard was redesigned from a proposed live read-only API endpoint to a static, zero-dependency recorded-run player (`dashboard/runs/`). DynamoDB results expire after 72 hours via TTL, which would cause an unauthenticated live endpoint to return empty data during later judging review and risk exposing raw account/role metadata. Static sanitized recorded runs ensure 100% reliable, zero-latency playback of all 10 pipeline statuses indefinitely. |
+
 
 

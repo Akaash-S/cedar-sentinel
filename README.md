@@ -115,9 +115,13 @@ To manually roll back an applied policy:
 To export a completed run to the static Amplify dashboard:
 
 ```bash
-python scripts/export_run.py <REQUEST_ID>
+# Export a real completed run
+python scripts/export_run.py --request-id <REQUEST_ID> --out dashboard/runs/<name>.json --label "<LABEL>"
+
+# Validate all recorded runs and manifest
+python scripts/validate_runs.py
 ```
-This sanitizes 12-digit AWS account IDs and writes `dashboard/run.json` for dashboard viewing.
+This sanitizes 12-digit AWS account IDs, AVP store IDs, and log groups, updates `dashboard/runs/index.json`, and prepares recorded runs for static dashboard replay.
 
 ---
 

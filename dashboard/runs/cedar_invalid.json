@@ -1,0 +1,95 @@
+{
+  "requested_policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DemoS3Access",
+        "Effect": "Allow",
+        "Action": [
+          "s3:*"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoEC2Access",
+        "Effect": "Allow",
+        "Action": [
+          "ec2:Describe*",
+          "ec2:List*"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoLogsAccess",
+        "Effect": "Allow",
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents",
+          "logs:StartQuery",
+          "logs:GetQueryResults",
+          "logs:StopQuery"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Sid": "DemoDynamoAccess",
+        "Effect": "Allow",
+        "Action": [
+          "dynamodb:*"
+        ],
+        "Resource": "*"
+      }
+    ]
+  },
+  "observed_actions": {
+    "s3:GetBucketLocation": 2,
+    "s3:ListBuckets": 2,
+    "s3:CreateBucket": 1
+  },
+  "status": "CEDAR_INVALID",
+  "model_used": "apac.amazon.nova-lite-v1:0",
+  "stage_timings": [
+    {
+      "stage": "cloudwatch_query",
+      "start": "2026-09-19T06:56:27.477949+00:00",
+      "end": "2026-09-19T06:56:30.692470+00:00"
+    },
+    {
+      "start": "2026-09-19T06:56:30.693403+00:00",
+      "stage": "bedrock_call",
+      "end": "2026-09-19T06:56:31.431551+00:00"
+    },
+    {
+      "end": "2026-09-19T06:56:31.432958+00:00",
+      "start": "2026-09-19T06:56:31.432376+00:00",
+      "stage": "coverage_check"
+    },
+    {
+      "end": "2026-09-19T06:56:31.920833+00:00",
+      "stage": "cedar_validation",
+      "start": "2026-09-19T06:56:31.432967+00:00"
+    }
+  ],
+  "cedar_validation": {
+    "messages": [
+      "ValidationException: Invalid input"
+    ],
+    "policy_store_id": "<AVP_STORE_ID>",
+    "passed": false
+  },
+  "coverage_check": {
+    "passed": true,
+    "blocked_actions": []
+  },
+  "cedar_policy": "permit(principal, action in [CedarSentinel::Action::\"s3:GetBucketLocation\", CedarSentinel::Action::\"s3:ListBuckets\", CedarSentinel::Action::\"s3:CreateBucket\"], resource); forbid(principal, action in [CedarSentinel::Action::\"none\"], resource);",
+  "role_arn": "arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role",
+  "completed_at": "2026-09-19T06:56:32.281199+00:00",
+  "rationale": "Tightened policy to include only observed CloudTrail actions.",
+  "request_id": "48ae22e1-2451-48f1-8825-fd2349e8b2f4",
+  "synthetic": false
+}

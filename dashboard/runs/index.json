@@ -1,0 +1,92 @@
+[
+  {
+    "id": "applied",
+    "label": "APPLIED \u2014 guard removed 11 unobserved actions",
+    "file": "runs/applied.json",
+    "status": "APPLIED",
+    "synthetic": false,
+    "source_request_id": "db48ddbc-b4dd-4978-947c-c81f2131b1ab",
+    "captured_at": "2026-09-19T14:34:49.511038+00:00"
+  },
+  {
+    "id": "complete",
+    "label": "COMPLETE \u2014 verified, awaiting review",
+    "file": "runs/complete.json",
+    "status": "COMPLETE",
+    "synthetic": false,
+    "source_request_id": "6293da8f-7f30-4f80-8a30-e2afa8b7ad9c",
+    "captured_at": "2026-09-19T15:20:09.529040+00:00"
+  },
+  {
+    "id": "declined",
+    "label": "DECLINED \u2014 developer rejected the diff",
+    "file": "runs/declined.json",
+    "status": "DECLINED",
+    "synthetic": false,
+    "source_request_id": "1a2f5322-1795-4fd3-9d4f-3683c6be3711",
+    "captured_at": "2026-09-19T13:07:05.830662+00:00"
+  },
+  {
+    "id": "analyzer_invalid",
+    "label": "ANALYZER_INVALID \u2014 CheckNoNewAccess failed",
+    "file": "runs/analyzer_invalid.json",
+    "status": "ANALYZER_INVALID",
+    "synthetic": false,
+    "source_request_id": "9712a250-ef28-4b95-8c83-7a885fe7945d",
+    "captured_at": "2026-09-19T12:43:04.790935+00:00"
+  },
+  {
+    "id": "cedar_invalid",
+    "label": "CEDAR_INVALID \u2014 syntax / schema error in draft",
+    "file": "runs/cedar_invalid.json",
+    "status": "CEDAR_INVALID",
+    "synthetic": false,
+    "source_request_id": "48ae22e1-2451-48f1-8825-fd2349e8b2f4",
+    "captured_at": "2026-09-19T06:56:32.281199+00:00"
+  },
+  {
+    "id": "blocked",
+    "label": "BLOCKED \u2014 coverage check dropped observed action",
+    "file": "runs/blocked.json",
+    "status": "BLOCKED",
+    "synthetic": false,
+    "source_request_id": "414a50fa-6f1d-4f64-9f18-d70d612989f0",
+    "captured_at": "2026-09-19T07:03:56.298468+00:00"
+  },
+  {
+    "id": "applied_unverified",
+    "label": "APPLIED_UNVERIFIED \u2014 put succeeded, read-back failed",
+    "file": "runs/applied_unverified.json",
+    "status": "APPLIED_UNVERIFIED",
+    "synthetic": true,
+    "source_request_id": "db48ddbc-b4dd-4978-947c-c81f2131b1ab",
+    "captured_at": "2026-09-19T14:34:49.511038+00:00"
+  },
+  {
+    "id": "apply_failed",
+    "label": "APPLY_FAILED \u2014 IAM PutRolePolicy returned error",
+    "file": "runs/apply_failed.json",
+    "status": "APPLY_FAILED",
+    "synthetic": true,
+    "source_request_id": "db48ddbc-b4dd-4978-947c-c81f2131b1ab",
+    "captured_at": "2026-09-19T14:34:49.511038+00:00"
+  },
+  {
+    "id": "error",
+    "label": "ERROR \u2014 unhandled pipeline exception",
+    "file": "runs/error.json",
+    "status": "ERROR",
+    "synthetic": false,
+    "source_request_id": "c41cba0d-dbe4-4a40-ab9f-79c2e14d7505",
+    "captured_at": "2026-09-19T06:59:58.070394+00:00"
+  },
+  {
+    "id": "processing",
+    "label": "PROCESSING \u2014 run still in progress",
+    "file": "runs/processing.json",
+    "status": "PROCESSING",
+    "synthetic": true,
+    "source_request_id": "db48ddbc-b4dd-4978-947c-c81f2131b1ab",
+    "captured_at": "2026-09-19T14:34:49.511038+00:00"
+  }
+]

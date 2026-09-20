@@ -1,371 +1,2680 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cedar Sentinel — Policy Reasoning & Enforcement Dashboard</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cedar Sentinel — Cloud Security Intelligence Dashboard</title>
+  
+  <!-- Google Fonts: Inter, JetBrains Mono, Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+
   <style>
+    /* Design Tokens matching Stitch Specification */
     :root {
-      --bg: #090d16;
-      --card-bg: #111726;
-      --border: #1e293b;
-      --accent-cyan: #38bdf8;
-      --accent-emerald: #10b981;
-      --accent-amber: #f59e0b;
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --text-muted: #64748b;
-      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --surface: #10141a;
+      --background: #10141a;
+      --surface-container-lowest: #0a0e14;
+      --surface-container-low: #181c22;
+      --surface-container: #1c2026;
+      --surface-container-high: #262a31;
+      --surface-container-highest: #31353c;
+      --on-surface: #dfe2eb;
+      --on-surface-variant: #bdc8d1;
+      --outline: #87929a;
+      --outline-variant: #3e484f;
+      --primary: #8ed5ff;
+      --primary-container: #38bdf8;
+      --secondary: #4edea3;
+      --secondary-container: #00a572;
+      --tertiary: #ffbcbf;
+      --tertiary-container: #ff929a;
+      --error: #ffb4ab;
+      --error-container: #93000a;
+      --warning: #e3b341;
+      --warning-container: rgba(227, 179, 65, 0.15);
+
+      --font-headline: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+      --radius-xl: 1.125rem;
+      --radius-lg: 0.875rem;
+      --radius: 0.625rem;
+      --radius-btn: 0.75rem;
+      --radius-node: 0.875rem;
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
-      background-color: var(--bg);
-      color: var(--text-primary);
-      font-family: var(--font-sans);
+      background-color: var(--background);
+      color: var(--on-surface);
+      font-family: var(--font-body);
+      font-size: 13px;
       line-height: 1.5;
-      padding: 2rem 1rem;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
 
-    .container {
-      max-width: 1080px;
+    /* Styled Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--surface-container-lowest);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--outline-variant);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--outline);
+    }
+
+    /* Layout Containers */
+    .app-layout {
+      max-width: 1560px;
       margin: 0 auto;
+      padding: 0 16px 32px 16px;
     }
 
-    header {
+    /* Fixed / Sticky Header */
+    header.top-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(16, 20, 26, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--outline-variant);
+      margin-bottom: 16px;
+    }
+
+    .header-inner {
+      max-width: 1560px;
+      margin: 0 auto;
+      padding: 12px 16px 0 16px;
+    }
+
+    .header-row-1 {
       display: flex;
+      flex-wrap: wrap;
+      align-items: center;
       justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 2rem;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      padding-bottom: 10px;
     }
 
-    .brand h1 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: #fff;
+    .brand-group {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 12px;
     }
 
-    .brand p {
-      color: var(--text-secondary);
-      font-size: 0.95rem;
-      margin-top: 0.25rem;
-    }
-
-    .badge-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.4rem 0.9rem;
-      border-radius: 9999px;
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-      font-weight: 700;
-      background: rgba(16, 185, 129, 0.15);
-      color: var(--accent-emerald);
-      border: 1px solid rgba(16, 185, 129, 0.35);
-    }
-
-    .badge-dot {
-      width: 8px;
-      height: 8px;
-      background-color: var(--accent-emerald);
-      border-radius: 50%;
-      box-shadow: 0 0 8px var(--accent-emerald);
-    }
-
-    .record-notice {
-      background: rgba(56, 189, 248, 0.08);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      border-radius: 8px;
-      padding: 0.75rem 1rem;
-      margin-bottom: 2rem;
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .record-notice strong { color: var(--accent-cyan); }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
-      margin-bottom: 2rem;
-    }
-
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.25rem;
-    }
-
-    .card h2 {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--accent-cyan);
-      margin-bottom: 1rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+    .brand-icon-tile {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius);
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      justify-content: center;
+      color: var(--primary);
     }
 
-    .metadata-list {
-      list-style: none;
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-    }
-
-    .metadata-list li {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.5rem 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .metadata-list li:last-child { border-bottom: none; }
-    .meta-label { color: var(--text-muted); }
-    .meta-value { color: var(--text-primary); text-align: right; word-break: break-all; }
-
-    /* Timeline */
-    .timeline {
+    .brand-text-block {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
     }
 
-    .timeline-step {
+    .brand-title {
+      font-family: var(--font-headline);
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+
+    .brand-subtitle {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--outline);
+      text-transform: uppercase;
+    }
+
+    .header-center-right {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .command-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius);
+      padding: 6px 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--on-surface-variant);
+    }
+    @media (max-width: 1200px) {
+      .command-chip { display: none; }
+    }
+
+    .run-selector-box {
+      display: flex;
+      align-items: center;
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius);
+      padding: 2px 8px 2px 10px;
+      gap: 6px;
+    }
+
+    .run-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--primary);
+      background: rgba(142, 213, 255, 0.1);
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+
+    select.run-select {
+      background: transparent;
+      border: none;
+      color: var(--on-surface);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      outline: none;
+      cursor: pointer;
+      padding: 4px 0;
+      max-width: 320px;
+    }
+
+    select.run-select option {
+      background: var(--surface-container-high);
+      color: var(--on-surface);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 9999px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      border: 1px solid transparent;
+      text-transform: uppercase;
+    }
+
+    .status-pill .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    .status-pill.animating .dot {
+      animation: pulseDot 1.2s infinite ease-in-out;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(0.85); }
+    }
+
+    .status-pill.status-APPLIED, .status-pill.status-COMPLETE {
+      background: rgba(78, 222, 163, 0.1);
+      border-color: rgba(78, 222, 163, 0.4);
+      color: var(--secondary);
+    }
+    .status-pill.status-APPLIED .dot, .status-pill.status-COMPLETE .dot { background: var(--secondary); }
+
+    .status-pill.status-DECLINED, .status-pill.status-APPLIED_UNVERIFIED, .status-pill.status-PROCESSING {
+      background: rgba(227, 179, 65, 0.1);
+      border-color: rgba(227, 179, 65, 0.4);
+      color: var(--warning);
+    }
+    .status-pill.status-DECLINED .dot, .status-pill.status-APPLIED_UNVERIFIED .dot, .status-pill.status-PROCESSING .dot { background: var(--warning); }
+
+    .status-pill.status-BLOCKED, .status-pill.status-CEDAR_INVALID, .status-pill.status-ANALYZER_INVALID, .status-pill.status-APPLY_FAILED, .status-pill.status-ERROR {
+      background: rgba(255, 180, 171, 0.1);
+      border-color: rgba(255, 180, 171, 0.4);
+      color: var(--error);
+    }
+    .status-pill.status-BLOCKED .dot, .status-pill.status-CEDAR_INVALID .dot, .status-pill.status-ANALYZER_INVALID .dot, .status-pill.status-APPLY_FAILED .dot, .status-pill.status-ERROR .dot { background: var(--error); }
+
+    .btn-replay {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-container-high);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-btn);
+      padding: 6px 14px;
+      font-family: var(--font-headline);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--primary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-replay:hover {
+      background: var(--surface-container-highest);
+      border-color: var(--primary);
+    }
+
+    /* Nav Tabs (Row 2) */
+    .nav-tabs-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      border-top: 1px solid var(--surface-container);
+      padding: 6px 0;
+    }
+
+    .nav-tab-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--on-surface-variant);
+      text-decoration: none;
+      border-radius: 6px;
+      white-space: nowrap;
+      transition: color 0.15s, background 0.15s;
+    }
+    .nav-tab-link:hover {
+      color: #fff;
+      background: var(--surface-container);
+    }
+    .nav-tab-link.active {
+      color: var(--primary);
+      background: var(--surface-container-high);
+    }
+
+    /* Notices Row */
+    .notices-container {
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .notice-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--outline);
+      background: var(--surface-container-low);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius);
+      padding: 6px 12px;
+    }
+
+    .synthetic-banner {
+      display: none;
+      background: var(--warning-container);
+      border: 1px solid var(--warning);
+      color: var(--warning);
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+
+    .error-alert {
+      display: none;
+      background: var(--error-container);
+      border: 1px solid var(--error);
+      color: var(--error);
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+
+    /* 4-Card Metrics HUD */
+    .hud-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 1024px) {
+      .hud-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .hud-grid { grid-template-columns: 1fr; }
+    }
+
+    .hud-card {
+      background: var(--surface-container-low);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .hud-card::before {
+      content: '';
+      position: absolute;
+      top: -24px;
+      right: -24px;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: rgba(142, 213, 255, 0.04);
+      filter: blur(16px);
+      pointer-events: none;
+    }
+
+    .hud-card-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.6rem 0.8rem;
-      background: rgba(0, 0, 0, 0.25);
+      margin-bottom: 8px;
+    }
+
+    .hud-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hud-icon-tile {
+      width: 26px;
+      height: 26px;
       border-radius: 6px;
-      border-left: 3px solid var(--accent-emerald);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .hud-icon-tile.primary { background: rgba(142, 213, 255, 0.12); color: var(--primary); }
+    .hud-icon-tile.tertiary { background: rgba(255, 188, 191, 0.12); color: var(--tertiary); }
+    .hud-icon-tile.secondary { background: rgba(78, 222, 163, 0.12); color: var(--secondary); }
+    .hud-icon-tile.warning { background: rgba(227, 179, 65, 0.12); color: var(--warning); }
+
+    .hud-title {
+      font-family: var(--font-headline);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--on-surface-variant);
+    }
+
+    .hud-tag {
       font-family: var(--font-mono);
-      font-size: 0.85rem;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--surface-container-high);
+      color: var(--outline);
+      letter-spacing: 0.04em;
     }
 
-    .step-name { display: flex; align-items: center; gap: 0.5rem; color: #fff; }
-    .step-duration { color: var(--accent-cyan); font-size: 0.8rem; }
-
-    /* Policy Diff Panels */
-    .diff-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
-      margin-bottom: 2rem;
+    .hud-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 4px;
     }
 
-    .diff-panel {
-      background: #060911;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
+    .hud-big-num {
+      font-family: var(--font-headline);
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.1;
     }
 
-    .diff-header {
-      padding: 0.6rem 1rem;
-      background: #0f1523;
-      border-bottom: 1px solid var(--border);
+    .hud-big-label {
+      font-family: var(--font-headline);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--on-surface-variant);
+    }
+
+    .hud-subline {
+      font-size: 11px;
+      color: var(--outline);
+      margin-bottom: 10px;
+      min-height: 16px;
+    }
+
+    .hud-divider {
+      height: 1px;
+      background: var(--surface-container-high);
+      margin-bottom: 8px;
+    }
+
+    .hud-footer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
       font-family: var(--font-mono);
-      font-size: 0.8rem;
+      font-size: 10px;
+    }
+
+    .hud-footer-chip {
+      padding: 2px 6px;
+      border-radius: 4px;
       font-weight: 600;
     }
+    .chip-green { background: rgba(78, 222, 163, 0.12); color: var(--secondary); }
+    .chip-red { background: rgba(255, 180, 171, 0.12); color: var(--error); }
+    .chip-tertiary { background: rgba(255, 188, 191, 0.12); color: var(--tertiary); }
+    .chip-primary { background: rgba(142, 213, 255, 0.12); color: var(--primary); }
+    .chip-muted { background: var(--surface-container-high); color: var(--outline); }
 
-    .diff-header.before { color: #f87171; }
-    .diff-header.after { color: #4ade80; }
-    .diff-header.cedar { color: #38bdf8; }
-
-    pre {
-      padding: 1rem;
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      overflow-x: auto;
-      color: #e2e8f0;
-      line-height: 1.4;
+    /* Execution DAG Section */
+    .dag-section {
+      background: var(--surface-container-low);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-xl);
+      padding: 18px 20px;
+      margin-bottom: 20px;
     }
 
-    footer {
-      margin-top: 3rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid var(--border);
-      text-align: center;
-      font-size: 0.85rem;
-      color: var(--text-muted);
+    .dag-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--surface-container);
+    }
+
+    .dag-title-block {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dag-title {
+      font-family: var(--font-headline);
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .dag-inspector-tag {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 7px;
+      background: rgba(142, 213, 255, 0.1);
+      color: var(--primary);
+      border: 1px solid rgba(142, 213, 255, 0.25);
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .dag-subtitle {
+      font-size: 11px;
+      color: var(--outline);
+      width: 100%;
+      margin-top: 2px;
+    }
+
+    .dag-status-chips {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dag-chip {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .dag-chip-completed { background: rgba(78, 222, 163, 0.1); color: var(--secondary); border: 1px solid rgba(78, 222, 163, 0.3); }
+    .dag-chip-inspecting { background: rgba(142, 213, 255, 0.1); color: var(--primary); border: 1px solid rgba(142, 213, 255, 0.3); }
+
+    /* 3 DAG Zones */
+    .dag-zones-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 1100px) {
+      .dag-zones-grid { grid-template-columns: 1fr; }
+    }
+
+    .dag-zone-column {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .zone-header {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--on-surface-variant);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--surface-container);
+    }
+
+    .zone-header-count {
+      color: var(--outline);
+      font-size: 10px;
+    }
+
+    /* DAG Node Button */
+    .dag-node {
+      width: 100%;
+      text-align: left;
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-node);
+      padding: 12px 14px;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.15s ease-in-out;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .dag-node:hover:not(:disabled) {
+      background: var(--surface-container-high);
+      border-color: var(--outline);
+    }
+
+    .dag-node:focus-visible {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(142, 213, 255, 0.3);
+    }
+
+    .dag-node.selected {
+      background: var(--surface-container-high);
+      border-color: var(--primary);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+
+    .dag-node:disabled {
+      cursor: default;
+      opacity: 0.7;
+    }
+
+    .node-row-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .node-title-group {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .node-status-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+    }
+    .node-status-icon.done { color: var(--secondary); }
+    .node-status-icon.failed, .node-status-icon.blocked { color: var(--error); }
+    .node-status-icon.warning, .node-status-icon.declined { color: var(--warning); }
+    .node-status-icon.running { color: var(--primary); animation: pulseDot 1s infinite; }
+    .node-status-icon.muted { color: var(--outline); }
+
+    .node-title {
+      font-family: var(--font-headline);
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .node-duration {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--outline);
+      white-space: nowrap;
+    }
+
+    .node-mono-line {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--on-surface-variant);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .node-footer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .node-footer-left {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--outline);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .node-footer-right {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    /* Dual-Pane Workbench */
+    .workbench-grid {
+      display: grid;
+      grid-template-columns: 7fr 5fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 1100px) {
+      .workbench-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Left Pane: Diff & Policy */
+    .workbench-left {
+      background: var(--surface-container-low);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-xl);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pane-header-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--surface-container);
+    }
+
+    .pane-title-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pane-title {
+      font-family: var(--font-headline);
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .pane-subtitle {
+      font-size: 11px;
+      color: var(--outline);
+    }
+
+    .tablist-group {
+      display: inline-flex;
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius);
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--on-surface-variant);
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover {
+      color: #fff;
+    }
+    .tab-btn.active {
+      background: var(--surface-container-high);
+      color: var(--primary);
+    }
+
+    /* Side-by-Side Diff Box */
+    .diff-columns-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    @media (max-width: 768px) {
+      .diff-columns-grid { grid-template-columns: 1fr; }
+    }
+
+    .diff-column-card {
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-lg);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .diff-col-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--surface-container-high);
+    }
+    .diff-col-header.left { color: var(--tertiary); }
+    .diff-col-header.right { color: var(--secondary); }
+
+    .code-diff-scroll {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.45;
+      background: var(--surface-container-lowest);
+      border-radius: var(--radius);
+      padding: 8px;
+      overflow-x: auto;
+      max-height: 380px;
+      white-space: pre;
+    }
+
+    .code-line {
+      display: flex;
+      padding: 1px 4px;
+      border-radius: 2px;
+    }
+    .code-line.removed { background: rgba(255, 180, 171, 0.12); color: #ff929a; }
+    .code-line.added { background: rgba(78, 222, 163, 0.12); color: #7ee787; }
+    .code-line.plain { color: var(--on-surface); }
+    .code-gutter { width: 14px; user-select: none; font-weight: bold; flex-shrink: 0; }
+
+    /* Red Guard Quarantine Box */
+    .guard-alert-box {
+      background: rgba(255, 188, 191, 0.05);
+      border: 1px solid rgba(255, 188, 191, 0.3);
+      border-radius: var(--radius-lg);
+      padding: 14px 16px;
+      margin-top: auto;
+    }
+
+    .guard-alert-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .guard-alert-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-headline);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--tertiary);
+    }
+
+    .guard-alert-badge {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      background: rgba(255, 188, 191, 0.15);
+      color: var(--tertiary);
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .guard-alert-desc {
+      font-size: 11px;
+      color: var(--on-surface-variant);
+      margin-bottom: 10px;
+    }
+
+    .guard-chips-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .guard-action-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--on-surface);
+    }
+
+    /* Right Pane: Stage Telemetry & Audit */
+    .workbench-right {
+      background: var(--surface-container-low);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-xl);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .telemetry-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--surface-container);
+    }
+
+    .telemetry-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .telemetry-title {
+      font-family: var(--font-headline);
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .telemetry-subtitle {
+      font-size: 11px;
+      color: var(--outline);
+    }
+
+    .telemetry-chip {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      background: var(--surface-container-high);
+      color: var(--primary);
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .info-card {
+      background: var(--surface-container);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-lg);
+      padding: 12px 14px;
+    }
+
+    .info-card-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--outline);
+      margin-bottom: 6px;
+    }
+
+    .code-box {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.45;
+      background: var(--surface-container-lowest);
+      border: 1px solid var(--surface-container-high);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+      color: var(--on-surface);
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .table-mini {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      font-family: var(--font-mono);
+    }
+    .table-mini th {
+      text-align: left;
+      color: var(--outline);
+      font-size: 10px;
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--outline-variant);
+    }
+    .table-mini td {
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--surface-container-high);
+      color: var(--on-surface);
+    }
+
+    .btn-download-json {
+      width: 100%;
+      background: var(--surface-container-high);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-btn);
+      padding: 10px 14px;
+      font-family: var(--font-headline);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      margin-top: auto;
+      transition: all 0.15s;
+    }
+    .btn-download-json:hover {
+      background: var(--surface-container-highest);
+      border-color: var(--primary);
+    }
+
+    /* CloudTrail Log Intelligence Section */
+    .cloudtrail-section {
+      background: var(--surface-container-low);
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-xl);
+      padding: 18px 20px;
+      margin-bottom: 24px;
+    }
+
+    .cloudtrail-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--surface-container);
+    }
+
+    .cloudtrail-metrics-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--on-surface-variant);
+      margin-bottom: 14px;
+      background: var(--surface-container);
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--outline-variant);
+    }
+
+    .ct-table-wrap {
+      overflow-x: auto;
+      margin-bottom: 14px;
+    }
+
+    .ct-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+    .ct-table th {
+      text-align: left;
+      color: var(--outline);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--outline-variant);
+      background: var(--surface-container);
+    }
+    .ct-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--surface-container);
+      color: var(--on-surface);
+    }
+    .ct-table tr:hover td {
+      background: rgba(142, 213, 255, 0.02);
+    }
+
+    .prop-bar-container {
+      width: 120px;
+      height: 6px;
+      background: var(--surface-container-highest);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .prop-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 3px;
+    }
+
+    /* Footer */
+    footer.dashboard-footer {
+      border-top: 1px solid var(--outline-variant);
+      padding: 16px 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 11px;
+      color: var(--outline);
+      font-family: var(--font-mono);
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div class="brand">
-        <h1>Cedar Sentinel</h1>
-        <p>Automated Least-Privilege IAM Policy Synthesis, Cedar Verification & Safe Enforcement</p>
-      </div>
-      <div>
-        <span class="badge-status">
-          <span class="badge-dot"></span>
-          <span id="run-status">STATUS: APPLIED</span>
-        </span>
-      </div>
-    </header>
 
-    <div class="record-notice">
-      <span><strong>RECORDED RUN SNAPSHOT</strong> &bull; Read-only observability view from AWS DynamoDB results table</span>
-      <span id="run-timestamp" style="font-family: var(--font-mono);"></span>
-    </div>
+  <!-- Inline SVG Sprite for Dependency-Free Icons -->
+  <svg style="display: none;">
+    <symbol id="icon-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </symbol>
+    <symbol id="icon-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="4 17 10 11 4 5"/>
+      <line x1="12" y1="19" x2="20" y2="19"/>
+    </symbol>
+    <symbol id="icon-replay" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="1 4 1 10 7 10"/>
+      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+    </symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"/>
+    </symbol>
+    <symbol id="icon-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </symbol>
+    <symbol id="icon-verified" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    </symbol>
+    <symbol id="icon-security" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </symbol>
+    <symbol id="icon-tune" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="4" y1="21" x2="4" y2="14"/>
+      <line x1="4" y1="10" x2="4" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="12"/>
+      <line x1="12" y1="8" x2="12" y2="3"/>
+      <line x1="20" y1="21" x2="20" y2="16"/>
+      <line x1="20" y1="12" x2="20" y2="3"/>
+      <line x1="1" y1="14" x2="7" y2="14"/>
+      <line x1="9" y1="8" x2="15" y2="8"/>
+      <line x1="17" y1="16" x2="23" y2="16"/>
+    </symbol>
+    <symbol id="icon-account-tree" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="6" height="6" rx="1"/>
+      <rect x="15" y="15" width="6" height="6" rx="1"/>
+      <rect x="3" y="15" width="6" height="6" rx="1"/>
+      <path d="M6 9v3a3 3 0 0 0 3 3h6"/>
+      <path d="M6 15v-3"/>
+    </symbol>
+    <symbol id="icon-diff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="16"/>
+      <line x1="8" y1="12" x2="16" y2="12"/>
+    </symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </symbol>
+    <symbol id="icon-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </symbol>
+    <symbol id="icon-remove" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="8" y1="12" x2="16" y2="12"/>
+    </symbol>
+  </svg>
 
-    <div class="grid">
-      <!-- Run Metadata -->
-      <div class="card">
-        <h2>Run Execution Details</h2>
-        <ul class="metadata-list">
-          <li>
-            <span class="meta-label">Request ID</span>
-            <span class="meta-value" id="meta-req-id">Loading...</span>
-          </li>
-          <li>
-            <span class="meta-label">Target Role</span>
-            <span class="meta-value" id="meta-role-arn">Loading...</span>
-          </li>
-          <li>
-            <span class="meta-label">Reasoning Engine</span>
-            <span class="meta-value" id="meta-model">Loading...</span>
-          </li>
-          <li>
-            <span class="meta-label">Cedar Formal Check</span>
-            <span class="meta-value" style="color: var(--accent-emerald);">STRICT (AVP Validated)</span>
-          </li>
-          <li>
-            <span class="meta-label">Access Analyzer</span>
-            <span class="meta-value" style="color: var(--accent-emerald);" id="meta-analyzer">NO NEW ACCESS (PASS)</span>
-          </li>
-          <li>
-            <span class="meta-label">Action Normalization</span>
-            <span class="meta-value" id="meta-mappings">s3:ListBuckets &rarr; ListAllMyBuckets</span>
-          </li>
-          <li id="meta-guard-row" style="display: none;">
-            <span class="meta-label">Deterministic Guard</span>
-            <span class="meta-value" style="color: var(--accent-amber);" id="meta-guard-actions">None</span>
-          </li>
-        </ul>
-      </div>
+  <!-- Sticky Header -->
+  <header class="top-header">
+    <div class="header-inner">
+      <!-- Row 1: Brand, Command, Run Selector, Status, Replay -->
+      <div class="header-row-1">
+        <div class="brand-group">
+          <div class="brand-icon-tile">
+            <svg width="20" height="20"><use href="#icon-shield"/></svg>
+          </div>
+          <div class="brand-text-block">
+            <span class="brand-title">Cedar Sentinel</span>
+            <span class="brand-subtitle">CLOUD SECURITY INTELLIGENCE</span>
+          </div>
+        </div>
 
-      <!-- Stage Timings Timeline -->
-      <div class="card">
-        <h2>Stage-by-Stage Timeline</h2>
-        <div class="timeline" id="timeline-container">
-          <!-- Populated by JS -->
+        <div class="header-center-right">
+          <div id="header-command-chip" class="command-chip">
+            <span style="color: var(--primary);">$</span>
+            <span id="header-command-text">cedar-sentinel analyze --apply</span>
+          </div>
+
+          <div class="run-selector-box">
+            <span id="header-run-tag" class="run-tag">RUN</span>
+            <select id="run-select" class="run-select" aria-label="Select recorded run to replay"></select>
+          </div>
+
+          <div id="header-status-pill" class="status-pill status-APPLIED">
+            <span class="dot"></span>
+            <span id="header-status-text">STATUS: APPLIED</span>
+          </div>
+
+          <button id="btn-replay-run" class="btn-replay" title="Replay recorded animation from cache">
+            <svg width="14" height="14"><use href="#icon-replay"/></svg>
+            <span>Replay Run</span>
+          </button>
         </div>
       </div>
-    </div>
 
-    <!-- Rationale & Guard Banner -->
-    <div class="card" style="margin-bottom: 2rem;" id="card-rationale">
-      <h2>Pipeline Rationale & Guard Actions</h2>
-      <p id="text-rationale" style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary);">Loading...</p>
+      <!-- Row 2: Nav Tabs -->
+      <nav class="nav-tabs-row" aria-label="Dashboard sections navigation">
+        <a href="#dag-section" class="nav-tab-link active">Pipeline Graph (DAG)</a>
+        <a href="#diff-section" class="nav-tab-link">Policy Comparison Diff</a>
+        <a href="#telemetry-section" class="nav-tab-link">Audit &amp; Verification Telemetry</a>
+        <a href="#cloudtrail-section" class="nav-tab-link">CloudTrail Log Intelligence</a>
+      </nav>
     </div>
+  </header>
 
-    <!-- Policy Diffs -->
-    <h2 style="font-size: 1.1rem; color: var(--accent-cyan); margin-bottom: 1rem; text-transform: uppercase;">
-      Policy Transformation Diff
-    </h2>
-    <div class="diff-container">
-      <div class="diff-panel">
-        <div class="diff-header before">&minus; BEFORE: Requested Broad IAM Policy (Terraform)</div>
-        <pre id="code-before">Loading...</pre>
+  <!-- Main Container -->
+  <main class="app-layout">
+
+    <!-- Notices Bar & Error Banner -->
+    <div class="notices-container">
+      <div id="error-alert" class="error-alert"></div>
+      <div id="synthetic-banner" class="synthetic-banner">
+        <strong>[!] SYNTHETIC EXAMPLE</strong> — <span id="synthetic-note-text">crafted to demonstrate this state</span>
       </div>
-      <div class="diff-panel">
-        <div class="diff-header after">&plus; AFTER: Translated Tightened IAM Policy (Applied)</div>
-        <pre id="code-after">Loading...</pre>
+      <div class="notice-bar">
+        <svg width="13" height="13" style="color: var(--primary); flex-shrink: 0;"><use href="#icon-terminal"/></svg>
+        <span>run complete · fetched once · replaying recorded stage timings (each stage shown for at least 350 ms so it stays visible)</span>
       </div>
     </div>
 
-    <div class="diff-panel" style="margin-bottom: 2rem;">
-      <div class="diff-header cedar">&lambda; FORMAL CEDAR POLICY (Verified via Amazon Verified Permissions)</div>
-      <pre id="code-cedar">Loading...</pre>
-    </div>
+    <!-- 4-Card Metrics HUD -->
+    <section class="hud-grid" aria-label="Execution metrics overview">
+      <!-- HUD Card 1: Attack Surface Posture -->
+      <div class="hud-card">
+        <div>
+          <div class="hud-card-top">
+            <div class="hud-title-group">
+              <div class="hud-icon-tile primary">
+                <svg width="14" height="14"><use href="#icon-tune"/></svg>
+              </div>
+              <span class="hud-title">ATTACK SURFACE POSTURE</span>
+            </div>
+            <span class="hud-tag">7D LOOKBACK</span>
+          </div>
+          <div class="hud-value-row">
+            <span id="hud-obs-count" class="hud-big-num">0</span>
+            <span class="hud-big-label">Observed Actions</span>
+          </div>
+          <div id="hud-obs-subline" class="hud-subline">Requested plan: 0 entries → applied policy: 0 actions</div>
+        </div>
+        <div>
+          <div class="hud-divider"></div>
+          <div class="hud-footer-row">
+            <span id="hud-wildcards-chip" class="hud-footer-chip chip-green">wildcards removed: 0</span>
+            <span id="hud-baseline-caption" style="color: var(--outline);">Baseline: 0 entries</span>
+          </div>
+        </div>
+      </div>
 
-    <footer>
-      Cedar Sentinel &bull; Bharat Builds Hackathon 2026 &bull; Track: Ship It &bull; Zero Workload Lockouts
+      <!-- HUD Card 2: Guard Quarantine -->
+      <div class="hud-card">
+        <div>
+          <div class="hud-card-top">
+            <div class="hud-title-group">
+              <div class="hud-icon-tile tertiary">
+                <svg width="14" height="14"><use href="#icon-security"/></svg>
+              </div>
+              <span class="hud-title">GUARD QUARANTINE</span>
+            </div>
+            <span class="hud-tag">STRICT GUARD</span>
+          </div>
+          <div class="hud-value-row">
+            <span id="hud-guard-count" class="hud-big-num">0</span>
+            <span class="hud-big-label">Unobserved Actions</span>
+          </div>
+          <div class="hud-subline">Deterministic guard revocation applied</div>
+        </div>
+        <div>
+          <div class="hud-divider"></div>
+          <div class="hud-footer-row">
+            <span id="hud-guard-chip" class="hud-footer-chip chip-tertiary">0 removed</span>
+            <span style="color: var(--outline);">not in CloudTrail</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- HUD Card 3: Pipeline Latency -->
+      <div class="hud-card">
+        <div>
+          <div class="hud-card-top">
+            <div class="hud-title-group">
+              <div class="hud-icon-tile primary">
+                <svg width="14" height="14"><use href="#icon-timer"/></svg>
+              </div>
+              <span class="hud-title">PIPELINE LATENCY</span>
+            </div>
+            <span id="hud-stages-tag" class="hud-tag">10/10 STAGES</span>
+          </div>
+          <div class="hud-value-row">
+            <span id="hud-latency-num" class="hud-big-num">0.00s</span>
+            <span class="hud-big-label">Total Exec</span>
+          </div>
+          <div class="hud-subline">Lambda compute sum (real recorded)</div>
+        </div>
+        <div>
+          <div class="hud-divider"></div>
+          <div class="hud-footer-row">
+            <span id="hud-stages-ok-chip" class="hud-footer-chip chip-green">10/10 Stages OK</span>
+            <span id="hud-llm-latency" style="color: var(--outline);">LLM: 0.00s</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- HUD Card 4: Security Verdict -->
+      <div class="hud-card">
+        <div>
+          <div class="hud-card-top">
+            <div class="hud-title-group">
+              <div class="hud-icon-tile secondary">
+                <svg width="14" height="14"><use href="#icon-verified"/></svg>
+              </div>
+              <span class="hud-title">SECURITY VERDICT</span>
+            </div>
+            <span id="hud-verdict-tag" class="hud-tag">APPLIED</span>
+          </div>
+          <div style="margin-bottom: 8px;">
+            <div style="font-family: var(--font-mono); font-size: 11px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px;">
+              <span style="color: var(--on-surface-variant);">Cedar Schema Validation</span>
+              <span id="hud-cedar-val" style="font-weight: 700; color: var(--secondary);">PASS</span>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
+              <span style="color: var(--on-surface-variant);">IAM Access Analyzer</span>
+              <span id="hud-anz-val" style="font-weight: 700; color: var(--secondary);">0 FINDINGS</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="hud-divider"></div>
+          <div class="hud-footer-row">
+            <span id="hud-verdict-text" class="hud-footer-chip chip-green">Enforced and verified</span>
+            <span id="hud-coverage-percent" style="color: var(--outline);">100% COVERAGE</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Execution DAG Section -->
+    <section id="dag-section" class="dag-section" aria-label="Pipeline execution directed acyclic graph">
+      <div class="dag-header">
+        <div class="dag-title-block">
+          <svg width="18" height="18" style="color: var(--primary);"><use href="#icon-account-tree"/></svg>
+          <span class="dag-title">Execution Directed Acyclic Graph</span>
+          <span class="dag-inspector-tag">INTERACTIVE STAGE INSPECTOR</span>
+        </div>
+        <div class="dag-status-chips">
+          <span id="dag-completed-chip" class="dag-chip dag-chip-completed">● Completed (10/10)</span>
+          <span id="dag-inspecting-chip" class="dag-chip dag-chip-inspecting">● Inspecting: Stage 10</span>
+        </div>
+        <div class="dag-subtitle">End-to-end verified policy pipeline with deterministic synthesis stages</div>
+      </div>
+
+      <!-- 3 Zones -->
+      <div class="dag-zones-grid">
+        <!-- Zone 1: ANALYZE -->
+        <div class="dag-zone-column">
+          <div class="zone-header">
+            <span>● ZONE 01: ANALYZE</span>
+            <span class="zone-header-count">3 STAGES</span>
+          </div>
+
+          <!-- Stage 1 -->
+          <button id="dag-node-1" class="dag-node" aria-label="Stage 1: Extract and publish">
+            <div class="node-row-top">
+              <div class="node-title-group">
+                <span id="node-icon-1" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span class="node-title">Stage 1: Extract &amp; publish</span>
+              </div>
+              <span id="node-dur-1" class="node-duration">not recorded</span>
+            </div>
+            <div class="node-mono-line">events:PutEvents → sqs → Lambda</div>
+            <div class="node-footer-row">
+              <span class="node-footer-left">EVENT ARCHITECTURE</span>
+              <span id="node-chip-1" class="node-footer-right chip-green">200 OK</span>
+            </div>
+          </button>
+
+          <!-- Stage 2 -->
+          <button id="dag-node-2" class="dag-node" aria-label="Stage 2: Usage lookup">
+            <div class="node-row-top">
+              <div class="node-title-group">
+                <span id="node-icon-2" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span class="node-title">Stage 2: Usage lookup</span>
+              </div>
+              <span id="node-dur-2" class="node-duration">540ms</span>
+            </div>
+            <div class="node-mono-line">logs:StartQuery / 540ms</div>
+            <div class="node-footer-row">
+              <span class="node-footer-left">CLOUDTRAIL QUERY</span>
+              <span id="node-chip-2" class="node-footer-right chip-green">7D WINDOW</span>
+            </div>
+          </button>
+
+          <!-- Stage 3 -->
+          <button id="dag-node-3" class="dag-node" aria-label="Stage 3: Draft">
+            <div class="node-row-top">
+              <div class="node-title-group">
+                <span id="node-icon-3" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span class="node-title">Stage 3: Draft</span>
+              </div>
+              <span id="node-dur-3" class="node-duration">2.24s</span>
+            </div>
+            <div id="node-model-line-3" class="node-mono-line">bedrock:InvokeModel · apac.amazon.nova-lite-v1:0</div>
+            <div class="node-footer-row">
+              <span id="node-guard-left-3" class="node-footer-left" style="color: var(--tertiary);">GUARD STRIPPED</span>
+              <span id="node-chip-3" class="node-footer-right chip-tertiary">11 REMOVED</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Zone 2: VERIFY -->
+        <div class="dag-zone-column">
+          <div class="zone-header">
+            <span>● ZONE 02: VERIFY</span>
+            <span class="zone-header-count">4 STAGES</span>
+          </div>
+
+          <!-- Stage 4 -->
+          <button id="dag-node-4" class="dag-node" aria-label="Stage 4: Coverage check">
+            <div class="node-row-top">
+              <div class="node-title-group">
+                <span id="node-icon-4" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span class="node-title">Stage 4: Coverage check</span>
+              </div>
+              <span id="node-dur-4" class="node-duration">15ms</span>
+            </div>
+            <div id="node-mono-line-4" class="node-mono-line">in-Lambda / 15ms / all 7 covered</div>
+            <div class="node-footer-row">
+              <span class="node-footer-left">WORKLOAD SAFEGUARD</span>
+              <span id="node-chip-4" class="node-footer-right chip-green">100% COVERED</span>
+            </div>
+          </button>
+
+          <!-- Stage 5 -->
+          <button id="dag-node-5" class="dag-node" aria-label="Stage 5: Cedar validation">
+            <div class="node-row-top">
+              <div class="node-title-group">
+                <span id="node-icon-5" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span class="node-title">Stage 5: Cedar validation</span>
+              </div>
+              <span id="node-dur-5" class="node-duration">415ms</span>
+            </div>
+            <div class="node-mono-line">verifiedpermissions:PutSchema · STRICT / 415ms</div>
+            <div class="node-footer-row">
+              <span class="node-footer-left">CEDAR SCHEMA (STRICT)</span>
+              <span id="node-chip-5" class="node-footer-right chip-green">VALID</span>
+            </div>
+          </button>
+
+          <!-- Stage 6 -->
+          <button id="dag-node-6" class="dag-node" aria-label="Stage 6: IAM translation">
+            <div class="node-row-top">
+              <div class="node-title-group">
+                <span id="node-icon-6" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span class="node-title">Stage 6: IAM translation</span>
+              </div>
+              <span id="node-dur-6" class="node-duration">20ms</span>
+            </div>
+            <div id="node-mono-line-6" class="node-mono-line">in-Lambda / 20ms / 7 actions 2 mappings</div>
+            <div class="node-footer-row">
+              <span class="node-footer-left">AST COMPILATION</span>
+              <span id="node-chip-6" class="node-footer-right chip-green">2 STATEMENTS</span>
+            </div>
+          </button>
+
+          <!-- Stage 7 -->
+          <button id="dag-node-7" class="dag-node" aria-label="Stage 7: Access Analyzer">
+            <div class="node-row-top">
+              <div class="node-title-group">
+                <span id="node-icon-7" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span class="node-title">Stage 7: Access Analyzer</span>
+              </div>
+              <span id="node-dur-7" class="node-duration">620ms</span>
+            </div>
+            <div class="node-mono-line">accessanalyzer:ValidatePolicy / CheckNoNewAccess</div>
+            <div class="node-footer-row">
+              <span class="node-footer-left">POLICY ENGINE VALIDATION</span>
+              <span id="node-chip-7" class="node-footer-right chip-green">0 FINDINGS</span>
+            </div>
+          </button>
+        </div>
+
+        <!-- Zone 3: ENFORCE -->
+        <div class="dag-zone-column">
+          <div class="zone-header">
+            <span>● ZONE 03: ENFORCE</span>
+            <span class="zone-header-count">3 STAGES</span>
+          </div>
+
+          <!-- Stage 8 -->
+          <button id="dag-node-8" class="dag-node" aria-label="Stage 8: Approval">
+            <div class="node-row-top">
+              <div class="node-title-group">
+                <span id="node-icon-8" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span class="node-title">Stage 8: Approval</span>
+              </div>
+              <span id="node-dur-8" class="node-duration">not recorded</span>
+            </div>
+            <div class="node-mono-line">CLI prompt: approved in CLI</div>
+            <div class="node-footer-row">
+              <span class="node-footer-left">CLI APPROVAL</span>
+              <span id="node-chip-8" class="node-footer-right chip-green">APPROVED</span>
+            </div>
+          </button>
+
+          <!-- Stage 9 -->
+          <button id="dag-node-9" class="dag-node" aria-label="Stage 9: Apply & verify">
+            <div class="node-row-top">
+              <div class="node-title-group">
+                <span id="node-icon-9" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span class="node-title">Stage 9: Apply &amp; verify</span>
+              </div>
+              <span id="node-dur-9" class="node-duration">not recorded</span>
+            </div>
+            <div class="node-mono-line">iam:PutRolePolicy · overwritten &amp; confirmed</div>
+            <div class="node-footer-row">
+              <span class="node-footer-left">TARGET ROLE</span>
+              <span id="node-chip-9" class="node-footer-right chip-green">VERIFIED</span>
+            </div>
+          </button>
+
+          <!-- Stage 10 -->
+          <button id="dag-node-10" class="dag-node" aria-label="Stage 10: Audit record">
+            <div class="node-row-top">
+              <div class="node-title-group">
+                <span id="node-icon-10" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span class="node-title">Stage 10: Audit record</span>
+              </div>
+              <span id="node-dur-10" class="node-duration">not recorded</span>
+            </div>
+            <div class="node-mono-line">verifiedpermissions:CreatePolicy · recorded in persistent store</div>
+            <div class="node-footer-row">
+              <span class="node-footer-left">AUDIT PERSISTED</span>
+              <span id="node-chip-10" class="node-footer-right chip-green">RECORDED</span>
+            </div>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dual-Pane Workbench -->
+    <section class="workbench-grid" aria-label="Policy workbench and stage telemetry">
+      <!-- Left Pane: Diff & Policy Views -->
+      <div id="diff-section" class="workbench-left">
+        <div class="pane-header-row">
+          <div class="pane-title-group">
+            <span class="pane-title">Unified Policy Diff &amp; Deterministic Guard</span>
+            <span class="pane-subtitle">Runtime CloudTrail delta comparison with Cedar semantic abstraction</span>
+          </div>
+          <div class="tablist-group" role="tablist">
+            <button id="tab-diff" class="tab-btn active" role="tab" aria-selected="true" aria-controls="view-diff">Side-by-Side IAM Diff</button>
+            <button id="tab-cedar" class="tab-btn" role="tab" aria-selected="false" aria-controls="view-cedar">Cedar Policy</button>
+            <button id="tab-stripped" class="tab-btn" role="tab" aria-selected="false" aria-controls="view-stripped">Stripped Actions (<span id="tab-stripped-count">0</span>)</button>
+          </div>
+        </div>
+
+        <!-- Tab 1 View: Side-by-Side Diff -->
+        <div id="view-diff" class="tab-view">
+          <div class="diff-columns-grid">
+            <div class="diff-column-card">
+              <div class="diff-col-header left">
+                <span id="diff-left-title">ORIGINAL REQUESTED POLICY — 0 ACTIONS</span>
+              </div>
+              <div id="diff-left-body" class="code-diff-scroll"></div>
+            </div>
+
+            <div class="diff-column-card">
+              <div class="diff-col-header right">
+                <span id="diff-right-title">TIGHTENED IAM (STAGE 9 CONFIRMED) — 0 OBSERVED</span>
+              </div>
+              <div id="diff-right-body" class="code-diff-scroll"></div>
+            </div>
+          </div>
+
+          <!-- Red Guard Alert Box -->
+          <div id="guard-quarantine-box" class="guard-alert-box">
+            <div class="guard-alert-top">
+              <div class="guard-alert-title">
+                <svg width="15" height="15"><use href="#icon-remove"/></svg>
+                <span id="guard-alert-heading">[!] 11 Actions Removed by Deterministic Guard (not observed in CloudTrail)</span>
+              </div>
+              <span class="guard-alert-badge">QUARANTINE APPLIED</span>
+            </div>
+            <div class="guard-alert-desc">
+              Actions in the model's draft that were never observed in the CloudTrail lookback window (7 days) were removed prior to IAM translation.
+            </div>
+            <div id="guard-chips-container" class="guard-chips-wrap"></div>
+          </div>
+        </div>
+
+        <!-- Tab 2 View: Cedar Policy -->
+        <div id="view-cedar" class="tab-view" style="display: none;">
+          <div class="info-card" style="margin-bottom: 12px;">
+            <div class="info-card-title">CEDAR POLICY (SCHEMA-VALIDATED VIA AMAZON VERIFIED PERMISSIONS)</div>
+            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Post-guard Cedar policy (schema-validated via Amazon Verified Permissions) registering verified permit statements.</div>
+            <div id="cedar-policy-code" class="code-diff-scroll" style="max-height: 420px; color: var(--on-surface);"></div>
+          </div>
+          <div class="notice-bar">
+            <span>Cedar schema validation (STRICT): <strong id="cedar-view-status" style="color: var(--secondary);">PASS</strong> · Mode STRICT schema isolation</span>
+          </div>
+        </div>
+
+        <!-- Tab 3 View: Stripped Actions -->
+        <div id="view-stripped" class="tab-view" style="display: none;">
+          <div class="info-card">
+            <div class="info-card-title">UNOBSERVED ACTIONS REMOVED BY GUARD</div>
+            <div style="font-size: 11px; color: var(--outline); margin-bottom: 10px;">The following actions appeared in Bedrock's initial synthesis but were absent from CloudTrail baseline activity and were pruned:</div>
+            <table class="table-mini">
+              <thead><tr><th>Action</th><th style="text-align: right;">Lookback Activity</th><th style="text-align: center;">Guard Decision</th></tr></thead>
+              <tbody id="stripped-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Pane: Stage Telemetry & Audit Inspector -->
+      <div id="telemetry-section" class="workbench-right">
+        <div class="telemetry-header">
+          <div class="telemetry-title-group">
+            <svg width="18" height="18" style="color: var(--primary);"><use href="#icon-diff"/></svg>
+            <div>
+              <div class="telemetry-title">Stage Telemetry &amp; Audit</div>
+              <div class="telemetry-subtitle">Recorded telemetry for the selected stage</div>
+            </div>
+          </div>
+          <span id="telemetry-stage-chip" class="telemetry-chip">STAGE 10 DETAIL</span>
+        </div>
+
+        <!-- Target Role Info Card (Always Shown) -->
+        <div class="info-card">
+          <div class="info-card-title">SANITIZED TARGET ROLE ARN</div>
+          <div id="telemetry-role-arn" style="font-family: var(--font-mono); font-size: 11px; color: var(--primary); margin-bottom: 4px; overflow-wrap: anywhere;">arn:aws:iam::<ACCOUNT_ID>:role/...</div>
+          <div style="font-family: var(--font-mono); font-size: 10px; color: var(--outline);">Account: &lt;ACCOUNT_ID&gt; (sanitized)</div>
+        </div>
+
+        <!-- Dynamic Stage Body Card -->
+        <div id="telemetry-dynamic-card" class="info-card" style="flex: 1;">
+          <!-- Dynamically populated per stage click / replay -->
+        </div>
+
+        <!-- Persistent AVP Audit Card (Shown when Stage 10 selected or by default) -->
+        <div id="telemetry-audit-card" class="info-card">
+          <div class="info-card-title">PERSISTENT AVP AUDIT STORE</div>
+          <div style="font-family: var(--font-mono); font-size: 11px; line-height: 1.5;">
+            <div>Policy Store: <span id="audit-store-id" style="color: var(--on-surface);">&lt;AVP_STORE_ID&gt;</span></div>
+            <div>Audit Status: <span id="audit-record-status" style="color: var(--secondary); font-weight: 700;">RECORDED &amp; PERSISTED</span></div>
+            <div>Run Completed: <span id="audit-completed-at" style="color: var(--outline);">2026-09-19T14:34:49Z</span></div>
+            <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--surface-container-high);">
+              <div style="font-size: 10px; color: var(--outline);">Run File SHA-256 (computed in browser):</div>
+              <div id="audit-file-sha" style="font-size: 10px; color: var(--primary); overflow-wrap: anywhere;">calculating...</div>
+              <div style="font-size: 9px; color: var(--outline);">checksum of this recorded-run file (computed in your browser) — not an AWS audit seal</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download JSON Button -->
+        <button id="btn-download-run-json" class="btn-download-json" title="Download sanitized recorded run JSON">
+          <svg width="15" height="15"><use href="#icon-download"/></svg>
+          <span>Download Run JSON</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- CloudTrail Log Intelligence Section -->
+    <section id="cloudtrail-section" class="cloudtrail-section" aria-label="CloudTrail Log Intelligence">
+      <div class="cloudtrail-header">
+        <div class="dag-title-block">
+          <svg width="18" height="18" style="color: var(--primary);"><use href="#icon-tune"/></svg>
+          <span class="dag-title">CloudTrail Log Intelligence</span>
+          <span class="dag-inspector-tag">OBSERVED PRINCIPAL ACTIVITY</span>
+        </div>
+        <div id="ct-window-tag" class="hud-tag">7-DAY LOOKBACK WINDOW</div>
+      </div>
+
+      <div class="cloudtrail-metrics-bar">
+        <span>Window: <strong>7 days</strong></span>
+        <span>Total Invocations: <strong id="ct-total-calls">0</strong></span>
+        <span>Distinct Actions: <strong id="ct-distinct-actions">0</strong></span>
+        <span style="color: var(--outline);">Note: S3 object-level actions appear only if S3 data events are enabled for the bucket — see docs/limitations-and-mitigations.md</span>
+      </div>
+
+      <div class="ct-table-wrap">
+        <table class="ct-table">
+          <thead>
+            <tr>
+              <th>Action Signature</th>
+              <th style="text-align: right;">Invocations</th>
+              <th style="width: 140px;">Call Frequency</th>
+              <th style="text-align: center;">Safeguard Status</th>
+              <th>Mapped IAM Action</th>
+              <th style="text-align: center;">Policy Inclusion</th>
+            </tr>
+          </thead>
+          <tbody id="cloudtrail-table-body">
+            <!-- Dynamically populated from observed_actions and action_mappings_applied -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-card">
+        <div class="info-card-title">CLOUDWATCH LOGS INSIGHTS QUERY (TEMPLATE)</div>
+        <div style="font-size: 10px; color: var(--outline); margin-bottom: 6px;">query template — role ARN substituted at runtime</div>
+        <pre class="code-box" style="font-size: 11px;">fields @timestamp, eventName, eventSource
+| filter eventSource in ["s3.amazonaws.com", "dynamodb.amazonaws.com", "sqs.amazonaws.com", "logs.amazonaws.com", "ec2.amazonaws.com"]
+| filter userIdentity.sessionContext.sessionIssuer.arn = "&lt;ROLE_ARN&gt;"
+| stats count(*) as call_count by eventSource, eventName
+| sort call_count desc
+| limit 200</pre>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="dashboard-footer">
+      <div class="footer-left">
+        <svg width="14" height="14" style="color: var(--primary);"><use href="#icon-shield"/></svg>
+        <span>Cedar Sentinel · First Commit · Ship It · recorded runs, read-only</span>
+      </div>
+      <div style="color: var(--secondary);">
+        <span>Cedar schema validation: STRICT</span>
+      </div>
     </footer>
-  </div>
+  </main>
 
+  <!-- JavaScript Logic: Single-File Replay & Binding -->
   <script>
-    async function loadRunData() {
+    // State Variables
+    const runCache = new Map();
+    let currentManifest = [];
+    let currentRunData = null;
+    let currentRunMeta = null;
+    let currentActiveStageIndex = 9; // Default to Stage 10 (inspecting)
+    let animationTimer = null;
+    let isReplayRunning = false;
+    let isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Stage Metadata
+    const STAGES_META = [
+      { num: 1, title: "Extract & publish", api: "events:PutEvents → sqs → Lambda", timingKey: null },
+      { num: 2, title: "Usage lookup", api: "logs:StartQuery / logs:GetQueryResults", timingKey: "cloudwatch_query" },
+      { num: 3, title: "Draft", api: "bedrock:InvokeModel", timingKey: "bedrock_call" },
+      { num: 4, title: "Coverage check", api: "in-Lambda · all observed covered", timingKey: "coverage_check" },
+      { num: 5, title: "Cedar validation", api: "verifiedpermissions:PutSchema · STRICT", timingKey: "cedar_validation" },
+      { num: 6, title: "IAM translation", api: "in-Lambda · AST compilation", timingKey: "iam_translation" },
+      { num: 7, title: "Access Analyzer", api: "access-analyzer:ValidatePolicy / CheckNoNewAccess", timingKey: "analyzer_validation" },
+      { num: 8, title: "Approval", api: "CLI prompt · human operator", timingKey: null, isCli: true },
+      { num: 9, title: "Apply & verify", api: "iam:PutRolePolicy · read-back", timingKey: null, isCli: true },
+      { num: 10, title: "Audit record", api: "verifiedpermissions:CreatePolicy · persistent store", timingKey: null, isCli: true }
+    ];
+
+    // Helper functions for policy parsing
+    function parsePolicy(policy) {
+      if (!policy) return null;
+      if (typeof policy === 'object') return policy;
+      try { return JSON.parse(policy); } catch (e) { return null; }
+    }
+
+    function countActionsInPolicy(policy) {
+      const obj = parsePolicy(policy);
+      if (!obj || !Array.isArray(obj.Statement)) return 0;
+      const acts = new Set();
+      for (const st of obj.Statement) {
+        if (!st) continue;
+        const a = st.Action;
+        if (typeof a === 'string') acts.add(a);
+        else if (Array.isArray(a)) a.forEach(x => acts.add(x));
+      }
+      return acts.size;
+    }
+
+    function countWildcardsInPolicy(policy) {
+      const obj = parsePolicy(policy);
+      if (!obj || !Array.isArray(obj.Statement)) return 0;
+      let count = 0;
+      for (const st of obj.Statement) {
+        if (!st) continue;
+        const a = st.Action;
+        if (typeof a === 'string' && a.includes('*')) count++;
+        else if (Array.isArray(a)) count += a.filter(x => typeof x === 'string' && x.includes('*')).length;
+      }
+      return count;
+    }
+
+    function getStageTimingsMap(data) {
+      const map = {};
+      if (Array.isArray(data.stage_timings)) {
+        for (const t of data.stage_timings) {
+          if (t && t.stage && t.start !== undefined && t.end !== undefined) {
+            map[t.stage] = Math.round(t.end - t.start);
+          }
+        }
+      }
+      return map;
+    }
+
+    function getTotalLambdaDuration(data) {
+      let total = 0;
+      if (Array.isArray(data.stage_timings)) {
+        for (const t of data.stage_timings) {
+          if (t && t.start !== undefined && t.end !== undefined) {
+            total += Math.round(t.end - t.start);
+          }
+        }
+      }
+      return total;
+    }
+
+    function getBlockedActionsList(data) {
+      if (data.coverage_check && data.coverage_check.blocked_actions) {
+        const b = data.coverage_check.blocked_actions;
+        if (Array.isArray(b)) return b;
+        if (typeof b === 'string') {
+          try { return JSON.parse(b); } catch (e) { return [b]; }
+        }
+      }
+      return [];
+    }
+
+    // Compute SHA-256 of run JSON using native browser crypto.subtle
+    async function computeRunSha256(rawText) {
       try {
-        const res = await fetch('run.json');
-        if (!res.ok) throw new Error('Failed to load run.json');
-        const data = await res.json();
-
-        document.getElementById('run-status').textContent = 'STATUS: ' + data.status;
-        document.getElementById('run-timestamp').textContent = 'Completed: ' + new Date(data.completed_at).toUTCString();
-        document.getElementById('meta-req-id').textContent = data.request_id;
-        document.getElementById('meta-role-arn').textContent = data.role_arn;
-        document.getElementById('meta-model').textContent = data.model_used || 'Amazon Nova Lite';
-
-        if (data.action_mappings_applied && data.action_mappings_applied.length > 0) {
-          document.getElementById('meta-mappings').textContent = data.action_mappings_applied.map(m => `${m.original} \u2192 ${m.mapped}`).join(', ');
-        }
-
-        if (data.guard_removed_actions && data.guard_removed_actions.length > 0) {
-          document.getElementById('meta-guard-row').style.display = 'flex';
-          document.getElementById('meta-guard-actions').textContent = `Excluded ${data.guard_removed_actions.length} unobserved action(s): ${data.guard_removed_actions.join(', ')}`;
-        }
-
-        if (data.rationale) {
-          document.getElementById('text-rationale').textContent = data.rationale;
-        }
-
-        // Render timeline
-        const timeline = document.getElementById('timeline-container');
-        timeline.innerHTML = '';
-        if (data.stage_timings && data.stage_timings.length > 0) {
-          data.stage_timings.forEach((st, idx) => {
-            const start = new Date(st.start).getTime();
-            const end = new Date(st.end).getTime();
-            const ms = Math.max(end - start, 1);
-            const name = st.stage.replace(/_/g, ' ').toUpperCase();
-
-            const item = document.createElement('div');
-            item.className = 'timeline-step';
-            item.innerHTML = `
-              <span class="step-name">
-                <span style="color: var(--accent-cyan); font-weight: bold;">[${idx + 1}]</span>
-                ${name}
-              </span>
-              <span class="step-duration">${ms} ms</span>
-            `;
-            timeline.appendChild(item);
-          });
-        }
-
-        // Render policies
-        const reqPol = typeof data.requested_policy === 'string' ? JSON.parse(data.requested_policy) : data.requested_policy;
-        document.getElementById('code-before').textContent = JSON.stringify(reqPol, null, 2);
-
-        const iamPol = typeof data.iam_policy === 'string' ? JSON.parse(data.iam_policy) : data.iam_policy;
-        document.getElementById('code-after').textContent = JSON.stringify(iamPol, null, 2);
-
-        document.getElementById('code-cedar').textContent = data.cedar_policy;
-
-      } catch (err) {
-        console.error(err);
-        document.getElementById('meta-req-id').textContent = 'Error loading recorded run snapshot.';
+        const msgUint8 = new TextEncoder().encode(rawText);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return `sha256:${hashHex}`;
+      } catch (e) {
+        return "sha256:not-available";
       }
     }
-    loadRunData();
+
+    // Compute Stage Statuses per Status Matrix
+    function computeStageStates(status, data) {
+      const s = (status || "").toUpperCase();
+      const timings = getStageTimingsMap(data);
+      const res = [];
+
+      function getTimingStr(key) {
+        if (!key || timings[key] === undefined) return "not recorded";
+        const ms = timings[key];
+        return ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms}ms`;
+      }
+
+      if (s === "PROCESSING") {
+        for (let i = 1; i <= 10; i++) {
+          res.push({
+            state: "muted",
+            duration: "not recorded",
+            chipText: "—",
+            chipClass: "chip-muted",
+            reached: false,
+            detail: "run still processing — nothing to replay"
+          });
+        }
+        return res;
+      }
+
+      // Stage 1 - 7 default done
+      const obsCount = data.observed_actions ? Object.keys(data.observed_actions).length : 0;
+      const reqCount = countActionsInPolicy(data.requested_policy);
+      const guardRemoved = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions.length : 0;
+      const mappingsCount = data.action_mappings_applied ? Object.keys(data.action_mappings_applied).length : 0;
+      const findingsCount = (data.analyzer_validation && Array.isArray(data.analyzer_validation.findings)) ? data.analyzer_validation.findings.length : 0;
+
+      let s1_7 = [
+        { state: "done", duration: "not recorded", chipText: `${reqCount} ACTIONS`, chipClass: "chip-green", reached: true },
+        { state: "done", duration: getTimingStr("cloudwatch_query"), chipText: `${obsCount} ACTIONS`, chipClass: "chip-green", reached: true },
+        { state: "done", duration: getTimingStr("bedrock_call"), chipText: `${guardRemoved} REMOVED`, chipClass: guardRemoved > 0 ? "chip-tertiary" : "chip-green", reached: true },
+        { state: "done", duration: getTimingStr("coverage_check"), chipText: "100% COVERED", chipClass: "chip-green", reached: true },
+        { state: "done", duration: getTimingStr("cedar_validation"), chipText: "VALID", chipClass: "chip-green", reached: true },
+        { state: "done", duration: getTimingStr("iam_translation"), chipText: `${mappingsCount} MAPPINGS`, chipClass: "chip-green", reached: true },
+        { state: "done", duration: getTimingStr("analyzer_validation"), chipText: `${findingsCount} FINDINGS`, chipClass: "chip-green", reached: true }
+      ];
+
+      // Handle failures in 1-7
+      if (s === "BLOCKED") {
+        s1_7[3] = { state: "blocked", duration: getTimingStr("coverage_check"), chipText: "BLOCKED", chipClass: "chip-red", reached: true };
+        for (let i = 4; i < 7; i++) s1_7[i] = { state: "muted", duration: "not recorded", chipText: "SKIPPED", chipClass: "chip-muted", reached: false };
+      } else if (s === "CEDAR_INVALID") {
+        s1_7[4] = { state: "failed", duration: getTimingStr("cedar_validation"), chipText: "INVALID", chipClass: "chip-red", reached: true };
+        for (let i = 5; i < 7; i++) s1_7[i] = { state: "muted", duration: "not recorded", chipText: "SKIPPED", chipClass: "chip-muted", reached: false };
+      } else if (s === "ANALYZER_INVALID") {
+        s1_7[6] = { state: "failed", duration: getTimingStr("analyzer_validation"), chipText: "REJECTED", chipClass: "chip-red", reached: true };
+      } else if (s === "ERROR") {
+        const lastStage = timings["bedrock_call"] ? 3 : (timings["cloudwatch_query"] ? 2 : 1);
+        for (let i = lastStage; i < 7; i++) {
+          if (i === lastStage) {
+            s1_7[i] = { state: "failed", duration: "failed", chipText: "ERROR", chipClass: "chip-red", reached: true };
+          } else {
+            s1_7[i] = { state: "muted", duration: "not recorded", chipText: "SKIPPED", chipClass: "chip-muted", reached: false };
+          }
+        }
+      }
+
+      // Stages 8 - 10
+      let s8 = { state: "muted", duration: "not recorded", chipText: "NOT REACHED", chipClass: "chip-muted", reached: false };
+      let s9 = { state: "muted", duration: "not recorded", chipText: "NOT REACHED", chipClass: "chip-muted", reached: false };
+      let s10 = { state: "muted", duration: "not recorded", chipText: "NOT REACHED", chipClass: "chip-muted", reached: false };
+
+      if (s === "APPLIED") {
+        s8 = { state: "done", duration: "not recorded", chipText: "APPROVED", chipClass: "chip-green", reached: true };
+        s9 = { state: "done", duration: "not recorded", chipText: "VERIFIED", chipClass: "chip-green", reached: true };
+        s10 = { state: "done", duration: "not recorded", chipText: data.audit_failed ? "AUDIT FAILED" : "RECORDED", chipClass: data.audit_failed ? "chip-red" : "chip-green", reached: true };
+      } else if (s === "COMPLETE") {
+        s8 = { state: "warning", duration: "not recorded", chipText: "AWAITING", chipClass: "chip-muted", reached: true };
+      } else if (s === "DECLINED") {
+        s8 = { state: "declined", duration: "not recorded", chipText: "DECLINED", chipClass: "chip-tertiary", reached: true };
+      } else if (s === "APPLIED_UNVERIFIED") {
+        s8 = { state: "done", duration: "not recorded", chipText: "APPROVED", chipClass: "chip-green", reached: true };
+        s9 = { state: "warning", duration: "not recorded", chipText: "UNVERIFIED", chipClass: "chip-tertiary", reached: true };
+      } else if (s === "APPLY_FAILED") {
+        s8 = { state: "done", duration: "not recorded", chipText: "APPROVED", chipClass: "chip-green", reached: true };
+        s9 = { state: "failed", duration: "not recorded", chipText: "FAILED", chipClass: "chip-red", reached: true };
+      }
+
+      res.push(...s1_7, s8, s9, s10);
+      return res;
+    }
+
+    // Populate HUD Cards
+    function populateHud(data, status) {
+      const s = (status || "").toUpperCase();
+      const obsMap = data.observed_actions || {};
+      const obsCount = Object.keys(obsMap).length;
+      const reqCount = countActionsInPolicy(data.requested_policy);
+      const tightCount = countActionsInPolicy(data.iam_policy);
+      const wildcardsCount = countWildcardsInPolicy(data.requested_policy);
+      const guardRemovedList = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions : [];
+      const totalDurMs = getTotalLambdaDuration(data);
+      const timings = getStageTimingsMap(data);
+
+      // HUD 1: Attack Surface Posture
+      document.getElementById('hud-obs-count').textContent = obsCount;
+      document.getElementById('hud-obs-subline').textContent = `Requested plan: ${reqCount} entries (${wildcardsCount} wildcard) → applied policy: ${tightCount} actions`;
+      document.getElementById('hud-wildcards-chip').textContent = `wildcards removed: ${wildcardsCount}`;
+      document.getElementById('hud-baseline-caption').textContent = `Baseline: ${reqCount} entries`;
+
+      // HUD 2: Guard Quarantine
+      document.getElementById('hud-guard-count').textContent = guardRemovedList.length;
+      const guardChip = document.getElementById('hud-guard-chip');
+      if (guardRemovedList.length > 0) {
+        guardChip.textContent = `${guardRemovedList.length} removed`;
+        guardChip.className = "hud-footer-chip chip-tertiary";
+      } else {
+        guardChip.textContent = "guard made no changes";
+        guardChip.className = "hud-footer-chip chip-muted";
+      }
+
+      // HUD 3: Pipeline Latency
+      const secStr = (totalDurMs / 1000).toFixed(2);
+      document.getElementById('hud-latency-num').textContent = `${secStr}s`;
+      const stagesConfig = computeStageStates(status, data);
+      const reachedCount = stagesConfig.filter(x => x.reached).length;
+      document.getElementById('hud-stages-tag').textContent = `${reachedCount}/10 STAGES`;
+      
+      const failedStage = stagesConfig.find(x => x.state === "failed" || x.state === "blocked");
+      const stagesOkChip = document.getElementById('hud-stages-ok-chip');
+      if (failedStage) {
+        stagesOkChip.textContent = `${s} at Stage ${stagesConfig.indexOf(failedStage) + 1}`;
+        stagesOkChip.className = "hud-footer-chip chip-red";
+      } else {
+        stagesOkChip.textContent = `${reachedCount}/10 Stages OK`;
+        stagesOkChip.className = "hud-footer-chip chip-green";
+      }
+      const llmMs = timings["bedrock_call"] || 0;
+      document.getElementById('hud-llm-latency').textContent = `LLM: ${(llmMs / 1000).toFixed(2)}s`;
+
+      // HUD 4: Security Verdict
+      document.getElementById('hud-verdict-tag').textContent = s;
+      const cedarPassed = data.cedar_validation ? data.cedar_validation.passed : true;
+      const cedarValEl = document.getElementById('hud-cedar-val');
+      cedarValEl.textContent = data.cedar_validation ? (cedarPassed ? "PASS" : "FAIL") : "—";
+      cedarValEl.style.color = cedarPassed ? "var(--secondary)" : "var(--error)";
+
+      const anzPassed = data.analyzer_validation ? data.analyzer_validation.passed : true;
+      const anzValEl = document.getElementById('hud-anz-val');
+      const findings = (data.analyzer_validation && Array.isArray(data.analyzer_validation.findings)) ? data.analyzer_validation.findings.length : 0;
+      anzValEl.textContent = data.analyzer_validation ? (anzPassed ? `${findings} FINDINGS` : "NEW ACCESS") : "—";
+      anzValEl.style.color = anzPassed ? "var(--secondary)" : "var(--error)";
+
+      const verdictTextEl = document.getElementById('hud-verdict-text');
+      switch (s) {
+        case "APPLIED": verdictTextEl.textContent = "Enforced and verified"; verdictTextEl.className = "hud-footer-chip chip-green"; break;
+        case "COMPLETE": verdictTextEl.textContent = "Verified — not applied in this run"; verdictTextEl.className = "hud-footer-chip chip-green"; break;
+        case "DECLINED": verdictTextEl.textContent = "Declined — nothing applied"; verdictTextEl.className = "hud-footer-chip chip-tertiary"; break;
+        case "APPLIED_UNVERIFIED": verdictTextEl.textContent = "Applied, not verified — inspect role"; verdictTextEl.className = "hud-footer-chip chip-tertiary"; break;
+        case "BLOCKED": verdictTextEl.textContent = "Blocked — workload lockout prevented"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
+        case "CEDAR_INVALID": verdictTextEl.textContent = "Cedar validation rejected draft"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
+        case "ANALYZER_INVALID": verdictTextEl.textContent = "Access Analyzer rejected policy"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
+        case "APPLY_FAILED": verdictTextEl.textContent = "Apply failed"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
+        default: verdictTextEl.textContent = s; verdictTextEl.className = "hud-footer-chip chip-muted"; break;
+      }
+
+      // Coverage %
+      const covPercentEl = document.getElementById('hud-coverage-percent');
+      if (obsCount > 0) {
+        const blockedList = getBlockedActionsList(data);
+        const coveredCount = obsCount - blockedList.length;
+        const pct = Math.round((coveredCount / obsCount) * 100);
+        covPercentEl.textContent = `${pct}% COVERAGE`;
+      } else {
+        covPercentEl.textContent = "100% COVERAGE";
+      }
+    }
+
+    // Populate Policy Diff and Tabs
+    function populateWorkbenchLeft(data, status) {
+      const s = (status || "").toUpperCase();
+      const reqObj = parsePolicy(data.requested_policy);
+      const iamObj = parsePolicy(data.iam_policy);
+
+      const reqCount = countActionsInPolicy(data.requested_policy);
+      const iamCount = countActionsInPolicy(data.iam_policy);
+
+      // Left column header & body
+      document.getElementById('diff-left-title').textContent = `ORIGINAL REQUESTED POLICY — ${reqCount} ACTIONS`;
+      document.getElementById('diff-left-body').textContent = reqObj ? JSON.stringify(reqObj, null, 2) : "(no requested policy recorded)";
+
+      // Right column header & body
+      const isApplied = s === "APPLIED";
+      document.getElementById('diff-right-title').textContent = isApplied 
+        ? `TIGHTENED IAM (STAGE 9 CONFIRMED) — ${iamCount} OBSERVED` 
+        : `TRANSLATED IAM (NOT APPLIED) — ${iamCount} ACTIONS`;
+      
+      if (iamObj) {
+        document.getElementById('diff-right-body').textContent = JSON.stringify(iamObj, null, 2);
+      } else {
+        document.getElementById('diff-right-body').textContent = s === "BLOCKED" 
+          ? "No IAM policy translated — pipeline blocked at Stage 4 (Coverage check)."
+          : (s === "CEDAR_INVALID" 
+            ? "No IAM policy translated — Cedar schema validation failed at Stage 5." 
+            : "(no translated policy available)");
+      }
+
+      // Guard Quarantine Box
+      const guardRemovedList = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions : [];
+      document.getElementById('tab-stripped-count').textContent = guardRemovedList.length;
+      document.getElementById('guard-alert-heading').textContent = `[!] ${guardRemovedList.length} Actions Removed by Deterministic Guard (not observed in CloudTrail)`;
+      
+      const chipsContainer = document.getElementById('guard-chips-container');
+      chipsContainer.innerHTML = '';
+      if (guardRemovedList.length > 0) {
+        guardRemovedList.forEach(act => {
+          const span = document.createElement('span');
+          span.className = 'guard-action-chip';
+          span.innerHTML = `<svg width="11" height="11" style="color: var(--tertiary);"><use href="#icon-remove"/></svg><span>${escapeHtml(act)}</span>`;
+          chipsContainer.appendChild(span);
+        });
+      } else {
+        chipsContainer.innerHTML = '<span style="color: var(--outline); font-size: 11px;">None (all drafted actions were observed in CloudTrail baseline).</span>';
+      }
+
+      // Tab 2: Cedar Policy Code
+      const cedarText = data.cedar_policy || "(no Cedar policy returned)";
+      document.getElementById('cedar-policy-code').textContent = cedarText;
+      const cedarValPassed = data.cedar_validation ? data.cedar_validation.passed : true;
+      const cedarStatusEl = document.getElementById('cedar-view-status');
+      cedarStatusEl.textContent = cedarValPassed ? "PASS" : "FAIL";
+      cedarStatusEl.style.color = cedarValPassed ? "var(--secondary)" : "var(--error)";
+
+      // Tab 3: Stripped Actions Table
+      const strippedTbody = document.getElementById('stripped-table-body');
+      strippedTbody.innerHTML = '';
+      if (guardRemovedList.length > 0) {
+        guardRemovedList.forEach(act => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="color: var(--tertiary);">${escapeHtml(act)}</td>
+            <td style="text-align: right; color: var(--outline);">0 calls in 7d</td>
+            <td style="text-align: center;"><span class="hud-footer-chip chip-tertiary">REMOVED</span></td>
+          `;
+          strippedTbody.appendChild(tr);
+        });
+      } else {
+        strippedTbody.innerHTML = `<tr><td colspan="3" style="color: var(--outline); text-align: center; padding: 12px;">No unobserved actions removed by the guard for this run.</td></tr>`;
+      }
+    }
+
+    // Populate CloudTrail Log Intelligence Section
+    function populateCloudTrailSection(data) {
+      const obsMap = data.observed_actions || {};
+      const entries = Object.entries(obsMap).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      const totalCalls = entries.reduce((sum, curr) => sum + (Number(curr[1]) || 0), 0);
+      const distinctCount = entries.length;
+      const maxCount = entries.length > 0 ? Math.max(...entries.map(e => Number(e[1]) || 0)) : 1;
+
+      document.getElementById('ct-total-calls').textContent = totalCalls;
+      document.getElementById('ct-distinct-actions').textContent = distinctCount;
+
+      const mappings = data.action_mappings_applied || {};
+      const blockedList = getBlockedActionsList(data);
+      const tightObj = parsePolicy(data.iam_policy);
+      const tightActions = new Set();
+      if (tightObj && Array.isArray(tightObj.Statement)) {
+        tightObj.Statement.forEach(st => {
+          if (st && st.Action) {
+            if (typeof st.Action === 'string') tightActions.add(st.Action);
+            else if (Array.isArray(st.Action)) st.Action.forEach(x => tightActions.add(x));
+          }
+        });
+      }
+
+      const tbody = document.getElementById('cloudtrail-table-body');
+      tbody.innerHTML = '';
+
+      if (entries.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--outline); padding: 16px;">No observed CloudTrail invocations recorded in 7-day lookback window.</td></tr>`;
+        return;
+      }
+
+      entries.forEach(([act, count]) => {
+        const num = Number(count) || 0;
+        const pct = Math.max(Math.round((num / maxCount) * 100), 4);
+        const isBlocked = blockedList.includes(act);
+        const mappedTo = mappings[act] || (Object.entries(mappings).find(([k, v]) => v === act)?.[1]) || "—";
+        const isIncluded = tightActions.has(act) || (mappedTo !== "—" && tightActions.has(mappedTo));
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-weight: 600; color: var(--on-surface);">${escapeHtml(act)}</td>
+          <td style="text-align: right; color: var(--primary); font-weight: 700;">${num}</td>
+          <td>
+            <div class="prop-bar-container">
+              <div class="prop-bar-fill" style="width: ${pct}%;"></div>
+            </div>
+          </td>
+          <td style="text-align: center;">
+            <span class="hud-footer-chip ${isBlocked ? 'chip-red' : 'chip-green'}">${isBlocked ? '[✗] DROPPED' : '[✓] COVERED'}</span>
+          </td>
+          <td style="color: ${mappedTo !== '—' ? 'var(--primary)' : 'var(--outline)'};">${escapeHtml(mappedTo)}</td>
+          <td style="text-align: center;">
+            <span class="hud-footer-chip ${isIncluded ? 'chip-green' : 'chip-muted'}">${isIncluded ? '[✓] INCLUDED' : '[—] EXCLUDED'}</span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Populate Right Pane Inspector for Selected Stage
+    function renderStageInspector(stageIdx, data) {
+      currentActiveStageIndex = stageIdx;
+      const stageNum = stageIdx + 1;
+      const meta = STAGES_META[stageIdx];
+      const timings = getStageTimingsMap(data);
+
+      document.getElementById('dag-inspecting-chip').textContent = `● Inspecting: Stage ${stageNum}`;
+      document.getElementById('telemetry-stage-chip').textContent = `STAGE ${stageNum} DETAIL`;
+      document.getElementById('telemetry-role-arn').textContent = data.role_arn || "arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role";
+
+      // Highlight active node in DAG
+      document.querySelectorAll('.dag-node').forEach((node, idx) => {
+        node.classList.toggle('selected', idx === stageIdx);
+      });
+
+      const dynCard = document.getElementById('telemetry-dynamic-card');
+      let html = '';
+
+      switch (stageNum) {
+        case 1: { // Extract & publish
+          const req = data.requested_policy ? (typeof data.requested_policy === 'string' ? data.requested_policy : JSON.stringify(data.requested_policy, null, 2)) : "not recorded";
+          html = `
+            <div class="info-card-title">STAGE 1: EXTRACT &amp; PUBLISH (TERRAFORM PLAN)</div>
+            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">CLI parsed Terraform plan JSON and published analysis request to EventBridge → SQS.</div>
+            <pre class="code-box">${escapeHtml(req)}</pre>
+          `;
+          break;
+        }
+
+        case 2: { // Usage lookup
+          const obsCount = data.observed_actions ? Object.keys(data.observed_actions).length : 0;
+          const dur = timings["cloudwatch_query"] ? `${timings["cloudwatch_query"]}ms` : "not recorded";
+          html = `
+            <div class="info-card-title">STAGE 2: CLOUDWATCH LOGS INSIGHTS QUERY CONTEXT</div>
+            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Queried 7-day lookback window for assumed-role sessionIssuer ARN. Invocations matched: <strong>${obsCount} distinct actions</strong> (latency: ${dur}).</div>
+            <pre class="code-box">Window: 7d lookback\nQuery Status: Complete\nTarget Role: ${escapeHtml(data.role_arn || "<ROLE_ARN>")}</pre>
+          `;
+          break;
+        }
+
+        case 3: { // Draft
+          const model = data.model_used || "apac.amazon.nova-lite-v1:0";
+          const rationale = data.rationale || "not recorded";
+          const dur = timings["bedrock_call"] ? `${(timings["bedrock_call"] / 1000).toFixed(2)}s` : "not recorded";
+          const guardRemoved = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions.length : 0;
+          html = `
+            <div class="info-card-title">STAGE 3: BEDROCK MODEL RATIONALE &amp; GUARD</div>
+            <div style="font-size: 11px; line-height: 1.5; margin-bottom: 6px;">
+              <div>Foundation Model: <strong style="color: var(--primary);">${escapeHtml(model)}</strong></div>
+              <div>Synthesis Latency: <strong>${dur}</strong></div>
+              <div>Deterministic Guard: <strong>${guardRemoved} unobserved actions stripped</strong></div>
+            </div>
+            <div class="info-card-title" style="margin-top: 8px;">MODEL RATIONALE:</div>
+            <div class="code-box" style="color: var(--on-surface); font-style: italic;">"${escapeHtml(rationale)}"</div>
+          `;
+          break;
+        }
+
+        case 4: { // Coverage check
+          const covPassed = data.coverage_check ? data.coverage_check.passed : true;
+          const blocked = getBlockedActionsList(data);
+          html = `
+            <div class="info-card-title">STAGE 4: COVERAGE &amp; WORKLOAD SAFEGUARD</div>
+            <div style="font-size: 11px; line-height: 1.5; margin-bottom: 6px;">
+              <div>Safeguard Verdict: <strong style="color: ${covPassed ? 'var(--secondary)' : 'var(--error)'};">${covPassed ? 'PASSED (100% COVERED)' : 'BLOCKED (DROPPED ACTIONS)'}</strong></div>
+            </div>
+            ${blocked.length > 0 ? `
+              <div style="font-size: 11px; color: var(--error); margin-top: 4px;">Blocked Actions:</div>
+              <pre class="code-box" style="color: var(--error);">${escapeHtml(JSON.stringify(blocked, null, 2))}</pre>
+            ` : `
+              <div style="font-size: 11px; color: var(--secondary);">All observed CloudTrail actions remain covered by the synthesized permit statements.</div>
+            `}
+          `;
+          break;
+        }
+
+        case 5: { // Cedar validation
+          const val = data.cedar_validation || {};
+          const passed = val.passed !== false;
+          const msgs = Array.isArray(val.messages) ? val.messages : [];
+          html = `
+            <div class="info-card-title">STAGE 5: CEDAR SCHEMA VALIDATION (STRICT)</div>
+            <div style="font-size: 11px; line-height: 1.5; margin-bottom: 6px;">
+              <div>Mode: <strong>STRICT</strong></div>
+              <div>Validation Outcome: <strong style="color: ${passed ? 'var(--secondary)' : 'var(--error)'};">${passed ? 'PASS (SCHEMA VALID)' : 'FAIL (SCHEMA/SYNTAX ERROR)'}</strong></div>
+            </div>
+            <div style="font-size: 10px; color: var(--outline); margin-bottom: 6px;">The schema is generated from the draft's own actions, so this validates schema/syntax, not privilege escalation — Access Analyzer covers that.</div>
+            <pre class="code-box" style="color: ${passed ? 'var(--secondary)' : 'var(--error)'};">${escapeHtml(msgs.length > 0 ? msgs.join('\n') : "Schema validation succeeded with 0 errors.")}</pre>
+          `;
+          break;
+        }
+
+        case 6: { // IAM translation
+          const mappings = data.action_mappings_applied ? JSON.stringify(data.action_mappings_applied, null, 2) : "{}";
+          const unmatched = Array.isArray(data.unmatched_actions) ? JSON.stringify(data.unmatched_actions, null, 2) : "[]";
+          html = `
+            <div class="info-card-title">STAGE 6: CEDAR → IAM POLICY TRANSLATION</div>
+            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Verified permit statements mapped to IAM Allow statements with action normalization.</div>
+            <div class="info-card-title" style="margin-top: 6px;">ACTION MAPPINGS (CLOUDTRAIL → IAM):</div>
+            <pre class="code-box">${escapeHtml(mappings)}</pre>
+            <div class="info-card-title" style="margin-top: 6px;">UNMATCHED ACTIONS (EXCLUDED WITHOUT WIDENING):</div>
+            <pre class="code-box">${escapeHtml(unmatched)}</pre>
+          `;
+          break;
+        }
+
+        case 7: { // Access Analyzer
+          const anz = data.analyzer_validation || {};
+          const passed = anz.passed !== false;
+          const findings = Array.isArray(anz.findings) ? JSON.stringify(anz.findings, null, 2) : "[]";
+          const noNew = anz.check_no_new_access ? JSON.stringify(anz.check_no_new_access, null, 2) : "PASS";
+          html = `
+            <div class="info-card-title">STAGE 7: IAM ACCESS ANALYZER INDEPENDENT SAFETY NET</div>
+            <div style="font-size: 11px; line-height: 1.5; margin-bottom: 6px;">
+              <div>Validation: <strong style="color: ${passed ? 'var(--secondary)' : 'var(--error)'};">${passed ? 'PASS (0 BLOCKING FINDINGS)' : 'FAILED'}</strong></div>
+            </div>
+            <div class="info-card-title">VALIDATEPOLICY FINDINGS:</div>
+            <pre class="code-box">${escapeHtml(findings)}</pre>
+            <div class="info-card-title" style="margin-top: 6px;">CHECK_NO_NEW_ACCESS RESULT:</div>
+            <pre class="code-box">${escapeHtml(noNew)}</pre>
+          `;
+          break;
+        }
+
+        case 8: { // Approval
+          const isApproved = data.status === "APPLIED" || data.status === "APPLIED_UNVERIFIED" || data.status === "APPLY_FAILED";
+          const isDeclined = data.status === "DECLINED";
+          html = `
+            <div class="info-card-title">STAGE 8: CLI OPERATOR APPROVAL</div>
+            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Approval is CLI-only. The dashboard is strictly read-only.</div>
+            <pre class="code-box">$ cedar-sentinel analyze --apply\nReview tightened policy diff above.\nApply to role arn:aws:iam::&lt;ACCOUNT_ID&gt;:role/... ? [y/N]: ${isApproved ? 'y' : (isDeclined ? 'n' : '[waiting]')}\n\nOutcome: ${isApproved ? 'APPROVED' : (isDeclined ? 'DECLINED' : 'AWAITING DECISION')}</pre>
+          `;
+          break;
+        }
+
+        case 9: { // Apply & verify
+          html = `
+            <div class="info-card-title">STAGE 9: IAM PUTROLEPOLICY &amp; READ-BACK</div>
+            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Atomic IAM enforcement lifecycle:</div>
+            <pre class="code-box">1. iam:GetRolePolicy (snapshot before-policy)\n2. iam:PutRolePolicy (write tightened policy)\n3. iam:GetRolePolicy (read-back verification confirmed)</pre>
+          `;
+          break;
+        }
+
+        case 10: { // Audit record
+          html = `
+            <div class="info-card-title">STAGE 10: PERSISTENT AVP AUDIT LOGGING</div>
+            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Cedar policy + AI rationale persisted into the persistent Amazon Verified Permissions audit policy store.</div>
+            <pre class="code-box">Store: &lt;AVP_STORE_ID&gt;\nAction: verifiedpermissions:CreatePolicy\nPrefix: [request_id: ${escapeHtml(data.request_id || "not recorded")}]\nAudit Record: PERSISTED</pre>
+          `;
+          break;
+        }
+      }
+
+      dynCard.innerHTML = html;
+    }
+
+    // Replay Animation Sequence
+    function replayAnimation(data, status) {
+      if (animationTimer) {
+        clearTimeout(animationTimer);
+        animationTimer = null;
+      }
+
+      isReplayRunning = true;
+      const headerStatusPill = document.getElementById('header-status-pill');
+      headerStatusPill.classList.add('animating');
+
+      const stageStates = computeStageStates(status, data);
+      const timings = getStageTimingsMap(data);
+
+      // Reset DAG nodes
+      for (let i = 0; i < 10; i++) {
+        const num = i + 1;
+        const node = document.getElementById(`dag-node-${num}`);
+        const icon = document.getElementById(`node-icon-${num}`);
+        const dur = document.getElementById(`node-dur-${num}`);
+        const chip = document.getElementById(`node-chip-${num}`);
+
+        node.disabled = true;
+        node.classList.remove('selected');
+        icon.className = 'node-status-icon muted';
+        icon.innerHTML = '<span style="font-size: 10px;">—</span>';
+        dur.textContent = 'waiting...';
+        chip.textContent = '—';
+        chip.className = 'node-footer-right chip-muted';
+      }
+
+      if (isReducedMotion || (status || "").toUpperCase() === "PROCESSING") {
+        for (let i = 0; i < 10; i++) renderNodeFinalState(i, stageStates[i]);
+        renderStageInspector(9, data);
+        headerStatusPill.classList.remove('animating');
+        isReplayRunning = false;
+        return;
+      }
+
+      let currentStage = 0;
+
+      function step() {
+        if (currentStage >= 10) {
+          renderStageInspector(9, data);
+          headerStatusPill.classList.remove('animating');
+          isReplayRunning = false;
+          return;
+        }
+
+        const stageConfig = stageStates[currentStage];
+        const meta = STAGES_META[currentStage];
+        const num = currentStage + 1;
+
+        if (!stageConfig.reached && stageConfig.state === "muted") {
+          renderNodeFinalState(currentStage, stageConfig);
+          currentStage++;
+          animationTimer = setTimeout(step, 60);
+          return;
+        }
+
+        // Mark as running
+        const icon = document.getElementById(`node-icon-${num}`);
+        const dur = document.getElementById(`node-dur-${num}`);
+        icon.className = 'node-status-icon running';
+        icon.innerHTML = '<span style="font-size: 10px;">●</span>';
+        dur.textContent = 'running...';
+
+        renderStageInspector(currentStage, data);
+
+        // Auto-switch tabs based on stage
+        if (num === 3 && (data.guard_removed_actions || []).length > 0) {
+          switchTab('tab-stripped', 'view-stripped');
+        } else if (num === 5) {
+          switchTab('tab-cedar', 'view-cedar');
+        } else if (num === 6 || num === 9) {
+          switchTab('tab-diff', 'view-diff');
+        }
+
+        let realMs = meta.timingKey ? timings[meta.timingKey] : null;
+        let animMs = 450;
+        if (realMs !== null && realMs !== undefined) {
+          animMs = Math.min(Math.max(realMs, 350), 1800);
+        }
+
+        animationTimer = setTimeout(() => {
+          renderNodeFinalState(currentStage, stageConfig);
+          currentStage++;
+          step();
+        }, animMs);
+      }
+
+      step();
+    }
+
+    function renderNodeFinalState(idx, stageState) {
+      const num = idx + 1;
+      const node = document.getElementById(`dag-node-${num}`);
+      const icon = document.getElementById(`node-icon-${num}`);
+      const dur = document.getElementById(`node-dur-${num}`);
+      const chip = document.getElementById(`node-chip-${num}`);
+
+      dur.textContent = stageState.duration;
+      chip.textContent = stageState.chipText;
+      chip.className = `node-footer-right ${stageState.chipClass}`;
+
+      switch (stageState.state) {
+        case "done":
+          icon.className = 'node-status-icon done';
+          icon.innerHTML = '<svg width="13" height="13"><use href="#icon-check"/></svg>';
+          node.disabled = false;
+          break;
+        case "failed":
+        case "blocked":
+          icon.className = 'node-status-icon failed';
+          icon.innerHTML = '<svg width="13" height="13"><use href="#icon-alert"/></svg>';
+          node.disabled = false;
+          break;
+        case "warning":
+        case "declined":
+          icon.className = 'node-status-icon warning';
+          icon.innerHTML = '<svg width="13" height="13"><use href="#icon-alert"/></svg>';
+          node.disabled = false;
+          break;
+        default: // muted
+          icon.className = 'node-status-icon muted';
+          icon.innerHTML = '<span style="font-size: 10px;">—</span>';
+          node.disabled = true;
+          break;
+      }
+    }
+
+    function switchTab(tabId, viewId) {
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.id === tabId);
+        b.setAttribute('aria-selected', b.id === tabId ? 'true' : 'false');
+      });
+      document.querySelectorAll('.tab-view').forEach(v => {
+        v.style.display = v.id === viewId ? 'block' : 'none';
+      });
+    }
+
+    // Load Run
+    async function loadRun(runMeta) {
+      currentRunMeta = runMeta;
+      const status = (runMeta.status || "UNKNOWN").toUpperCase();
+      const statusPill = document.getElementById('header-status-pill');
+      const statusText = document.getElementById('header-status-text');
+      const commandText = document.getElementById('header-command-text');
+      const runTag = document.getElementById('header-run-tag');
+      const syntheticBanner = document.getElementById('synthetic-banner');
+      const errorAlert = document.getElementById('error-alert');
+
+      errorAlert.style.display = 'none';
+
+      // Update Header
+      statusPill.className = `status-pill status-${status}`;
+      statusText.textContent = `STATUS: ${status}`;
+      commandText.textContent = runMeta.command || (status === "APPLIED" ? "cedar-sentinel analyze --apply" : "cedar-sentinel analyze");
+      
+      const shortId = (runMeta.source_request_id || runMeta.id || "00000000").substring(0, 8);
+      runTag.textContent = `RUN #${shortId}`;
+
+      // Update URL query parameter
+      const url = new URL(window.location);
+      url.searchParams.set('run', runMeta.id);
+      window.history.replaceState({}, '', url);
+
+      // Check In-Memory Cache
+      let data = runCache.get(runMeta.file);
+      if (!data) {
+        try {
+          const resp = await fetch(runMeta.file);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+          data = await resp.json();
+          runCache.set(runMeta.file, data);
+        } catch (err) {
+          showError(`Could not load ${runMeta.file} — ${err.message}`);
+          return;
+        }
+      }
+
+      currentRunData = data;
+
+      // Handle synthetic banner
+      if (data.synthetic || runMeta.synthetic) {
+        syntheticBanner.style.display = 'block';
+        document.getElementById('synthetic-note-text').textContent = data.synthetic_note || runMeta.label || "crafted to demonstrate this state";
+      } else {
+        syntheticBanner.style.display = 'none';
+      }
+
+      // Populate Audit Store card
+      document.getElementById('audit-store-id').textContent = data.policy_store_id || "<AVP_STORE_ID>";
+      document.getElementById('audit-record-status').textContent = status === "APPLIED" ? (data.audit_failed ? "AUDIT_FAILED" : "RECORDED & PERSISTED") : "NOT WRITTEN (DRY-RUN / SKIPPED)";
+      document.getElementById('audit-record-status').style.color = status === "APPLIED" && !data.audit_failed ? "var(--secondary)" : "var(--outline)";
+      document.getElementById('audit-completed-at').textContent = data.completed_at || data.created_at || "not recorded";
+
+      // Compute browser file SHA-256
+      computeRunSha256(JSON.stringify(data)).then(sha => {
+        document.getElementById('audit-file-sha').textContent = sha;
+      });
+
+      // Populate HUD & Workbench
+      populateHud(data, status);
+      populateWorkbenchLeft(data, status);
+      populateCloudTrailSection(data);
+
+      // Check autoplay query param
+      const urlParams = new URLSearchParams(window.location.search);
+      const autoplay = urlParams.get('autoplay') !== '0';
+
+      if (autoplay) {
+        replayAnimation(data, status);
+      } else {
+        const stageStates = computeStageStates(status, data);
+        for (let i = 0; i < 10; i++) renderNodeFinalState(i, stageStates[i]);
+        renderStageInspector(9, data);
+      }
+    }
+
+    function showError(msg) {
+      const alert = document.getElementById('error-alert');
+      let extra = '';
+      if (window.location.protocol === 'file:') {
+        extra = '<br><br><em>Tip: You opened this page via file:// which blocks fetch requests in modern browsers. Run <code>python -m http.server</code> inside the dashboard directory and visit http://localhost:8000.</em>';
+      }
+      alert.innerHTML = `<strong>[ERROR]</strong> ${escapeHtml(msg)}${extra}`;
+      alert.style.display = 'block';
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return "";
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // App Initialization
+    async function init() {
+      // Wire DAG node clicks
+      for (let i = 0; i < 10; i++) {
+        const node = document.getElementById(`dag-node-${i + 1}`);
+        node.addEventListener('click', () => {
+          if (!node.disabled && currentRunData) {
+            renderStageInspector(i, currentRunData);
+          }
+        });
+      }
+
+      // Wire Workbench Tabs
+      document.getElementById('tab-diff').addEventListener('click', () => switchTab('tab-diff', 'view-diff'));
+      document.getElementById('tab-cedar').addEventListener('click', () => switchTab('tab-cedar', 'view-cedar'));
+      document.getElementById('tab-stripped').addEventListener('click', () => switchTab('tab-stripped', 'view-stripped'));
+
+      // Wire Replay Button
+      document.getElementById('btn-replay-run').addEventListener('click', () => {
+        if (currentRunData && currentRunMeta) {
+          replayAnimation(currentRunData, currentRunData.status || currentRunMeta.status);
+        }
+      });
+
+      // Wire Download JSON Button
+      document.getElementById('btn-download-run-json').addEventListener('click', () => {
+        if (!currentRunData) return;
+        const blob = new Blob([JSON.stringify(currentRunData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentRunMeta ? currentRunMeta.id : 'run'}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      // Wire Nav Tab Links Scroll Spy
+      const navLinks = document.querySelectorAll('.nav-tab-link');
+      window.addEventListener('scroll', () => {
+        const scrollPos = window.scrollY + 120;
+        const sections = ['dag-section', 'diff-section', 'telemetry-section', 'cloudtrail-section'];
+        for (const secId of sections) {
+          const el = document.getElementById(secId);
+          if (el && el.offsetTop <= scrollPos && (el.offsetTop + el.offsetHeight) > scrollPos) {
+            navLinks.forEach(link => {
+              link.classList.toggle('active', link.getAttribute('href') === `#${secId}`);
+            });
+            break;
+          }
+        }
+      });
+
+      // Fetch Runs Manifest
+      try {
+        const resp = await fetch('runs/index.json');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+        currentManifest = await resp.json();
+
+        const select = document.getElementById('run-select');
+        select.innerHTML = '';
+        currentManifest.forEach(rm => {
+          const opt = document.createElement('option');
+          opt.value = rm.id;
+          opt.textContent = rm.label || `${rm.status} — ${rm.id}`;
+          select.appendChild(opt);
+        });
+
+        select.addEventListener('change', (e) => {
+          const selected = currentManifest.find(m => m.id === e.target.value);
+          if (selected) loadRun(selected);
+        });
+
+        // Determine default run (?run=<id> or 'applied')
+        const urlParams = new URLSearchParams(window.location.search);
+        const requestedId = urlParams.get('run');
+        let targetRun = currentManifest.find(m => m.id === requestedId);
+        if (!targetRun) {
+          targetRun = currentManifest.find(m => m.id === 'applied') || currentManifest[0];
+        }
+
+        if (targetRun) {
+          select.value = targetRun.id;
+          await loadRun(targetRun);
+        }
+      } catch (err) {
+        showError(`Could not load runs/index.json — ${err.message}`);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
 </html>
