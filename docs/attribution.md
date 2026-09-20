@@ -11,15 +11,11 @@ template, boilerplate, or public API is introduced — not retroactively.
 | JetBrains Mono | https://fonts.google.com/specimen/JetBrains+Mono | SIL Open Font License 1.1 | dashboard/index.html | 2026-09-19 |
 | Plus Jakarta Sans | https://fonts.google.com/specimen/Plus+Jakarta+Sans | SIL Open Font License 1.1 | dashboard/index.html | 2026-09-19 |
 | Material Symbols / Lucide Vector Icons | https://fonts.google.com/icons / https://lucide.dev | Apache-2.0 / MIT | dashboard/index.html (inline SVG sprite) | 2026-09-19 |
+| Google Stitch (UI Layout) | https://stitch.withgoogle.com | Proprietary Design Tool (User-Authored Export) | dashboard/index.html (visual mockup reference) | 2026-09-19 |
 
 ---
 
 ## Notes
 
-- Standard package-manager dependencies (`boto3`, `aws-sdk-go-v2`, base Go/Python standard
-  library) don't need an individual row unless the license is non-standard — over-inclusion
-  is safer than omission if unsure.
-- Anything copy-pasted from a tutorial, Stack Overflow, or AI-generated boilerplate that
-  traces to a specific external source still gets a row.
-- Cedar or Terraform snippets adapted from AWS's own docs are worth noting too, even though
-  low-risk — precision costs nothing here.
+- Dashboard layout and visual component structure were originally designed and exported using Google Stitch as a prototype reference, then adapted and rebuilt natively into a single-file static HTML/CSS/JS application (`dashboard/index.html`) with zero external CDN dependencies.
+- Standard package-manager dependencies (`boto3`, standard library `http.server`, `urllib`, `unittest`) use their standard permissive OSS licenses.

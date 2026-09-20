@@ -16,14 +16,11 @@ used. Do not reconstruct this list on submission day.
 | Sep 19, 2026 | Antigravity (agentic IDE) | Phase 3b Dashboard Interface Rebuild: Rebuilt single-file dashboard (`dashboard/index.html`) to a dark monospace terminal / DevOps interface with 10-stage pipeline strip, grouped stage cards (ANALYZE, VERIFY, ENFORCE), interactive side panel, unified git-style policy diff, static recorded-run replay from sanitized runs (`dashboard/runs/`), zero external dependencies/CDNs/polling, validation script (`scripts/validate_runs.py`), and sanitizer unit testing | Day 3 / Phase 3b UI polish |
 | Sep 20, 2026 | Antigravity (agentic IDE) | Phase 3c Local Live Dashboard Server: Implemented `cedar_sentinel.py dashboard` CLI subcommand with zero new dependencies using standard library `http.server` bound strictly to `127.0.0.1`, Host/Origin header validation against DNS rebinding, path traversal protection, read-only `Scan`/`GetItem` using developer's local AWS credentials, shared data sanitization/normalization (`cli/run_data.py`), dual-mode auto-detecting frontend (`dashboard/index.html`) supporting both static Amplify hosting and local live mode with bounded polling, hint output on completed analysis, and full unit test suite (`cli/test_dashboard_server.py`) | Day 4 / Phase 3c local dashboard |
 
-
-
+| Sep 19, 2026 | Google Stitch | Dashboard UI design export (layout structure and visual mockup reference) | Design reference export only — adapted and rebuilt natively into single-file static HTML/CSS/JS with zero external runtime dependencies |
+| Sep 18–20, 2026 | Amazon Nova Lite on Bedrock (`apac.amazon.nova-lite-v1:0`) | Runtime least-privilege policy synthesis & reasoning | LLM reasoning engine invoked inside the serverless Lambda pipeline to draft Cedar policies from observed CloudTrail actions |
 
 ---
 
-## Writeup summary (draft — finalize on submission day)
+## Writeup Summary
 
-> "We used Claude for pre-event architecture planning and technical research, and
-> Antigravity as our agentic coding assistant throughout the build for [specific tasks].
-> All core design decisions, AWS service integration, and final code review were done
-> by the team member."
+> "We used Claude for pre-event architecture planning and technical research, Antigravity as our agentic coding assistant throughout the build, Google Stitch for initial dashboard visual layout design, and Amazon Nova Lite on Bedrock as our runtime reasoning engine for synthesizing least-privilege Cedar policies. All core design decisions, AWS service integrations, safety validations, and final code reviews were conducted directly by the team member."
