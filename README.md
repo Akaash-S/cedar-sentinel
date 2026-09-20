@@ -13,8 +13,8 @@
 ## Quick Links
 
 - 🌐 **Live Dashboard (Amplify):** https://main.d3i4xcsmv7sca9.amplifyapp.com
-- 📺 **Demo Video:** [Watch Demonstration](https://youtu.be/sample-video-link)
-- 📝 **AWS Builder Center Post:** [Read Article](https://community.aws)
+- 📺 **Demo Video:** [Watch Demonstration (YouTube)](https://www.youtube.com/watch?v=RWHE0VpiZ4A)
+- 📝 **AWS Builder Center Post:** [Building Cedar Sentinel — Read Article](https://builder.aws.com/content/3JbM8Pcnay8y9zrzhBRWiCaCwgC/building-cedar-sentinel-an-ai-least-privilege-iam-tightener-that-never-applies-anything-without-your-approval)
 - 📐 **Architecture Documentation:** [docs/architecture.md](docs/architecture.md)
 - 🤖 **AI Tool Disclosure:** [docs/ai-tool-disclosure.md](docs/ai-tool-disclosure.md)
 - 📜 **Attribution Log:** [docs/attribution.md](docs/attribution.md)
