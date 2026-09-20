@@ -285,6 +285,43 @@
       border-color: var(--primary);
     }
 
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: var(--radius);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(78, 222, 163, 0.12);
+      border: 1px solid rgba(78, 222, 163, 0.4);
+      color: var(--secondary);
+    }
+    .live-badge .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--secondary);
+      animation: pulseDot 1.5s infinite ease-in-out;
+    }
+
+    .run-filter-input {
+      background: var(--surface-container-highest);
+      border: 1px solid var(--outline-variant);
+      border-radius: 4px;
+      color: var(--on-surface);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 3px 7px;
+      outline: none;
+      width: 120px;
+      transition: border-color 0.15s;
+    }
+    .run-filter-input:focus {
+      border-color: var(--primary);
+    }
+
     /* Nav Tabs (Row 2) */
     .nav-tabs-row {
       display: flex;
@@ -1222,6 +1259,11 @@
         </div>
 
         <div class="header-center-right">
+          <div id="header-live-badge" class="live-badge" style="display: none;">
+            <span class="live-dot"></span>
+            <span id="live-badge-text">LIVE · local</span>
+          </div>
+
           <div id="header-command-chip" class="command-chip">
             <span style="color: var(--primary);">$</span>
             <span id="header-command-text">cedar-sentinel analyze --apply</span>
@@ -1229,7 +1271,11 @@
 
           <div class="run-selector-box">
             <span id="header-run-tag" class="run-tag">RUN</span>
-            <select id="run-select" class="run-select" aria-label="Select recorded run to replay"></select>
+            <input id="run-filter-input" class="run-filter-input" type="text" placeholder="Filter runs..." style="display: none;" aria-label="Filter runs list">
+            <select id="run-select" class="run-select" aria-label="Select run to replay"></select>
+            <button id="btn-refresh-runs" class="btn-replay" style="display: none; padding: 4px 8px; border-radius: 4px;" title="Refresh runs list from local server">
+              <svg width="12" height="12"><use href="#icon-replay"/></svg>
+            </button>
           </div>
 
           <div id="header-status-pill" class="status-pill status-APPLIED">
@@ -1265,7 +1311,7 @@
       </div>
       <div class="notice-bar">
         <svg width="13" height="13" style="color: var(--primary); flex-shrink: 0;"><use href="#icon-terminal"/></svg>
-        <span>run complete · fetched once · replaying recorded stage timings (each stage shown for at least 350 ms so it stays visible)</span>
+        <span id="notice-bar-text">run complete · fetched once · replaying recorded stage timings (each stage shown for at least 350 ms so it stays visible)</span>
       </div>
     </div>
 
@@ -1767,11 +1813,7 @@
       </div>
       <div style="color: var(--secondary);">
         <span>Cedar schema validation: STRICT</span>
-      </div>
-    </footer>
-  </main>
-
-  <!-- JavaScript Logic: Single-File Replay & Binding -->
+   <!-- JavaScript Logic: Single-File Replay & Binding with Live Mode Auto-Detection -->
   <script>
     // State Variables
     const runCache = new Map();
@@ -1780,7 +1822,10 @@
     let currentRunMeta = null;
     let currentActiveStageIndex = 9; // Default to Stage 10 (inspecting)
     let animationTimer = null;
+    let pollingTimeout = null;
     let isReplayRunning = false;
+    let isLiveMode = false;
+    let liveServerHealth = null;
     let isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     // Stage Metadata
@@ -1898,7 +1943,7 @@
             chipText: "—",
             chipClass: "chip-muted",
             reached: false,
-            detail: "run still processing — nothing to replay"
+            detail: "run still processing — waiting for Lambda completion..."
           });
         }
         return res;
@@ -2037,6 +2082,7 @@
         case "CEDAR_INVALID": verdictTextEl.textContent = "Cedar validation rejected draft"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
         case "ANALYZER_INVALID": verdictTextEl.textContent = "Access Analyzer rejected policy"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
         case "APPLY_FAILED": verdictTextEl.textContent = "Apply failed"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
+        case "PROCESSING": verdictTextEl.textContent = "Run in progress…"; verdictTextEl.className = "hud-footer-chip chip-tertiary"; break;
         default: verdictTextEl.textContent = s; verdictTextEl.className = "hud-footer-chip chip-muted"; break;
       }
 
@@ -2078,7 +2124,7 @@
           ? "No IAM policy translated — pipeline blocked at Stage 4 (Coverage check)."
           : (s === "CEDAR_INVALID" 
             ? "No IAM policy translated — Cedar schema validation failed at Stage 5." 
-            : "(no translated policy available)");
+            : (s === "PROCESSING" ? "Run in progress… awaiting translation." : "(no translated policy available)"));
       }
 
       // Guard Quarantine Box
@@ -2092,15 +2138,29 @@
         guardRemovedList.forEach(act => {
           const span = document.createElement('span');
           span.className = 'guard-action-chip';
-          span.innerHTML = `<svg width="11" height="11" style="color: var(--tertiary);"><use href="#icon-remove"/></svg><span>${escapeHtml(act)}</span>`;
+          const iconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          iconSvg.setAttribute('width', '11');
+          iconSvg.setAttribute('height', '11');
+          iconSvg.style.color = 'var(--tertiary)';
+          const useEl = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+          useEl.setAttribute('href', '#icon-remove');
+          iconSvg.appendChild(useEl);
+          span.appendChild(iconSvg);
+          const textSpan = document.createElement('span');
+          textSpan.textContent = String(act);
+          span.appendChild(textSpan);
           chipsContainer.appendChild(span);
         });
       } else {
-        chipsContainer.innerHTML = '<span style="color: var(--outline); font-size: 11px;">None (all drafted actions were observed in CloudTrail baseline).</span>';
+        const noneSpan = document.createElement('span');
+        noneSpan.style.color = 'var(--outline)';
+        noneSpan.style.fontSize = '11px';
+        noneSpan.textContent = 'None (all drafted actions were observed in CloudTrail baseline).';
+        chipsContainer.appendChild(noneSpan);
       }
 
       // Tab 2: Cedar Policy Code
-      const cedarText = data.cedar_policy || "(no Cedar policy returned)";
+      const cedarText = data.cedar_policy || (s === "PROCESSING" ? "(run in progress…)" : "(no Cedar policy returned)");
       document.getElementById('cedar-policy-code').textContent = cedarText;
       const cedarValPassed = data.cedar_validation ? data.cedar_validation.passed : true;
       const cedarStatusEl = document.getElementById('cedar-view-status');
@@ -2113,15 +2173,38 @@
       if (guardRemovedList.length > 0) {
         guardRemovedList.forEach(act => {
           const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td style="color: var(--tertiary);">${escapeHtml(act)}</td>
-            <td style="text-align: right; color: var(--outline);">0 calls in 7d</td>
-            <td style="text-align: center;"><span class="hud-footer-chip chip-tertiary">REMOVED</span></td>
-          `;
+          
+          const tdAct = document.createElement('td');
+          tdAct.style.color = 'var(--tertiary)';
+          tdAct.textContent = String(act);
+
+          const tdCalls = document.createElement('td');
+          tdCalls.style.textAlign = 'right';
+          tdCalls.style.color = 'var(--outline)';
+          tdCalls.textContent = '0 calls in 7d';
+
+          const tdStatus = document.createElement('td');
+          tdStatus.style.textAlign = 'center';
+          const chip = document.createElement('span');
+          chip.className = 'hud-footer-chip chip-tertiary';
+          chip.textContent = 'REMOVED';
+          tdStatus.appendChild(chip);
+
+          tr.appendChild(tdAct);
+          tr.appendChild(tdCalls);
+          tr.appendChild(tdStatus);
           strippedTbody.appendChild(tr);
         });
       } else {
-        strippedTbody.innerHTML = `<tr><td colspan="3" style="color: var(--outline); text-align: center; padding: 12px;">No unobserved actions removed by the guard for this run.</td></tr>`;
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 3;
+        td.style.color = 'var(--outline)';
+        td.style.textAlign = 'center';
+        td.style.padding = '12px';
+        td.textContent = 'No unobserved actions removed by the guard for this run.';
+        tr.appendChild(td);
+        strippedTbody.appendChild(tr);
       }
     }
 
@@ -2153,7 +2236,15 @@
       tbody.innerHTML = '';
 
       if (entries.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--outline); padding: 16px;">No observed CloudTrail invocations recorded in 7-day lookback window.</td></tr>`;
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 6;
+        td.style.textAlign = 'center';
+        td.style.color = 'var(--outline)';
+        td.style.padding = '16px';
+        td.textContent = 'No observed CloudTrail invocations recorded in 7-day lookback window.';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
         return;
       }
 
@@ -2165,22 +2256,52 @@
         const isIncluded = tightActions.has(act) || (mappedTo !== "—" && tightActions.has(mappedTo));
 
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td style="font-weight: 600; color: var(--on-surface);">${escapeHtml(act)}</td>
-          <td style="text-align: right; color: var(--primary); font-weight: 700;">${num}</td>
-          <td>
-            <div class="prop-bar-container">
-              <div class="prop-bar-fill" style="width: ${pct}%;"></div>
-            </div>
-          </td>
-          <td style="text-align: center;">
-            <span class="hud-footer-chip ${isBlocked ? 'chip-red' : 'chip-green'}">${isBlocked ? '[✗] DROPPED' : '[✓] COVERED'}</span>
-          </td>
-          <td style="color: ${mappedTo !== '—' ? 'var(--primary)' : 'var(--outline)'};">${escapeHtml(mappedTo)}</td>
-          <td style="text-align: center;">
-            <span class="hud-footer-chip ${isIncluded ? 'chip-green' : 'chip-muted'}">${isIncluded ? '[✓] INCLUDED' : '[—] EXCLUDED'}</span>
-          </td>
-        `;
+
+        const tdAct = document.createElement('td');
+        tdAct.style.fontWeight = '600';
+        tdAct.style.color = 'var(--on-surface)';
+        tdAct.textContent = String(act);
+
+        const tdNum = document.createElement('td');
+        tdNum.style.textAlign = 'right';
+        tdNum.style.color = 'var(--primary)';
+        tdNum.style.fontWeight = '700';
+        tdNum.textContent = String(num);
+
+        const tdBar = document.createElement('td');
+        const barWrap = document.createElement('div');
+        barWrap.className = 'prop-bar-container';
+        const barFill = document.createElement('div');
+        barFill.className = 'prop-bar-fill';
+        barFill.style.width = `${pct}%`;
+        barWrap.appendChild(barFill);
+        tdBar.appendChild(barWrap);
+
+        const tdStatus = document.createElement('td');
+        tdStatus.style.textAlign = 'center';
+        const statusChip = document.createElement('span');
+        statusChip.className = `hud-footer-chip ${isBlocked ? 'chip-red' : 'chip-green'}`;
+        statusChip.textContent = isBlocked ? '[✗] DROPPED' : '[✓] COVERED';
+        tdStatus.appendChild(statusChip);
+
+        const tdMap = document.createElement('td');
+        tdMap.style.color = mappedTo !== '—' ? 'var(--primary)' : 'var(--outline)';
+        tdMap.textContent = String(mappedTo);
+
+        const tdInc = document.createElement('td');
+        tdInc.style.textAlign = 'center';
+        const incChip = document.createElement('span');
+        incChip.className = `hud-footer-chip ${isIncluded ? 'chip-green' : 'chip-muted'}`;
+        incChip.textContent = isIncluded ? '[✓] INCLUDED' : '[—] EXCLUDED';
+        tdInc.appendChild(incChip);
+
+        tr.appendChild(tdAct);
+        tr.appendChild(tdNum);
+        tr.appendChild(tdBar);
+        tr.appendChild(tdStatus);
+        tr.appendChild(tdMap);
+        tr.appendChild(tdInc);
+
         tbody.appendChild(tr);
       });
     }
@@ -2189,7 +2310,6 @@
     function renderStageInspector(stageIdx, data) {
       currentActiveStageIndex = stageIdx;
       const stageNum = stageIdx + 1;
-      const meta = STAGES_META[stageIdx];
       const timings = getStageTimingsMap(data);
 
       document.getElementById('dag-inspecting-chip').textContent = `● Inspecting: Stage ${stageNum}`;
@@ -2202,27 +2322,38 @@
       });
 
       const dynCard = document.getElementById('telemetry-dynamic-card');
-      let html = '';
+      dynCard.innerHTML = '';
+
+      const titleEl = document.createElement('div');
+      titleEl.className = 'info-card-title';
+      const descEl = document.createElement('div');
+      descEl.style.fontSize = '11px';
+      descEl.style.color = 'var(--outline)';
+      descEl.style.marginBottom = '6px';
+      const codeEl = document.createElement('pre');
+      codeEl.className = 'code-box';
 
       switch (stageNum) {
         case 1: { // Extract & publish
+          titleEl.textContent = 'STAGE 1: EXTRACT & PUBLISH (TERRAFORM PLAN)';
+          descEl.textContent = 'CLI parsed Terraform plan JSON and published analysis request to EventBridge → SQS.';
           const req = data.requested_policy ? (typeof data.requested_policy === 'string' ? data.requested_policy : JSON.stringify(data.requested_policy, null, 2)) : "not recorded";
-          html = `
-            <div class="info-card-title">STAGE 1: EXTRACT &amp; PUBLISH (TERRAFORM PLAN)</div>
-            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">CLI parsed Terraform plan JSON and published analysis request to EventBridge → SQS.</div>
-            <pre class="code-box">${escapeHtml(req)}</pre>
-          `;
+          codeEl.textContent = req;
+          dynCard.appendChild(titleEl);
+          dynCard.appendChild(descEl);
+          dynCard.appendChild(codeEl);
           break;
         }
 
         case 2: { // Usage lookup
           const obsCount = data.observed_actions ? Object.keys(data.observed_actions).length : 0;
           const dur = timings["cloudwatch_query"] ? `${timings["cloudwatch_query"]}ms` : "not recorded";
-          html = `
-            <div class="info-card-title">STAGE 2: CLOUDWATCH LOGS INSIGHTS QUERY CONTEXT</div>
-            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Queried 7-day lookback window for assumed-role sessionIssuer ARN. Invocations matched: <strong>${obsCount} distinct actions</strong> (latency: ${dur}).</div>
-            <pre class="code-box">Window: 7d lookback\nQuery Status: Complete\nTarget Role: ${escapeHtml(data.role_arn || "<ROLE_ARN>")}</pre>
-          `;
+          titleEl.textContent = 'STAGE 2: CLOUDWATCH LOGS INSIGHTS QUERY CONTEXT';
+          descEl.textContent = `Queried 7-day lookback window for assumed-role sessionIssuer ARN. Invocations matched: ${obsCount} distinct actions (latency: ${dur}).`;
+          codeEl.textContent = `Window: 7d lookback\nQuery Status: Complete\nTarget Role: ${data.role_arn || "<ROLE_ARN>"}`;
+          dynCard.appendChild(titleEl);
+          dynCard.appendChild(descEl);
+          dynCard.appendChild(codeEl);
           break;
         }
 
@@ -2231,34 +2362,55 @@
           const rationale = data.rationale || "not recorded";
           const dur = timings["bedrock_call"] ? `${(timings["bedrock_call"] / 1000).toFixed(2)}s` : "not recorded";
           const guardRemoved = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions.length : 0;
-          html = `
-            <div class="info-card-title">STAGE 3: BEDROCK MODEL RATIONALE &amp; GUARD</div>
-            <div style="font-size: 11px; line-height: 1.5; margin-bottom: 6px;">
-              <div>Foundation Model: <strong style="color: var(--primary);">${escapeHtml(model)}</strong></div>
-              <div>Synthesis Latency: <strong>${dur}</strong></div>
-              <div>Deterministic Guard: <strong>${guardRemoved} unobserved actions stripped</strong></div>
-            </div>
-            <div class="info-card-title" style="margin-top: 8px;">MODEL RATIONALE:</div>
-            <div class="code-box" style="color: var(--on-surface); font-style: italic;">"${escapeHtml(rationale)}"</div>
-          `;
+
+          titleEl.textContent = 'STAGE 3: BEDROCK MODEL RATIONALE & GUARD';
+          descEl.innerHTML = `<div>Foundation Model: <strong style="color: var(--primary);">${escapeHtml(model)}</strong></div>` +
+                             `<div>Synthesis Latency: <strong>${escapeHtml(dur)}</strong></div>` +
+                             `<div>Deterministic Guard: <strong>${guardRemoved} unobserved actions stripped</strong></div>`;
+          
+          const ratTitle = document.createElement('div');
+          ratTitle.className = 'info-card-title';
+          ratTitle.style.marginTop = '8px';
+          ratTitle.textContent = 'MODEL RATIONALE:';
+
+          const ratBox = document.createElement('div');
+          ratBox.className = 'code-box';
+          ratBox.style.color = 'var(--on-surface)';
+          ratBox.style.fontStyle = 'italic';
+          ratBox.textContent = `"${rationale}"`;
+
+          dynCard.appendChild(titleEl);
+          dynCard.appendChild(descEl);
+          dynCard.appendChild(ratTitle);
+          dynCard.appendChild(ratBox);
           break;
         }
 
         case 4: { // Coverage check
           const covPassed = data.coverage_check ? data.coverage_check.passed : true;
           const blocked = getBlockedActionsList(data);
-          html = `
-            <div class="info-card-title">STAGE 4: COVERAGE &amp; WORKLOAD SAFEGUARD</div>
-            <div style="font-size: 11px; line-height: 1.5; margin-bottom: 6px;">
-              <div>Safeguard Verdict: <strong style="color: ${covPassed ? 'var(--secondary)' : 'var(--error)'};">${covPassed ? 'PASSED (100% COVERED)' : 'BLOCKED (DROPPED ACTIONS)'}</strong></div>
-            </div>
-            ${blocked.length > 0 ? `
-              <div style="font-size: 11px; color: var(--error); margin-top: 4px;">Blocked Actions:</div>
-              <pre class="code-box" style="color: var(--error);">${escapeHtml(JSON.stringify(blocked, null, 2))}</pre>
-            ` : `
-              <div style="font-size: 11px; color: var(--secondary);">All observed CloudTrail actions remain covered by the synthesized permit statements.</div>
-            `}
-          `;
+          titleEl.textContent = 'STAGE 4: COVERAGE & WORKLOAD SAFEGUARD';
+          descEl.innerHTML = `<div>Safeguard Verdict: <strong style="color: ${covPassed ? 'var(--secondary)' : 'var(--error)'};">${covPassed ? 'PASSED (100% COVERED)' : 'BLOCKED (DROPPED ACTIONS)'}</strong></div>`;
+          dynCard.appendChild(titleEl);
+          dynCard.appendChild(descEl);
+
+          if (blocked.length > 0) {
+            const bTitle = document.createElement('div');
+            bTitle.style.fontSize = '11px';
+            bTitle.style.color = 'var(--error)';
+            bTitle.style.marginTop = '4px';
+            bTitle.textContent = 'Blocked Actions:';
+            codeEl.style.color = 'var(--error)';
+            codeEl.textContent = JSON.stringify(blocked, null, 2);
+            dynCard.appendChild(bTitle);
+            dynCard.appendChild(codeEl);
+          } else {
+            const passMsg = document.createElement('div');
+            passMsg.style.fontSize = '11px';
+            passMsg.style.color = 'var(--secondary)';
+            passMsg.textContent = 'All observed CloudTrail actions remain covered by the synthesized permit statements.';
+            dynCard.appendChild(passMsg);
+          }
           break;
         }
 
@@ -2266,29 +2418,48 @@
           const val = data.cedar_validation || {};
           const passed = val.passed !== false;
           const msgs = Array.isArray(val.messages) ? val.messages : [];
-          html = `
-            <div class="info-card-title">STAGE 5: CEDAR SCHEMA VALIDATION (STRICT)</div>
-            <div style="font-size: 11px; line-height: 1.5; margin-bottom: 6px;">
-              <div>Mode: <strong>STRICT</strong></div>
-              <div>Validation Outcome: <strong style="color: ${passed ? 'var(--secondary)' : 'var(--error)'};">${passed ? 'PASS (SCHEMA VALID)' : 'FAIL (SCHEMA/SYNTAX ERROR)'}</strong></div>
-            </div>
-            <div style="font-size: 10px; color: var(--outline); margin-bottom: 6px;">The schema is generated from the draft's own actions, so this validates schema/syntax, not privilege escalation — Access Analyzer covers that.</div>
-            <pre class="code-box" style="color: ${passed ? 'var(--secondary)' : 'var(--error)'};">${escapeHtml(msgs.length > 0 ? msgs.join('\n') : "Schema validation succeeded with 0 errors.")}</pre>
-          `;
+          titleEl.textContent = 'STAGE 5: CEDAR SCHEMA VALIDATION (STRICT)';
+          descEl.innerHTML = `<div>Mode: <strong>STRICT</strong></div>` +
+                             `<div>Validation Outcome: <strong style="color: ${passed ? 'var(--secondary)' : 'var(--error)'};">${passed ? 'PASS (SCHEMA VALID)' : 'FAIL (SCHEMA/SYNTAX ERROR)'}</strong></div>` +
+                             `<div style="font-size: 10px; color: var(--outline); margin-top: 4px;">The schema is generated from the draft's own actions, so this validates schema/syntax, not privilege escalation — Access Analyzer covers that.</div>`;
+          codeEl.style.color = passed ? 'var(--secondary)' : 'var(--error)';
+          codeEl.textContent = msgs.length > 0 ? msgs.join('\n') : "Schema validation succeeded with 0 errors.";
+          dynCard.appendChild(titleEl);
+          dynCard.appendChild(descEl);
+          dynCard.appendChild(codeEl);
           break;
         }
 
         case 6: { // IAM translation
           const mappings = data.action_mappings_applied ? JSON.stringify(data.action_mappings_applied, null, 2) : "{}";
           const unmatched = Array.isArray(data.unmatched_actions) ? JSON.stringify(data.unmatched_actions, null, 2) : "[]";
-          html = `
-            <div class="info-card-title">STAGE 6: CEDAR → IAM POLICY TRANSLATION</div>
-            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Verified permit statements mapped to IAM Allow statements with action normalization.</div>
-            <div class="info-card-title" style="margin-top: 6px;">ACTION MAPPINGS (CLOUDTRAIL → IAM):</div>
-            <pre class="code-box">${escapeHtml(mappings)}</pre>
-            <div class="info-card-title" style="margin-top: 6px;">UNMATCHED ACTIONS (EXCLUDED WITHOUT WIDENING):</div>
-            <pre class="code-box">${escapeHtml(unmatched)}</pre>
-          `;
+          titleEl.textContent = 'STAGE 6: CEDAR → IAM POLICY TRANSLATION';
+          descEl.textContent = 'Verified permit statements mapped to IAM Allow statements with action normalization.';
+
+          const mapTitle = document.createElement('div');
+          mapTitle.className = 'info-card-title';
+          mapTitle.style.marginTop = '6px';
+          mapTitle.textContent = 'ACTION MAPPINGS (CLOUDTRAIL → IAM):';
+
+          const mapBox = document.createElement('pre');
+          mapBox.className = 'code-box';
+          mapBox.textContent = mappings;
+
+          const unTitle = document.createElement('div');
+          unTitle.className = 'info-card-title';
+          unTitle.style.marginTop = '6px';
+          unTitle.textContent = 'UNMATCHED ACTIONS (EXCLUDED WITHOUT WIDENING):';
+
+          const unBox = document.createElement('pre');
+          unBox.className = 'code-box';
+          unBox.textContent = unmatched;
+
+          dynCard.appendChild(titleEl);
+          dynCard.appendChild(descEl);
+          dynCard.appendChild(mapTitle);
+          dynCard.appendChild(mapBox);
+          dynCard.appendChild(unTitle);
+          dynCard.appendChild(unBox);
           break;
         }
 
@@ -2297,50 +2468,66 @@
           const passed = anz.passed !== false;
           const findings = Array.isArray(anz.findings) ? JSON.stringify(anz.findings, null, 2) : "[]";
           const noNew = anz.check_no_new_access ? JSON.stringify(anz.check_no_new_access, null, 2) : "PASS";
-          html = `
-            <div class="info-card-title">STAGE 7: IAM ACCESS ANALYZER INDEPENDENT SAFETY NET</div>
-            <div style="font-size: 11px; line-height: 1.5; margin-bottom: 6px;">
-              <div>Validation: <strong style="color: ${passed ? 'var(--secondary)' : 'var(--error)'};">${passed ? 'PASS (0 BLOCKING FINDINGS)' : 'FAILED'}</strong></div>
-            </div>
-            <div class="info-card-title">VALIDATEPOLICY FINDINGS:</div>
-            <pre class="code-box">${escapeHtml(findings)}</pre>
-            <div class="info-card-title" style="margin-top: 6px;">CHECK_NO_NEW_ACCESS RESULT:</div>
-            <pre class="code-box">${escapeHtml(noNew)}</pre>
-          `;
+
+          titleEl.textContent = 'STAGE 7: IAM ACCESS ANALYZER INDEPENDENT SAFETY NET';
+          descEl.innerHTML = `<div>Validation: <strong style="color: ${passed ? 'var(--secondary)' : 'var(--error)'};">${passed ? 'PASS (0 BLOCKING FINDINGS)' : 'FAILED'}</strong></div>`;
+
+          const findTitle = document.createElement('div');
+          findTitle.className = 'info-card-title';
+          findTitle.textContent = 'VALIDATEPOLICY FINDINGS:';
+          const findBox = document.createElement('pre');
+          findBox.className = 'code-box';
+          findBox.textContent = findings;
+
+          const noNewTitle = document.createElement('div');
+          noNewTitle.className = 'info-card-title';
+          noNewTitle.style.marginTop = '6px';
+          noNewTitle.textContent = 'CHECK_NO_NEW_ACCESS RESULT:';
+          const noNewBox = document.createElement('pre');
+          noNewBox.className = 'code-box';
+          noNewBox.textContent = noNew;
+
+          dynCard.appendChild(titleEl);
+          dynCard.appendChild(descEl);
+          dynCard.appendChild(findTitle);
+          dynCard.appendChild(findBox);
+          dynCard.appendChild(noNewTitle);
+          dynCard.appendChild(noNewBox);
           break;
         }
 
         case 8: { // Approval
           const isApproved = data.status === "APPLIED" || data.status === "APPLIED_UNVERIFIED" || data.status === "APPLY_FAILED";
           const isDeclined = data.status === "DECLINED";
-          html = `
-            <div class="info-card-title">STAGE 8: CLI OPERATOR APPROVAL</div>
-            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Approval is CLI-only. The dashboard is strictly read-only.</div>
-            <pre class="code-box">$ cedar-sentinel analyze --apply\nReview tightened policy diff above.\nApply to role arn:aws:iam::&lt;ACCOUNT_ID&gt;:role/... ? [y/N]: ${isApproved ? 'y' : (isDeclined ? 'n' : '[waiting]')}\n\nOutcome: ${isApproved ? 'APPROVED' : (isDeclined ? 'DECLINED' : 'AWAITING DECISION')}</pre>
-          `;
+          titleEl.textContent = 'STAGE 8: CLI OPERATOR APPROVAL';
+          descEl.textContent = 'Approval is CLI-only. The dashboard is strictly read-only.';
+          codeEl.textContent = `$ cedar-sentinel analyze --apply\nReview tightened policy diff above.\nApply to role arn:aws:iam::<ACCOUNT_ID>:role/... ? [y/N]: ${isApproved ? 'y' : (isDeclined ? 'n' : '[waiting]')}\n\nOutcome: ${isApproved ? 'APPROVED' : (isDeclined ? 'DECLINED' : 'AWAITING DECISION')}`;
+          dynCard.appendChild(titleEl);
+          dynCard.appendChild(descEl);
+          dynCard.appendChild(codeEl);
           break;
         }
 
         case 9: { // Apply & verify
-          html = `
-            <div class="info-card-title">STAGE 9: IAM PUTROLEPOLICY &amp; READ-BACK</div>
-            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Atomic IAM enforcement lifecycle:</div>
-            <pre class="code-box">1. iam:GetRolePolicy (snapshot before-policy)\n2. iam:PutRolePolicy (write tightened policy)\n3. iam:GetRolePolicy (read-back verification confirmed)</pre>
-          `;
+          titleEl.textContent = 'STAGE 9: IAM PUTROLEPOLICY & READ-BACK';
+          descEl.textContent = 'Atomic IAM enforcement lifecycle:';
+          codeEl.textContent = `1. iam:GetRolePolicy (snapshot before-policy)\n2. iam:PutRolePolicy (write tightened policy)\n3. iam:GetRolePolicy (read-back verification confirmed)`;
+          dynCard.appendChild(titleEl);
+          dynCard.appendChild(descEl);
+          dynCard.appendChild(codeEl);
           break;
         }
 
         case 10: { // Audit record
-          html = `
-            <div class="info-card-title">STAGE 10: PERSISTENT AVP AUDIT LOGGING</div>
-            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Cedar policy + AI rationale persisted into the persistent Amazon Verified Permissions audit policy store.</div>
-            <pre class="code-box">Store: &lt;AVP_STORE_ID&gt;\nAction: verifiedpermissions:CreatePolicy\nPrefix: [request_id: ${escapeHtml(data.request_id || "not recorded")}]\nAudit Record: PERSISTED</pre>
-          `;
+          titleEl.textContent = 'STAGE 10: PERSISTENT AVP AUDIT LOGGING';
+          descEl.textContent = 'Cedar policy + AI rationale persisted into the persistent Amazon Verified Permissions audit policy store.';
+          codeEl.textContent = `Store: <AVP_STORE_ID>\nAction: verifiedpermissions:CreatePolicy\nPrefix: [request_id: ${data.request_id || "not recorded"}]\nAudit Record: PERSISTED`;
+          dynCard.appendChild(titleEl);
+          dynCard.appendChild(descEl);
+          dynCard.appendChild(codeEl);
           break;
         }
       }
-
-      dynCard.innerHTML = html;
     }
 
     // Replay Animation Sequence
@@ -2484,6 +2671,58 @@
       });
     }
 
+    // Bounded Polling for Live In-Flight Runs
+    function startBoundedPolling(requestId) {
+      if (pollingTimeout) {
+        clearTimeout(pollingTimeout);
+        pollingTimeout = null;
+      }
+      const startTime = Date.now();
+
+      function pollStep() {
+        if (document.hidden) return;
+        if (Date.now() - startTime > 60000) {
+          console.warn("Polling timeout reached (60s). Stopping live poll.");
+          return;
+        }
+        if (!currentRunMeta || (currentRunMeta.id !== requestId && currentRunMeta.source_request_id !== requestId)) {
+          return;
+        }
+
+        pollingTimeout = setTimeout(async () => {
+          if (document.hidden || !currentRunMeta || (currentRunMeta.id !== requestId && currentRunMeta.source_request_id !== requestId)) {
+            return;
+          }
+          try {
+            const resp = await fetch(`/api/runs/${encodeURIComponent(requestId)}`);
+            if (!resp.ok) return;
+            const updatedData = await resp.json();
+            const updatedStatus = (updatedData.status || '').toUpperCase();
+
+            if (updatedStatus !== 'PROCESSING') {
+              runCache.set(`/api/runs/${requestId}`, updatedData);
+              runCache.set(requestId, updatedData);
+              const updatedMeta = {
+                id: requestId,
+                label: `${updatedData.role_name || 'role'} — ${updatedStatus} (${requestId.substring(0, 8)})`,
+                status: updatedStatus,
+                file: `/api/runs/${requestId}`,
+                source_request_id: requestId,
+                synthetic: false
+              };
+              await loadRun(updatedMeta);
+            } else {
+              pollStep();
+            }
+          } catch (err) {
+            console.warn("Poll fetch error:", err);
+          }
+        }, 2000);
+      }
+
+      pollStep();
+    }
+
     // Load Run
     async function loadRun(runMeta) {
       currentRunMeta = runMeta;
@@ -2511,20 +2750,32 @@
       window.history.replaceState({}, '', url);
 
       // Check In-Memory Cache
-      let data = runCache.get(runMeta.file);
+      const fileKey = isLiveMode ? `/api/runs/${runMeta.id || runMeta.source_request_id}` : runMeta.file;
+      let data = runCache.get(fileKey) || runCache.get(runMeta.id);
+
       if (!data) {
         try {
-          const resp = await fetch(runMeta.file);
+          const fetchUrl = isLiveMode ? `/api/runs/${encodeURIComponent(runMeta.id || runMeta.source_request_id)}` : runMeta.file;
+          const resp = await fetch(fetchUrl);
           if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
           data = await resp.json();
-          runCache.set(runMeta.file, data);
+          runCache.set(fileKey, data);
+          runCache.set(runMeta.id, data);
         } catch (err) {
-          showError(`Could not load ${runMeta.file} — ${err.message}`);
+          showError(`Could not load ${fileKey} — ${err.message}`);
           return;
         }
       }
 
       currentRunData = data;
+
+      // Handle bounded polling if live in-flight run
+      if (isLiveMode && status === "PROCESSING") {
+        startBoundedPolling(runMeta.id || runMeta.source_request_id);
+      } else if (pollingTimeout) {
+        clearTimeout(pollingTimeout);
+        pollingTimeout = null;
+      }
 
       // Handle synthetic banner
       if (data.synthetic || runMeta.synthetic) {
@@ -2583,6 +2834,96 @@
         .replace(/'/g, '&#039;');
     }
 
+    // Mode Detection Probe: /api/health
+    async function checkHealth() {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1500);
+        const resp = await fetch('/api/health', {
+          signal: controller.signal,
+          headers: { 'Accept': 'application/json' }
+        });
+        clearTimeout(timeoutId);
+        if (!resp.ok) return null;
+        const ctype = resp.headers.get('content-type') || '';
+        if (!ctype.includes('application/json')) return null;
+        const data = await resp.json();
+        if (data && data.mode === 'live') return data;
+        return null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Populate dropdown with list of runs
+    function populateDropdown(manifestList, selectIdToPick = null) {
+      const select = document.getElementById('run-select');
+      select.innerHTML = '';
+
+      manifestList.forEach(rm => {
+        const opt = document.createElement('option');
+        opt.value = rm.id;
+        opt.textContent = rm.label || `${rm.status} — ${rm.id}`;
+        select.appendChild(opt);
+      });
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const requestedId = selectIdToPick || urlParams.get('run');
+      let targetRun = manifestList.find(m => m.id === requestedId);
+      if (!targetRun) {
+        targetRun = manifestList.find(m => m.id === 'applied') || manifestList[0];
+      }
+
+      if (targetRun) {
+        select.value = targetRun.id;
+        loadRun(targetRun);
+      }
+    }
+
+    // Fetch live runs from /api/runs
+    async function fetchAndPopulateLiveRuns() {
+      try {
+        const resp = await fetch('/api/runs?limit=100');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+        const data = await resp.json();
+        const runs = data.runs || [];
+
+        currentManifest = runs.map(r => ({
+          id: r.request_id,
+          label: `${r.role_name || 'role'} — ${r.status} (${(r.request_id || '').substring(0, 8)})`,
+          status: r.status,
+          file: `/api/runs/${r.request_id}`,
+          source_request_id: r.request_id,
+          role_name: r.role_name,
+          role_arn: r.role_arn,
+          completed_at: r.completed_at,
+          model_used: r.model_used,
+          synthetic: false
+        }));
+
+        if (currentManifest.length === 0) {
+          showError("No runs found in results table.");
+          return;
+        }
+
+        populateDropdown(currentManifest);
+      } catch (err) {
+        showError(`Could not load /api/runs — ${err.message}`);
+      }
+    }
+
+    // Fetch recorded runs manifest from runs/index.json
+    async function fetchAndPopulateRecordedRuns() {
+      try {
+        const resp = await fetch('runs/index.json');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+        currentManifest = await resp.json();
+        populateDropdown(currentManifest);
+      } catch (err) {
+        showError(`Could not load runs/index.json — ${err.message}`);
+      }
+    }
+
     // App Initialization
     async function init() {
       // Wire DAG node clicks
@@ -2621,6 +2962,46 @@
         URL.revokeObjectURL(url);
       });
 
+      // Wire Dropdown Change
+      const select = document.getElementById('run-select');
+      select.addEventListener('change', (e) => {
+        const selected = currentManifest.find(m => m.id === e.target.value);
+        if (selected) loadRun(selected);
+      });
+
+      // Wire Client-Side Live Filter Input
+      const filterInput = document.getElementById('run-filter-input');
+      filterInput.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        const filtered = currentManifest.filter(m => (m.label || '').toLowerCase().includes(term) || (m.id || '').toLowerCase().includes(term));
+        const currentSelectedId = select.value;
+        select.innerHTML = '';
+        filtered.forEach(rm => {
+          const opt = document.createElement('option');
+          opt.value = rm.id;
+          opt.textContent = rm.label || `${rm.status} — ${rm.id}`;
+          select.appendChild(opt);
+        });
+        if (filtered.some(m => m.id === currentSelectedId)) {
+          select.value = currentSelectedId;
+        }
+      });
+
+      // Wire Live Refresh Button
+      document.getElementById('btn-refresh-runs').addEventListener('click', async () => {
+        if (isLiveMode) {
+          await fetchAndPopulateLiveRuns();
+        }
+      });
+
+      // Wire Tab Visibility Change (halt polling if tab hidden)
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden && pollingTimeout) {
+          clearTimeout(pollingTimeout);
+          pollingTimeout = null;
+        }
+      });
+
       // Wire Nav Tab Links Scroll Spy
       const navLinks = document.querySelectorAll('.nav-tab-link');
       window.addEventListener('scroll', () => {
@@ -2637,43 +3018,31 @@
         }
       });
 
-      // Fetch Runs Manifest
-      try {
-        const resp = await fetch('runs/index.json');
-        if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
-        currentManifest = await resp.json();
+      // Mode Detection Probe
+      const health = await checkHealth();
+      if (health) {
+        isLiveMode = true;
+        liveServerHealth = health;
 
-        const select = document.getElementById('run-select');
-        select.innerHTML = '';
-        currentManifest.forEach(rm => {
-          const opt = document.createElement('option');
-          opt.value = rm.id;
-          opt.textContent = rm.label || `${rm.status} — ${rm.id}`;
-          select.appendChild(opt);
-        });
-
-        select.addEventListener('change', (e) => {
-          const selected = currentManifest.find(m => m.id === e.target.value);
-          if (selected) loadRun(selected);
-        });
-
-        // Determine default run (?run=<id> or 'applied')
-        const urlParams = new URLSearchParams(window.location.search);
-        const requestedId = urlParams.get('run');
-        let targetRun = currentManifest.find(m => m.id === requestedId);
-        if (!targetRun) {
-          targetRun = currentManifest.find(m => m.id === 'applied') || currentManifest[0];
+        const liveBadge = document.getElementById('header-live-badge');
+        const liveBadgeText = document.getElementById('live-badge-text');
+        if (liveBadge && liveBadgeText) {
+          liveBadge.style.display = 'inline-flex';
+          liveBadgeText.textContent = `LIVE · local (${health.region || 'aws'} · ${health.identity || 'connected'})`;
         }
 
-        if (targetRun) {
-          select.value = targetRun.id;
-          await loadRun(targetRun);
-        }
-      } catch (err) {
-        showError(`Could not load runs/index.json — ${err.message}`);
-      }
-    }
+        filterInput.style.display = 'inline-block';
+        document.getElementById('btn-refresh-runs').style.display = 'inline-flex';
 
+        const noticeText = document.getElementById('notice-bar-text');
+        if (noticeText) {
+          noticeText.textContent = 'live mode · read from your AWS account through a local server · showing recorded stage timings of the selected run';
+        }
+
+        await fetchAndPopulateLiveRuns();
+      } else {
+        isLiveMode = false;
+        await fetchAndPopulateRecordedRuns();
     window.addEventListener('DOMContentLoaded', init);
   </script>
 </body>

@@ -18,96 +18,13 @@ from typing import Any, Dict, List, Optional
 import boto3
 from botocore.exceptions import ClientError
 
+# Ensure root directory is on sys.path so cli package can be imported
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from cli.run_data import decimal_default, normalize_run_item, sanitize_value
+
 DEFAULT_TABLE_NAME = "cedar-sentinel-results"
 RUNS_DIR = os.path.join(os.path.dirname(__file__), "..", "dashboard", "runs")
 MANIFEST_PATH = os.path.join(RUNS_DIR, "index.json")
-
-
-def sanitize_value(val: Any) -> Any:
-    """
-    Recursively replaces sensitive AWS identifiers:
-    - 12-digit AWS account IDs -> <ACCOUNT_ID>
-    - Role/User ARNs keep role name but use <ACCOUNT_ID>
-    - AVP policy store IDs (e.g. 22-char alphanumeric) -> <AVP_STORE_ID>
-    - AVP policy IDs -> <POLICY_ID>
-    - CloudTrail log group names (e.g. aws-cloudtrail-logs-...) -> <LOG_GROUP>
-    - Removes 'ttl' field
-    - Parses JSON-encoded strings (requested_policy, previous_policy, iam_policy)
-    - Coerces observed_actions counts to integers
-    """
-    if isinstance(val, str):
-        # 1. Check if string is a JSON object/array that should be parsed
-        s_stripped = val.strip()
-        if (s_stripped.startswith("{") and s_stripped.endswith("}")) or (s_stripped.startswith("[") and s_stripped.endswith("]")):
-            try:
-                parsed = json.loads(s_stripped)
-                # If parsed is a dict/list, sanitize it recursively
-                return sanitize_value(parsed)
-            except Exception:
-                pass
-
-        # 2. CloudTrail log groups
-        sanitized = re.sub(r"aws-cloudtrail-logs-[a-zA-Z0-9_-]+", "<LOG_GROUP>", val)
-        # 3. Specific ARN replacements: keep resource name, replace account ID
-        sanitized = re.sub(r"arn:aws:([a-zA-Z0-9-]+):([a-zA-Z0-9-]*):(\d{12}):", r"arn:aws:\1:\2:<ACCOUNT_ID>:", sanitized)
-        # 4. Any remaining 12-digit account IDs
-        sanitized = re.sub(r"\b\d{12}\b", "<ACCOUNT_ID>", sanitized)
-        # 5. AVP policy store IDs (e.g. 22 chars base62 alphanumeric)
-        sanitized = re.sub(r"\b[A-Za-z0-9]{22}\b", "<AVP_STORE_ID>", sanitized)
-        return sanitized
-
-    elif isinstance(val, dict):
-        sanitized_dict = {}
-        for k, v in val.items():
-            if k == "ttl":
-                continue
-            
-            # If observed_actions, coerce count strings to ints
-            if k == "observed_actions" and isinstance(v, dict):
-                sanitized_obs = {}
-                for act_name, count_val in v.items():
-                    try:
-                        sanitized_obs[sanitize_value(act_name)] = int(count_val)
-                    except (ValueError, TypeError):
-                        sanitized_obs[sanitize_value(act_name)] = count_val
-                sanitized_dict[k] = sanitized_obs
-                continue
-
-            # If coverage_check.blocked_actions is a JSON string, parse it
-            if k == "coverage_check" and isinstance(v, dict):
-                cov_dict = dict(v)
-                if "blocked_actions" in cov_dict and isinstance(cov_dict["blocked_actions"], str):
-                    try:
-                        cov_dict["blocked_actions"] = json.loads(cov_dict["blocked_actions"])
-                    except Exception:
-                        pass
-                sanitized_dict[k] = sanitize_value(cov_dict)
-                continue
-
-            # If policy_id or policy_store_id fields
-            if k in ("policy_id", "policyId") and isinstance(v, str):
-                sanitized_dict[k] = "<POLICY_ID>"
-                continue
-            if k in ("policy_store_id", "policyStoreId") and isinstance(v, str):
-                sanitized_dict[k] = "<AVP_STORE_ID>"
-                continue
-
-            sanitized_dict[k] = sanitize_value(v)
-        return sanitized_dict
-
-    elif isinstance(val, list):
-        return [sanitize_value(v) for v in val]
-
-    elif isinstance(val, decimal.Decimal):
-        return int(val) if val % 1 == 0 else float(val)
-
-    return val
-
-
-def decimal_default(obj: Any) -> Any:
-    if isinstance(obj, decimal.Decimal):
-        return int(obj) if obj % 1 == 0 else float(obj)
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
 def scan_dynamodb_runs(table_name: str, region: str) -> List[Dict[str, Any]]:
