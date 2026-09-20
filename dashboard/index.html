@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cedar Sentinel — Cloud Security Intelligence Dashboard</title>
-  
+
   <!-- Google Fonts: Inter, JetBrains Mono, Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+    rel="stylesheet">
 
   <style>
     /* Design Tokens matching Stitch Specification */
@@ -71,13 +74,16 @@
       width: 6px;
       height: 6px;
     }
+
     ::-webkit-scrollbar-track {
       background: var(--surface-container-lowest);
     }
+
     ::-webkit-scrollbar-thumb {
       background: var(--outline-variant);
       border-radius: 3px;
     }
+
     ::-webkit-scrollbar-thumb:hover {
       background: var(--outline);
     }
@@ -174,8 +180,11 @@
       font-size: 11px;
       color: var(--on-surface-variant);
     }
+
     @media (max-width: 1200px) {
-      .command-chip { display: none; }
+      .command-chip {
+        display: none;
+      }
     }
 
     .run-selector-box {
@@ -240,30 +249,62 @@
     }
 
     @keyframes pulseDot {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.3; transform: scale(0.85); }
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.3;
+        transform: scale(0.85);
+      }
     }
 
-    .status-pill.status-APPLIED, .status-pill.status-COMPLETE {
+    .status-pill.status-APPLIED,
+    .status-pill.status-COMPLETE {
       background: rgba(78, 222, 163, 0.1);
       border-color: rgba(78, 222, 163, 0.4);
       color: var(--secondary);
     }
-    .status-pill.status-APPLIED .dot, .status-pill.status-COMPLETE .dot { background: var(--secondary); }
 
-    .status-pill.status-DECLINED, .status-pill.status-APPLIED_UNVERIFIED, .status-pill.status-PROCESSING {
+    .status-pill.status-APPLIED .dot,
+    .status-pill.status-COMPLETE .dot {
+      background: var(--secondary);
+    }
+
+    .status-pill.status-DECLINED,
+    .status-pill.status-APPLIED_UNVERIFIED,
+    .status-pill.status-PROCESSING {
       background: rgba(227, 179, 65, 0.1);
       border-color: rgba(227, 179, 65, 0.4);
       color: var(--warning);
     }
-    .status-pill.status-DECLINED .dot, .status-pill.status-APPLIED_UNVERIFIED .dot, .status-pill.status-PROCESSING .dot { background: var(--warning); }
 
-    .status-pill.status-BLOCKED, .status-pill.status-CEDAR_INVALID, .status-pill.status-ANALYZER_INVALID, .status-pill.status-APPLY_FAILED, .status-pill.status-ERROR {
+    .status-pill.status-DECLINED .dot,
+    .status-pill.status-APPLIED_UNVERIFIED .dot,
+    .status-pill.status-PROCESSING .dot {
+      background: var(--warning);
+    }
+
+    .status-pill.status-BLOCKED,
+    .status-pill.status-CEDAR_INVALID,
+    .status-pill.status-ANALYZER_INVALID,
+    .status-pill.status-APPLY_FAILED,
+    .status-pill.status-ERROR {
       background: rgba(255, 180, 171, 0.1);
       border-color: rgba(255, 180, 171, 0.4);
       color: var(--error);
     }
-    .status-pill.status-BLOCKED .dot, .status-pill.status-CEDAR_INVALID .dot, .status-pill.status-ANALYZER_INVALID .dot, .status-pill.status-APPLY_FAILED .dot, .status-pill.status-ERROR .dot { background: var(--error); }
+
+    .status-pill.status-BLOCKED .dot,
+    .status-pill.status-CEDAR_INVALID .dot,
+    .status-pill.status-ANALYZER_INVALID .dot,
+    .status-pill.status-APPLY_FAILED .dot,
+    .status-pill.status-ERROR .dot {
+      background: var(--error);
+    }
 
     .btn-replay {
       display: inline-flex;
@@ -280,6 +321,7 @@
       cursor: pointer;
       transition: all 0.15s;
     }
+
     .btn-replay:hover {
       background: var(--surface-container-highest);
       border-color: var(--primary);
@@ -298,6 +340,7 @@
       border: 1px solid rgba(78, 222, 163, 0.4);
       color: var(--secondary);
     }
+
     .live-badge .live-dot {
       width: 7px;
       height: 7px;
@@ -318,6 +361,7 @@
       width: 120px;
       transition: border-color 0.15s;
     }
+
     .run-filter-input:focus {
       border-color: var(--primary);
     }
@@ -346,10 +390,12 @@
       white-space: nowrap;
       transition: color 0.15s, background 0.15s;
     }
+
     .nav-tab-link:hover {
       color: #fff;
       background: var(--surface-container);
     }
+
     .nav-tab-link.active {
       color: var(--primary);
       background: var(--surface-container-high);
@@ -406,11 +452,17 @@
       gap: 14px;
       margin-bottom: 20px;
     }
+
     @media (max-width: 1024px) {
-      .hud-grid { grid-template-columns: repeat(2, 1fr); }
+      .hud-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
     }
+
     @media (max-width: 600px) {
-      .hud-grid { grid-template-columns: 1fr; }
+      .hud-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     .hud-card {
@@ -459,10 +511,26 @@
       align-items: center;
       justify-content: center;
     }
-    .hud-icon-tile.primary { background: rgba(142, 213, 255, 0.12); color: var(--primary); }
-    .hud-icon-tile.tertiary { background: rgba(255, 188, 191, 0.12); color: var(--tertiary); }
-    .hud-icon-tile.secondary { background: rgba(78, 222, 163, 0.12); color: var(--secondary); }
-    .hud-icon-tile.warning { background: rgba(227, 179, 65, 0.12); color: var(--warning); }
+
+    .hud-icon-tile.primary {
+      background: rgba(142, 213, 255, 0.12);
+      color: var(--primary);
+    }
+
+    .hud-icon-tile.tertiary {
+      background: rgba(255, 188, 191, 0.12);
+      color: var(--tertiary);
+    }
+
+    .hud-icon-tile.secondary {
+      background: rgba(78, 222, 163, 0.12);
+      color: var(--secondary);
+    }
+
+    .hud-icon-tile.warning {
+      background: rgba(227, 179, 65, 0.12);
+      color: var(--warning);
+    }
 
     .hud-title {
       font-family: var(--font-headline);
@@ -533,11 +601,31 @@
       border-radius: 4px;
       font-weight: 600;
     }
-    .chip-green { background: rgba(78, 222, 163, 0.12); color: var(--secondary); }
-    .chip-red { background: rgba(255, 180, 171, 0.12); color: var(--error); }
-    .chip-tertiary { background: rgba(255, 188, 191, 0.12); color: var(--tertiary); }
-    .chip-primary { background: rgba(142, 213, 255, 0.12); color: var(--primary); }
-    .chip-muted { background: var(--surface-container-high); color: var(--outline); }
+
+    .chip-green {
+      background: rgba(78, 222, 163, 0.12);
+      color: var(--secondary);
+    }
+
+    .chip-red {
+      background: rgba(255, 180, 171, 0.12);
+      color: var(--error);
+    }
+
+    .chip-tertiary {
+      background: rgba(255, 188, 191, 0.12);
+      color: var(--tertiary);
+    }
+
+    .chip-primary {
+      background: rgba(142, 213, 255, 0.12);
+      color: var(--primary);
+    }
+
+    .chip-muted {
+      background: var(--surface-container-high);
+      color: var(--outline);
+    }
 
     /* Execution DAG Section */
     .dag-section {
@@ -608,8 +696,18 @@
       align-items: center;
       gap: 5px;
     }
-    .dag-chip-completed { background: rgba(78, 222, 163, 0.1); color: var(--secondary); border: 1px solid rgba(78, 222, 163, 0.3); }
-    .dag-chip-inspecting { background: rgba(142, 213, 255, 0.1); color: var(--primary); border: 1px solid rgba(142, 213, 255, 0.3); }
+
+    .dag-chip-completed {
+      background: rgba(78, 222, 163, 0.1);
+      color: var(--secondary);
+      border: 1px solid rgba(78, 222, 163, 0.3);
+    }
+
+    .dag-chip-inspecting {
+      background: rgba(142, 213, 255, 0.1);
+      color: var(--primary);
+      border: 1px solid rgba(142, 213, 255, 0.3);
+    }
 
     /* 3 DAG Zones */
     .dag-zones-grid {
@@ -617,8 +715,11 @@
       grid-template-columns: 1fr 1.3fr 1fr;
       gap: 16px;
     }
+
     @media (max-width: 1100px) {
-      .dag-zones-grid { grid-template-columns: 1fr; }
+      .dag-zones-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     .dag-zone-column {
@@ -704,11 +805,29 @@
       width: 16px;
       height: 16px;
     }
-    .node-status-icon.done { color: var(--secondary); }
-    .node-status-icon.failed, .node-status-icon.blocked { color: var(--error); }
-    .node-status-icon.warning, .node-status-icon.declined { color: var(--warning); }
-    .node-status-icon.running { color: var(--primary); animation: pulseDot 1s infinite; }
-    .node-status-icon.muted { color: var(--outline); }
+
+    .node-status-icon.done {
+      color: var(--secondary);
+    }
+
+    .node-status-icon.failed,
+    .node-status-icon.blocked {
+      color: var(--error);
+    }
+
+    .node-status-icon.warning,
+    .node-status-icon.declined {
+      color: var(--warning);
+    }
+
+    .node-status-icon.running {
+      color: var(--primary);
+      animation: pulseDot 1s infinite;
+    }
+
+    .node-status-icon.muted {
+      color: var(--outline);
+    }
 
     .node-title {
       font-family: var(--font-headline);
@@ -765,8 +884,11 @@
       gap: 16px;
       margin-bottom: 20px;
     }
+
     @media (max-width: 1100px) {
-      .workbench-grid { grid-template-columns: 1fr; }
+      .workbench-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* Left Pane: Diff & Policy */
@@ -828,9 +950,11 @@
       cursor: pointer;
       transition: all 0.15s;
     }
+
     .tab-btn:hover {
       color: #fff;
     }
+
     .tab-btn.active {
       background: var(--surface-container-high);
       color: var(--primary);
@@ -843,8 +967,11 @@
       gap: 12px;
       margin-bottom: 14px;
     }
+
     @media (max-width: 768px) {
-      .diff-columns-grid { grid-template-columns: 1fr; }
+      .diff-columns-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     .diff-column-card {
@@ -869,8 +996,14 @@
       margin-bottom: 8px;
       border-bottom: 1px solid var(--surface-container-high);
     }
-    .diff-col-header.left { color: var(--tertiary); }
-    .diff-col-header.right { color: var(--secondary); }
+
+    .diff-col-header.left {
+      color: var(--tertiary);
+    }
+
+    .diff-col-header.right {
+      color: var(--secondary);
+    }
 
     .code-diff-scroll {
       font-family: var(--font-mono);
@@ -889,10 +1022,27 @@
       padding: 1px 4px;
       border-radius: 2px;
     }
-    .code-line.removed { background: rgba(255, 180, 171, 0.12); color: #ff929a; }
-    .code-line.added { background: rgba(78, 222, 163, 0.12); color: #7ee787; }
-    .code-line.plain { color: var(--on-surface); }
-    .code-gutter { width: 14px; user-select: none; font-weight: bold; flex-shrink: 0; }
+
+    .code-line.removed {
+      background: rgba(255, 180, 171, 0.12);
+      color: #ff929a;
+    }
+
+    .code-line.added {
+      background: rgba(78, 222, 163, 0.12);
+      color: #7ee787;
+    }
+
+    .code-line.plain {
+      color: var(--on-surface);
+    }
+
+    .code-gutter {
+      width: 14px;
+      user-select: none;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
 
     /* Red Guard Quarantine Box */
     .guard-alert-box {
@@ -1042,6 +1192,7 @@
       font-size: 11px;
       font-family: var(--font-mono);
     }
+
     .table-mini th {
       text-align: left;
       color: var(--outline);
@@ -1049,6 +1200,7 @@
       padding: 4px 6px;
       border-bottom: 1px solid var(--outline-variant);
     }
+
     .table-mini td {
       padding: 4px 6px;
       border-bottom: 1px solid var(--surface-container-high);
@@ -1073,6 +1225,7 @@
       margin-top: auto;
       transition: all 0.15s;
     }
+
     .btn-download-json:hover {
       background: var(--surface-container-highest);
       border-color: var(--primary);
@@ -1123,6 +1276,7 @@
       font-size: 12px;
       font-family: var(--font-mono);
     }
+
     .ct-table th {
       text-align: left;
       color: var(--outline);
@@ -1132,11 +1286,13 @@
       border-bottom: 1px solid var(--outline-variant);
       background: var(--surface-container);
     }
+
     .ct-table td {
       padding: 8px 10px;
       border-bottom: 1px solid var(--surface-container);
       color: var(--on-surface);
     }
+
     .ct-table tr:hover td {
       background: rgba(142, 213, 255, 0.02);
     }
@@ -1148,6 +1304,7 @@
       border-radius: 3px;
       overflow: hidden;
     }
+
     .prop-bar-fill {
       height: 100%;
       background: var(--primary);
@@ -1175,71 +1332,85 @@
     }
   </style>
 </head>
+
 <body>
 
   <!-- Inline SVG Sprite for Dependency-Free Icons -->
   <svg style="display: none;">
-    <symbol id="icon-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    <symbol id="icon-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
     </symbol>
-    <symbol id="icon-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="4 17 10 11 4 5"/>
-      <line x1="12" y1="19" x2="20" y2="19"/>
+    <symbol id="icon-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="4 17 10 11 4 5" />
+      <line x1="12" y1="19" x2="20" y2="19" />
     </symbol>
-    <symbol id="icon-replay" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="1 4 1 10 7 10"/>
-      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+    <symbol id="icon-replay" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="1 4 1 10 7 10" />
+      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
     </symbol>
-    <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="20 6 9 17 4 12"/>
+    <symbol id="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+      stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12" />
     </symbol>
-    <symbol id="icon-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <polyline points="12 6 12 12 16 14"/>
+    <symbol id="icon-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
     </symbol>
-    <symbol id="icon-verified" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+    <symbol id="icon-verified" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </symbol>
-    <symbol id="icon-security" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    <symbol id="icon-security" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
     </symbol>
-    <symbol id="icon-tune" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="4" y1="21" x2="4" y2="14"/>
-      <line x1="4" y1="10" x2="4" y2="3"/>
-      <line x1="12" y1="21" x2="12" y2="12"/>
-      <line x1="12" y1="8" x2="12" y2="3"/>
-      <line x1="20" y1="21" x2="20" y2="16"/>
-      <line x1="20" y1="12" x2="20" y2="3"/>
-      <line x1="1" y1="14" x2="7" y2="14"/>
-      <line x1="9" y1="8" x2="15" y2="8"/>
-      <line x1="17" y1="16" x2="23" y2="16"/>
+    <symbol id="icon-tune" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round">
+      <line x1="4" y1="21" x2="4" y2="14" />
+      <line x1="4" y1="10" x2="4" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12" y2="3" />
+      <line x1="20" y1="21" x2="20" y2="16" />
+      <line x1="20" y1="12" x2="20" y2="3" />
+      <line x1="1" y1="14" x2="7" y2="14" />
+      <line x1="9" y1="8" x2="15" y2="8" />
+      <line x1="17" y1="16" x2="23" y2="16" />
     </symbol>
-    <symbol id="icon-account-tree" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="6" height="6" rx="1"/>
-      <rect x="15" y="15" width="6" height="6" rx="1"/>
-      <rect x="3" y="15" width="6" height="6" rx="1"/>
-      <path d="M6 9v3a3 3 0 0 0 3 3h6"/>
-      <path d="M6 15v-3"/>
+    <symbol id="icon-account-tree" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="6" height="6" rx="1" />
+      <rect x="15" y="15" width="6" height="6" rx="1" />
+      <rect x="3" y="15" width="6" height="6" rx="1" />
+      <path d="M6 9v3a3 3 0 0 0 3 3h6" />
+      <path d="M6 15v-3" />
     </symbol>
-    <symbol id="icon-diff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8" x2="12" y2="16"/>
-      <line x1="8" y1="12" x2="16" y2="12"/>
+    <symbol id="icon-diff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="16" />
+      <line x1="8" y1="12" x2="16" y2="12" />
     </symbol>
-    <symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-      <polyline points="7 10 12 15 17 10"/>
-      <line x1="12" y1="15" x2="12" y2="3"/>
+    <symbol id="icon-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
     </symbol>
-    <symbol id="icon-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8" x2="12" y2="12"/>
-      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    <symbol id="icon-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="12" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
     </symbol>
-    <symbol id="icon-remove" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="8" y1="12" x2="16" y2="12"/>
+    <symbol id="icon-remove" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="8" y1="12" x2="16" y2="12" />
     </symbol>
   </svg>
 
@@ -1250,7 +1421,9 @@
       <div class="header-row-1">
         <div class="brand-group">
           <div class="brand-icon-tile">
-            <svg width="20" height="20"><use href="#icon-shield"/></svg>
+            <svg width="20" height="20">
+              <use href="#icon-shield" />
+            </svg>
           </div>
           <div class="brand-text-block">
             <span class="brand-title">Cedar Sentinel</span>
@@ -1271,10 +1444,14 @@
 
           <div class="run-selector-box">
             <span id="header-run-tag" class="run-tag">RUN</span>
-            <input id="run-filter-input" class="run-filter-input" type="text" placeholder="Filter runs..." style="display: none;" aria-label="Filter runs list">
+            <input id="run-filter-input" class="run-filter-input" type="text" placeholder="Filter runs..."
+              style="display: none;" aria-label="Filter runs list">
             <select id="run-select" class="run-select" aria-label="Select run to replay"></select>
-            <button id="btn-refresh-runs" class="btn-replay" style="display: none; padding: 4px 8px; border-radius: 4px;" title="Refresh runs list from local server">
-              <svg width="12" height="12"><use href="#icon-replay"/></svg>
+            <button id="btn-refresh-runs" class="btn-replay"
+              style="display: none; padding: 4px 8px; border-radius: 4px;" title="Refresh runs list from local server">
+              <svg width="12" height="12">
+                <use href="#icon-replay" />
+              </svg>
             </button>
           </div>
 
@@ -1284,7 +1461,9 @@
           </div>
 
           <button id="btn-replay-run" class="btn-replay" title="Replay recorded animation from cache">
-            <svg width="14" height="14"><use href="#icon-replay"/></svg>
+            <svg width="14" height="14">
+              <use href="#icon-replay" />
+            </svg>
             <span>Replay Run</span>
           </button>
         </div>
@@ -1310,8 +1489,11 @@
         <strong>[!] SYNTHETIC EXAMPLE</strong> — <span id="synthetic-note-text">crafted to demonstrate this state</span>
       </div>
       <div class="notice-bar">
-        <svg width="13" height="13" style="color: var(--primary); flex-shrink: 0;"><use href="#icon-terminal"/></svg>
-        <span id="notice-bar-text">run complete · fetched once · replaying recorded stage timings (each stage shown for at least 350 ms so it stays visible)</span>
+        <svg width="13" height="13" style="color: var(--primary); flex-shrink: 0;">
+          <use href="#icon-terminal" />
+        </svg>
+        <span id="notice-bar-text">run complete · fetched once · replaying recorded stage timings (each stage shown for
+          at least 350 ms so it stays visible)</span>
       </div>
     </div>
 
@@ -1323,7 +1505,9 @@
           <div class="hud-card-top">
             <div class="hud-title-group">
               <div class="hud-icon-tile primary">
-                <svg width="14" height="14"><use href="#icon-tune"/></svg>
+                <svg width="14" height="14">
+                  <use href="#icon-tune" />
+                </svg>
               </div>
               <span class="hud-title">ATTACK SURFACE POSTURE</span>
             </div>
@@ -1350,7 +1534,9 @@
           <div class="hud-card-top">
             <div class="hud-title-group">
               <div class="hud-icon-tile tertiary">
-                <svg width="14" height="14"><use href="#icon-security"/></svg>
+                <svg width="14" height="14">
+                  <use href="#icon-security" />
+                </svg>
               </div>
               <span class="hud-title">GUARD QUARANTINE</span>
             </div>
@@ -1377,7 +1563,9 @@
           <div class="hud-card-top">
             <div class="hud-title-group">
               <div class="hud-icon-tile primary">
-                <svg width="14" height="14"><use href="#icon-timer"/></svg>
+                <svg width="14" height="14">
+                  <use href="#icon-timer" />
+                </svg>
               </div>
               <span class="hud-title">PIPELINE LATENCY</span>
             </div>
@@ -1404,18 +1592,22 @@
           <div class="hud-card-top">
             <div class="hud-title-group">
               <div class="hud-icon-tile secondary">
-                <svg width="14" height="14"><use href="#icon-verified"/></svg>
+                <svg width="14" height="14">
+                  <use href="#icon-verified" />
+                </svg>
               </div>
               <span class="hud-title">SECURITY VERDICT</span>
             </div>
             <span id="hud-verdict-tag" class="hud-tag">APPLIED</span>
           </div>
           <div style="margin-bottom: 8px;">
-            <div style="font-family: var(--font-mono); font-size: 11px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px;">
+            <div
+              style="font-family: var(--font-mono); font-size: 11px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px;">
               <span style="color: var(--on-surface-variant);">Cedar Schema Validation</span>
               <span id="hud-cedar-val" style="font-weight: 700; color: var(--secondary);">PASS</span>
             </div>
-            <div style="font-family: var(--font-mono); font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
+            <div
+              style="font-family: var(--font-mono); font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
               <span style="color: var(--on-surface-variant);">IAM Access Analyzer</span>
               <span id="hud-anz-val" style="font-weight: 700; color: var(--secondary);">0 FINDINGS</span>
             </div>
@@ -1435,7 +1627,9 @@
     <section id="dag-section" class="dag-section" aria-label="Pipeline execution directed acyclic graph">
       <div class="dag-header">
         <div class="dag-title-block">
-          <svg width="18" height="18" style="color: var(--primary);"><use href="#icon-account-tree"/></svg>
+          <svg width="18" height="18" style="color: var(--primary);">
+            <use href="#icon-account-tree" />
+          </svg>
           <span class="dag-title">Execution Directed Acyclic Graph</span>
           <span class="dag-inspector-tag">INTERACTIVE STAGE INSPECTOR</span>
         </div>
@@ -1459,7 +1653,9 @@
           <button id="dag-node-1" class="dag-node" aria-label="Stage 1: Extract and publish">
             <div class="node-row-top">
               <div class="node-title-group">
-                <span id="node-icon-1" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span id="node-icon-1" class="node-status-icon done"><svg width="13" height="13">
+                    <use href="#icon-check" />
+                  </svg></span>
                 <span class="node-title">Stage 1: Extract &amp; publish</span>
               </div>
               <span id="node-dur-1" class="node-duration">not recorded</span>
@@ -1475,7 +1671,9 @@
           <button id="dag-node-2" class="dag-node" aria-label="Stage 2: Usage lookup">
             <div class="node-row-top">
               <div class="node-title-group">
-                <span id="node-icon-2" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span id="node-icon-2" class="node-status-icon done"><svg width="13" height="13">
+                    <use href="#icon-check" />
+                  </svg></span>
                 <span class="node-title">Stage 2: Usage lookup</span>
               </div>
               <span id="node-dur-2" class="node-duration">540ms</span>
@@ -1491,14 +1689,17 @@
           <button id="dag-node-3" class="dag-node" aria-label="Stage 3: Draft">
             <div class="node-row-top">
               <div class="node-title-group">
-                <span id="node-icon-3" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span id="node-icon-3" class="node-status-icon done"><svg width="13" height="13">
+                    <use href="#icon-check" />
+                  </svg></span>
                 <span class="node-title">Stage 3: Draft</span>
               </div>
               <span id="node-dur-3" class="node-duration">2.24s</span>
             </div>
             <div id="node-model-line-3" class="node-mono-line">bedrock:InvokeModel · apac.amazon.nova-lite-v1:0</div>
             <div class="node-footer-row">
-              <span id="node-guard-left-3" class="node-footer-left" style="color: var(--tertiary);">GUARD STRIPPED</span>
+              <span id="node-guard-left-3" class="node-footer-left" style="color: var(--tertiary);">GUARD
+                STRIPPED</span>
               <span id="node-chip-3" class="node-footer-right chip-tertiary">11 REMOVED</span>
             </div>
           </button>
@@ -1515,7 +1716,9 @@
           <button id="dag-node-4" class="dag-node" aria-label="Stage 4: Coverage check">
             <div class="node-row-top">
               <div class="node-title-group">
-                <span id="node-icon-4" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span id="node-icon-4" class="node-status-icon done"><svg width="13" height="13">
+                    <use href="#icon-check" />
+                  </svg></span>
                 <span class="node-title">Stage 4: Coverage check</span>
               </div>
               <span id="node-dur-4" class="node-duration">15ms</span>
@@ -1531,7 +1734,9 @@
           <button id="dag-node-5" class="dag-node" aria-label="Stage 5: Cedar validation">
             <div class="node-row-top">
               <div class="node-title-group">
-                <span id="node-icon-5" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span id="node-icon-5" class="node-status-icon done"><svg width="13" height="13">
+                    <use href="#icon-check" />
+                  </svg></span>
                 <span class="node-title">Stage 5: Cedar validation</span>
               </div>
               <span id="node-dur-5" class="node-duration">415ms</span>
@@ -1547,7 +1752,9 @@
           <button id="dag-node-6" class="dag-node" aria-label="Stage 6: IAM translation">
             <div class="node-row-top">
               <div class="node-title-group">
-                <span id="node-icon-6" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span id="node-icon-6" class="node-status-icon done"><svg width="13" height="13">
+                    <use href="#icon-check" />
+                  </svg></span>
                 <span class="node-title">Stage 6: IAM translation</span>
               </div>
               <span id="node-dur-6" class="node-duration">20ms</span>
@@ -1563,7 +1770,9 @@
           <button id="dag-node-7" class="dag-node" aria-label="Stage 7: Access Analyzer">
             <div class="node-row-top">
               <div class="node-title-group">
-                <span id="node-icon-7" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span id="node-icon-7" class="node-status-icon done"><svg width="13" height="13">
+                    <use href="#icon-check" />
+                  </svg></span>
                 <span class="node-title">Stage 7: Access Analyzer</span>
               </div>
               <span id="node-dur-7" class="node-duration">620ms</span>
@@ -1587,7 +1796,9 @@
           <button id="dag-node-8" class="dag-node" aria-label="Stage 8: Approval">
             <div class="node-row-top">
               <div class="node-title-group">
-                <span id="node-icon-8" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span id="node-icon-8" class="node-status-icon done"><svg width="13" height="13">
+                    <use href="#icon-check" />
+                  </svg></span>
                 <span class="node-title">Stage 8: Approval</span>
               </div>
               <span id="node-dur-8" class="node-duration">not recorded</span>
@@ -1603,7 +1814,9 @@
           <button id="dag-node-9" class="dag-node" aria-label="Stage 9: Apply & verify">
             <div class="node-row-top">
               <div class="node-title-group">
-                <span id="node-icon-9" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span id="node-icon-9" class="node-status-icon done"><svg width="13" height="13">
+                    <use href="#icon-check" />
+                  </svg></span>
                 <span class="node-title">Stage 9: Apply &amp; verify</span>
               </div>
               <span id="node-dur-9" class="node-duration">not recorded</span>
@@ -1619,7 +1832,9 @@
           <button id="dag-node-10" class="dag-node" aria-label="Stage 10: Audit record">
             <div class="node-row-top">
               <div class="node-title-group">
-                <span id="node-icon-10" class="node-status-icon done"><svg width="13" height="13"><use href="#icon-check"/></svg></span>
+                <span id="node-icon-10" class="node-status-icon done"><svg width="13" height="13">
+                    <use href="#icon-check" />
+                  </svg></span>
                 <span class="node-title">Stage 10: Audit record</span>
               </div>
               <span id="node-dur-10" class="node-duration">not recorded</span>
@@ -1644,9 +1859,12 @@
             <span class="pane-subtitle">Runtime CloudTrail delta comparison with Cedar semantic abstraction</span>
           </div>
           <div class="tablist-group" role="tablist">
-            <button id="tab-diff" class="tab-btn active" role="tab" aria-selected="true" aria-controls="view-diff">Side-by-Side IAM Diff</button>
-            <button id="tab-cedar" class="tab-btn" role="tab" aria-selected="false" aria-controls="view-cedar">Cedar Policy</button>
-            <button id="tab-stripped" class="tab-btn" role="tab" aria-selected="false" aria-controls="view-stripped">Stripped Actions (<span id="tab-stripped-count">0</span>)</button>
+            <button id="tab-diff" class="tab-btn active" role="tab" aria-selected="true"
+              aria-controls="view-diff">Side-by-Side IAM Diff</button>
+            <button id="tab-cedar" class="tab-btn" role="tab" aria-selected="false" aria-controls="view-cedar">Cedar
+              Policy</button>
+            <button id="tab-stripped" class="tab-btn" role="tab" aria-selected="false"
+              aria-controls="view-stripped">Stripped Actions (<span id="tab-stripped-count">0</span>)</button>
           </div>
         </div>
 
@@ -1672,13 +1890,17 @@
           <div id="guard-quarantine-box" class="guard-alert-box">
             <div class="guard-alert-top">
               <div class="guard-alert-title">
-                <svg width="15" height="15"><use href="#icon-remove"/></svg>
-                <span id="guard-alert-heading">[!] 11 Actions Removed by Deterministic Guard (not observed in CloudTrail)</span>
+                <svg width="15" height="15">
+                  <use href="#icon-remove" />
+                </svg>
+                <span id="guard-alert-heading">[!] 11 Actions Removed by Deterministic Guard (not observed in
+                  CloudTrail)</span>
               </div>
               <span class="guard-alert-badge">QUARANTINE APPLIED</span>
             </div>
             <div class="guard-alert-desc">
-              Actions in the model's draft that were never observed in the CloudTrail lookback window (7 days) were removed prior to IAM translation.
+              Actions in the model's draft that were never observed in the CloudTrail lookback window (7 days) were
+              removed prior to IAM translation.
             </div>
             <div id="guard-chips-container" class="guard-chips-wrap"></div>
           </div>
@@ -1688,11 +1910,14 @@
         <div id="view-cedar" class="tab-view" style="display: none;">
           <div class="info-card" style="margin-bottom: 12px;">
             <div class="info-card-title">CEDAR POLICY (SCHEMA-VALIDATED VIA AMAZON VERIFIED PERMISSIONS)</div>
-            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Post-guard Cedar policy (schema-validated via Amazon Verified Permissions) registering verified permit statements.</div>
-            <div id="cedar-policy-code" class="code-diff-scroll" style="max-height: 420px; color: var(--on-surface);"></div>
+            <div style="font-size: 11px; color: var(--outline); margin-bottom: 6px;">Post-guard Cedar policy
+              (schema-validated via Amazon Verified Permissions) registering verified permit statements.</div>
+            <div id="cedar-policy-code" class="code-diff-scroll" style="max-height: 420px; color: var(--on-surface);">
+            </div>
           </div>
           <div class="notice-bar">
-            <span>Cedar schema validation (STRICT): <strong id="cedar-view-status" style="color: var(--secondary);">PASS</strong> · Mode STRICT schema isolation</span>
+            <span>Cedar schema validation (STRICT): <strong id="cedar-view-status"
+                style="color: var(--secondary);">PASS</strong> · Mode STRICT schema isolation</span>
           </div>
         </div>
 
@@ -1700,9 +1925,16 @@
         <div id="view-stripped" class="tab-view" style="display: none;">
           <div class="info-card">
             <div class="info-card-title">UNOBSERVED ACTIONS REMOVED BY GUARD</div>
-            <div style="font-size: 11px; color: var(--outline); margin-bottom: 10px;">The following actions appeared in Bedrock's initial synthesis but were absent from CloudTrail baseline activity and were pruned:</div>
+            <div style="font-size: 11px; color: var(--outline); margin-bottom: 10px;">The following actions appeared in
+              Bedrock's initial synthesis but were absent from CloudTrail baseline activity and were pruned:</div>
             <table class="table-mini">
-              <thead><tr><th>Action</th><th style="text-align: right;">Lookback Activity</th><th style="text-align: center;">Guard Decision</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th style="text-align: right;">Lookback Activity</th>
+                  <th style="text-align: center;">Guard Decision</th>
+                </tr>
+              </thead>
               <tbody id="stripped-table-body"></tbody>
             </table>
           </div>
@@ -1713,7 +1945,9 @@
       <div id="telemetry-section" class="workbench-right">
         <div class="telemetry-header">
           <div class="telemetry-title-group">
-            <svg width="18" height="18" style="color: var(--primary);"><use href="#icon-diff"/></svg>
+            <svg width="18" height="18" style="color: var(--primary);">
+              <use href="#icon-diff" />
+            </svg>
             <div>
               <div class="telemetry-title">Stage Telemetry &amp; Audit</div>
               <div class="telemetry-subtitle">Recorded telemetry for the selected stage</div>
@@ -1725,8 +1959,11 @@
         <!-- Target Role Info Card (Always Shown) -->
         <div class="info-card">
           <div class="info-card-title">SANITIZED TARGET ROLE ARN</div>
-          <div id="telemetry-role-arn" style="font-family: var(--font-mono); font-size: 11px; color: var(--primary); margin-bottom: 4px; overflow-wrap: anywhere;">arn:aws:iam::<ACCOUNT_ID>:role/...</div>
-          <div style="font-family: var(--font-mono); font-size: 10px; color: var(--outline);">Account: &lt;ACCOUNT_ID&gt; (sanitized)</div>
+          <div id="telemetry-role-arn"
+            style="font-family: var(--font-mono); font-size: 11px; color: var(--primary); margin-bottom: 4px; overflow-wrap: anywhere;">
+            arn:aws:iam::<ACCOUNT_ID>:role/...</div>
+          <div style="font-family: var(--font-mono); font-size: 10px; color: var(--outline);">Account:
+            &lt;ACCOUNT_ID&gt; (sanitized)</div>
         </div>
 
         <!-- Dynamic Stage Body Card -->
@@ -1738,20 +1975,27 @@
         <div id="telemetry-audit-card" class="info-card">
           <div class="info-card-title">PERSISTENT AVP AUDIT STORE</div>
           <div style="font-family: var(--font-mono); font-size: 11px; line-height: 1.5;">
-            <div>Policy Store: <span id="audit-store-id" style="color: var(--on-surface);">&lt;AVP_STORE_ID&gt;</span></div>
-            <div>Audit Status: <span id="audit-record-status" style="color: var(--secondary); font-weight: 700;">RECORDED &amp; PERSISTED</span></div>
-            <div>Run Completed: <span id="audit-completed-at" style="color: var(--outline);">2026-09-19T14:34:49Z</span></div>
+            <div>Policy Store: <span id="audit-store-id" style="color: var(--on-surface);">&lt;AVP_STORE_ID&gt;</span>
+            </div>
+            <div>Audit Status: <span id="audit-record-status"
+                style="color: var(--secondary); font-weight: 700;">RECORDED &amp; PERSISTED</span></div>
+            <div>Run Completed: <span id="audit-completed-at" style="color: var(--outline);">2026-09-19T14:34:49Z</span>
+            </div>
             <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--surface-container-high);">
               <div style="font-size: 10px; color: var(--outline);">Run File SHA-256 (computed in browser):</div>
-              <div id="audit-file-sha" style="font-size: 10px; color: var(--primary); overflow-wrap: anywhere;">calculating...</div>
-              <div style="font-size: 9px; color: var(--outline);">checksum of this recorded-run file (computed in your browser) — not an AWS audit seal</div>
+              <div id="audit-file-sha" style="font-size: 10px; color: var(--primary); overflow-wrap: anywhere;">
+                calculating...</div>
+              <div style="font-size: 9px; color: var(--outline);">checksum of this recorded-run file (computed in your
+                browser) — not an AWS audit seal</div>
             </div>
           </div>
         </div>
 
         <!-- Download JSON Button -->
         <button id="btn-download-run-json" class="btn-download-json" title="Download sanitized recorded run JSON">
-          <svg width="15" height="15"><use href="#icon-download"/></svg>
+          <svg width="15" height="15">
+            <use href="#icon-download" />
+          </svg>
           <span>Download Run JSON</span>
         </button>
       </div>
@@ -1761,7 +2005,9 @@
     <section id="cloudtrail-section" class="cloudtrail-section" aria-label="CloudTrail Log Intelligence">
       <div class="cloudtrail-header">
         <div class="dag-title-block">
-          <svg width="18" height="18" style="color: var(--primary);"><use href="#icon-tune"/></svg>
+          <svg width="18" height="18" style="color: var(--primary);">
+            <use href="#icon-tune" />
+          </svg>
           <span class="dag-title">CloudTrail Log Intelligence</span>
           <span class="dag-inspector-tag">OBSERVED PRINCIPAL ACTIVITY</span>
         </div>
@@ -1772,7 +2018,8 @@
         <span>Window: <strong>7 days</strong></span>
         <span>Total Invocations: <strong id="ct-total-calls">0</strong></span>
         <span>Distinct Actions: <strong id="ct-distinct-actions">0</strong></span>
-        <span style="color: var(--outline);">Note: S3 object-level actions appear only if S3 data events are enabled for the bucket — see docs/limitations-and-mitigations.md</span>
+        <span style="color: var(--outline);">Note: S3 object-level actions appear only if S3 data events are enabled for
+          the bucket — see docs/limitations-and-mitigations.md</span>
       </div>
 
       <div class="ct-table-wrap">
@@ -1795,7 +2042,8 @@
 
       <div class="info-card">
         <div class="info-card-title">CLOUDWATCH LOGS INSIGHTS QUERY (TEMPLATE)</div>
-        <div style="font-size: 10px; color: var(--outline); margin-bottom: 6px;">query template — role ARN substituted at runtime</div>
+        <div style="font-size: 10px; color: var(--outline); margin-bottom: 6px;">query template — role ARN substituted
+          at runtime</div>
         <pre class="code-box" style="font-size: 11px;">fields @timestamp, eventName, eventSource
 | filter eventSource in ["s3.amazonaws.com", "dynamodb.amazonaws.com", "sqs.amazonaws.com", "logs.amazonaws.com", "ec2.amazonaws.com"]
 | filter userIdentity.sessionContext.sessionIssuer.arn = "&lt;ROLE_ARN&gt;"
@@ -1808,1242 +2056,1256 @@
     <!-- Footer -->
     <footer class="dashboard-footer">
       <div class="footer-left">
-        <svg width="14" height="14" style="color: var(--primary);"><use href="#icon-shield"/></svg>
+        <svg width="14" height="14" style="color: var(--primary);">
+          <use href="#icon-shield" />
+        </svg>
         <span>Cedar Sentinel · First Commit · Ship It · recorded runs, read-only</span>
       </div>
       <div style="color: var(--secondary);">
         <span>Cedar schema validation: STRICT</span>
-   <!-- JavaScript Logic: Single-File Replay & Binding with Live Mode Auto-Detection -->
+      </div>
+    </footer>
+  </main>
+
+  <!-- JavaScript Logic: Single-File Replay & Binding with Live Mode Auto-Detection -->
   <script>
-    // State Variables
-    const runCache = new Map();
-    let currentManifest = [];
-    let currentRunData = null;
-    let currentRunMeta = null;
-    let currentActiveStageIndex = 9; // Default to Stage 10 (inspecting)
-    let animationTimer = null;
-    let pollingTimeout = null;
-    let isReplayRunning = false;
-    let isLiveMode = false;
-    let liveServerHealth = null;
-    let isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          // State Variables
+          const runCache = new Map();
+          let currentManifest = [];
+          let currentRunData = null;
+          let currentRunMeta = null;
+          let currentActiveStageIndex = 9; // Default to Stage 10 (inspecting)
+          let animationTimer = null;
+          let pollingTimeout = null;
+          let isReplayRunning = false;
+          let isLiveMode = false;
+          let liveServerHealth = null;
+          let isReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Stage Metadata
-    const STAGES_META = [
-      { num: 1, title: "Extract & publish", api: "events:PutEvents → sqs → Lambda", timingKey: null },
-      { num: 2, title: "Usage lookup", api: "logs:StartQuery / logs:GetQueryResults", timingKey: "cloudwatch_query" },
-      { num: 3, title: "Draft", api: "bedrock:InvokeModel", timingKey: "bedrock_call" },
-      { num: 4, title: "Coverage check", api: "in-Lambda · all observed covered", timingKey: "coverage_check" },
-      { num: 5, title: "Cedar validation", api: "verifiedpermissions:PutSchema · STRICT", timingKey: "cedar_validation" },
-      { num: 6, title: "IAM translation", api: "in-Lambda · AST compilation", timingKey: "iam_translation" },
-      { num: 7, title: "Access Analyzer", api: "access-analyzer:ValidatePolicy / CheckNoNewAccess", timingKey: "analyzer_validation" },
-      { num: 8, title: "Approval", api: "CLI prompt · human operator", timingKey: null, isCli: true },
-      { num: 9, title: "Apply & verify", api: "iam:PutRolePolicy · read-back", timingKey: null, isCli: true },
-      { num: 10, title: "Audit record", api: "verifiedpermissions:CreatePolicy · persistent store", timingKey: null, isCli: true }
-    ];
+          // Stage Metadata
+          const STAGES_META = [
+            { num: 1, title: "Extract & publish", api: "events:PutEvents → sqs → Lambda", timingKey: null },
+            { num: 2, title: "Usage lookup", api: "logs:StartQuery / logs:GetQueryResults", timingKey: "cloudwatch_query" },
+            { num: 3, title: "Draft", api: "bedrock:InvokeModel", timingKey: "bedrock_call" },
+            { num: 4, title: "Coverage check", api: "in-Lambda · all observed covered", timingKey: "coverage_check" },
+            { num: 5, title: "Cedar validation", api: "verifiedpermissions:PutSchema · STRICT", timingKey: "cedar_validation" },
+            { num: 6, title: "IAM translation", api: "in-Lambda · AST compilation", timingKey: "iam_translation" },
+            { num: 7, title: "Access Analyzer", api: "access-analyzer:ValidatePolicy / CheckNoNewAccess", timingKey: "analyzer_validation" },
+            { num: 8, title: "Approval", api: "CLI prompt · human operator", timingKey: null, isCli: true },
+            { num: 9, title: "Apply & verify", api: "iam:PutRolePolicy · read-back", timingKey: null, isCli: true },
+            { num: 10, title: "Audit record", api: "verifiedpermissions:CreatePolicy · persistent store", timingKey: null, isCli: true }
+          ];
 
-    // Helper functions for policy parsing
-    function parsePolicy(policy) {
-      if (!policy) return null;
-      if (typeof policy === 'object') return policy;
-      try { return JSON.parse(policy); } catch (e) { return null; }
-    }
-
-    function countActionsInPolicy(policy) {
-      const obj = parsePolicy(policy);
-      if (!obj || !Array.isArray(obj.Statement)) return 0;
-      const acts = new Set();
-      for (const st of obj.Statement) {
-        if (!st) continue;
-        const a = st.Action;
-        if (typeof a === 'string') acts.add(a);
-        else if (Array.isArray(a)) a.forEach(x => acts.add(x));
-      }
-      return acts.size;
-    }
-
-    function countWildcardsInPolicy(policy) {
-      const obj = parsePolicy(policy);
-      if (!obj || !Array.isArray(obj.Statement)) return 0;
-      let count = 0;
-      for (const st of obj.Statement) {
-        if (!st) continue;
-        const a = st.Action;
-        if (typeof a === 'string' && a.includes('*')) count++;
-        else if (Array.isArray(a)) count += a.filter(x => typeof x === 'string' && x.includes('*')).length;
-      }
-      return count;
-    }
-
-    function getStageTimingsMap(data) {
-      const map = {};
-      if (Array.isArray(data.stage_timings)) {
-        for (const t of data.stage_timings) {
-          if (t && t.stage && t.start !== undefined && t.end !== undefined) {
-            map[t.stage] = Math.round(t.end - t.start);
+          // Helper functions for policy parsing
+          function parsePolicy(policy) {
+            if (!policy) return null;
+            if (typeof policy === 'object') return policy;
+            try { return JSON.parse(policy); } catch (e) { return null; }
           }
-        }
-      }
-      return map;
-    }
 
-    function getTotalLambdaDuration(data) {
-      let total = 0;
-      if (Array.isArray(data.stage_timings)) {
-        for (const t of data.stage_timings) {
-          if (t && t.start !== undefined && t.end !== undefined) {
-            total += Math.round(t.end - t.start);
-          }
-        }
-      }
-      return total;
-    }
-
-    function getBlockedActionsList(data) {
-      if (data.coverage_check && data.coverage_check.blocked_actions) {
-        const b = data.coverage_check.blocked_actions;
-        if (Array.isArray(b)) return b;
-        if (typeof b === 'string') {
-          try { return JSON.parse(b); } catch (e) { return [b]; }
-        }
-      }
-      return [];
-    }
-
-    // Compute SHA-256 of run JSON using native browser crypto.subtle
-    async function computeRunSha256(rawText) {
-      try {
-        const msgUint8 = new TextEncoder().encode(rawText);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        return `sha256:${hashHex}`;
-      } catch (e) {
-        return "sha256:not-available";
-      }
-    }
-
-    // Compute Stage Statuses per Status Matrix
-    function computeStageStates(status, data) {
-      const s = (status || "").toUpperCase();
-      const timings = getStageTimingsMap(data);
-      const res = [];
-
-      function getTimingStr(key) {
-        if (!key || timings[key] === undefined) return "not recorded";
-        const ms = timings[key];
-        return ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms}ms`;
-      }
-
-      if (s === "PROCESSING") {
-        for (let i = 1; i <= 10; i++) {
-          res.push({
-            state: "muted",
-            duration: "not recorded",
-            chipText: "—",
-            chipClass: "chip-muted",
-            reached: false,
-            detail: "run still processing — waiting for Lambda completion..."
-          });
-        }
-        return res;
-      }
-
-      // Stage 1 - 7 default done
-      const obsCount = data.observed_actions ? Object.keys(data.observed_actions).length : 0;
-      const reqCount = countActionsInPolicy(data.requested_policy);
-      const guardRemoved = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions.length : 0;
-      const mappingsCount = data.action_mappings_applied ? Object.keys(data.action_mappings_applied).length : 0;
-      const findingsCount = (data.analyzer_validation && Array.isArray(data.analyzer_validation.findings)) ? data.analyzer_validation.findings.length : 0;
-
-      let s1_7 = [
-        { state: "done", duration: "not recorded", chipText: `${reqCount} ACTIONS`, chipClass: "chip-green", reached: true },
-        { state: "done", duration: getTimingStr("cloudwatch_query"), chipText: `${obsCount} ACTIONS`, chipClass: "chip-green", reached: true },
-        { state: "done", duration: getTimingStr("bedrock_call"), chipText: `${guardRemoved} REMOVED`, chipClass: guardRemoved > 0 ? "chip-tertiary" : "chip-green", reached: true },
-        { state: "done", duration: getTimingStr("coverage_check"), chipText: "100% COVERED", chipClass: "chip-green", reached: true },
-        { state: "done", duration: getTimingStr("cedar_validation"), chipText: "VALID", chipClass: "chip-green", reached: true },
-        { state: "done", duration: getTimingStr("iam_translation"), chipText: `${mappingsCount} MAPPINGS`, chipClass: "chip-green", reached: true },
-        { state: "done", duration: getTimingStr("analyzer_validation"), chipText: `${findingsCount} FINDINGS`, chipClass: "chip-green", reached: true }
-      ];
-
-      // Handle failures in 1-7
-      if (s === "BLOCKED") {
-        s1_7[3] = { state: "blocked", duration: getTimingStr("coverage_check"), chipText: "BLOCKED", chipClass: "chip-red", reached: true };
-        for (let i = 4; i < 7; i++) s1_7[i] = { state: "muted", duration: "not recorded", chipText: "SKIPPED", chipClass: "chip-muted", reached: false };
-      } else if (s === "CEDAR_INVALID") {
-        s1_7[4] = { state: "failed", duration: getTimingStr("cedar_validation"), chipText: "INVALID", chipClass: "chip-red", reached: true };
-        for (let i = 5; i < 7; i++) s1_7[i] = { state: "muted", duration: "not recorded", chipText: "SKIPPED", chipClass: "chip-muted", reached: false };
-      } else if (s === "ANALYZER_INVALID") {
-        s1_7[6] = { state: "failed", duration: getTimingStr("analyzer_validation"), chipText: "REJECTED", chipClass: "chip-red", reached: true };
-      } else if (s === "ERROR") {
-        const lastStage = timings["bedrock_call"] ? 3 : (timings["cloudwatch_query"] ? 2 : 1);
-        for (let i = lastStage; i < 7; i++) {
-          if (i === lastStage) {
-            s1_7[i] = { state: "failed", duration: "failed", chipText: "ERROR", chipClass: "chip-red", reached: true };
-          } else {
-            s1_7[i] = { state: "muted", duration: "not recorded", chipText: "SKIPPED", chipClass: "chip-muted", reached: false };
-          }
-        }
-      }
-
-      // Stages 8 - 10
-      let s8 = { state: "muted", duration: "not recorded", chipText: "NOT REACHED", chipClass: "chip-muted", reached: false };
-      let s9 = { state: "muted", duration: "not recorded", chipText: "NOT REACHED", chipClass: "chip-muted", reached: false };
-      let s10 = { state: "muted", duration: "not recorded", chipText: "NOT REACHED", chipClass: "chip-muted", reached: false };
-
-      if (s === "APPLIED") {
-        s8 = { state: "done", duration: "not recorded", chipText: "APPROVED", chipClass: "chip-green", reached: true };
-        s9 = { state: "done", duration: "not recorded", chipText: "VERIFIED", chipClass: "chip-green", reached: true };
-        s10 = { state: "done", duration: "not recorded", chipText: data.audit_failed ? "AUDIT FAILED" : "RECORDED", chipClass: data.audit_failed ? "chip-red" : "chip-green", reached: true };
-      } else if (s === "COMPLETE") {
-        s8 = { state: "warning", duration: "not recorded", chipText: "AWAITING", chipClass: "chip-muted", reached: true };
-      } else if (s === "DECLINED") {
-        s8 = { state: "declined", duration: "not recorded", chipText: "DECLINED", chipClass: "chip-tertiary", reached: true };
-      } else if (s === "APPLIED_UNVERIFIED") {
-        s8 = { state: "done", duration: "not recorded", chipText: "APPROVED", chipClass: "chip-green", reached: true };
-        s9 = { state: "warning", duration: "not recorded", chipText: "UNVERIFIED", chipClass: "chip-tertiary", reached: true };
-      } else if (s === "APPLY_FAILED") {
-        s8 = { state: "done", duration: "not recorded", chipText: "APPROVED", chipClass: "chip-green", reached: true };
-        s9 = { state: "failed", duration: "not recorded", chipText: "FAILED", chipClass: "chip-red", reached: true };
-      }
-
-      res.push(...s1_7, s8, s9, s10);
-      return res;
-    }
-
-    // Populate HUD Cards
-    function populateHud(data, status) {
-      const s = (status || "").toUpperCase();
-      const obsMap = data.observed_actions || {};
-      const obsCount = Object.keys(obsMap).length;
-      const reqCount = countActionsInPolicy(data.requested_policy);
-      const tightCount = countActionsInPolicy(data.iam_policy);
-      const wildcardsCount = countWildcardsInPolicy(data.requested_policy);
-      const guardRemovedList = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions : [];
-      const totalDurMs = getTotalLambdaDuration(data);
-      const timings = getStageTimingsMap(data);
-
-      // HUD 1: Attack Surface Posture
-      document.getElementById('hud-obs-count').textContent = obsCount;
-      document.getElementById('hud-obs-subline').textContent = `Requested plan: ${reqCount} entries (${wildcardsCount} wildcard) → applied policy: ${tightCount} actions`;
-      document.getElementById('hud-wildcards-chip').textContent = `wildcards removed: ${wildcardsCount}`;
-      document.getElementById('hud-baseline-caption').textContent = `Baseline: ${reqCount} entries`;
-
-      // HUD 2: Guard Quarantine
-      document.getElementById('hud-guard-count').textContent = guardRemovedList.length;
-      const guardChip = document.getElementById('hud-guard-chip');
-      if (guardRemovedList.length > 0) {
-        guardChip.textContent = `${guardRemovedList.length} removed`;
-        guardChip.className = "hud-footer-chip chip-tertiary";
-      } else {
-        guardChip.textContent = "guard made no changes";
-        guardChip.className = "hud-footer-chip chip-muted";
-      }
-
-      // HUD 3: Pipeline Latency
-      const secStr = (totalDurMs / 1000).toFixed(2);
-      document.getElementById('hud-latency-num').textContent = `${secStr}s`;
-      const stagesConfig = computeStageStates(status, data);
-      const reachedCount = stagesConfig.filter(x => x.reached).length;
-      document.getElementById('hud-stages-tag').textContent = `${reachedCount}/10 STAGES`;
-      
-      const failedStage = stagesConfig.find(x => x.state === "failed" || x.state === "blocked");
-      const stagesOkChip = document.getElementById('hud-stages-ok-chip');
-      if (failedStage) {
-        stagesOkChip.textContent = `${s} at Stage ${stagesConfig.indexOf(failedStage) + 1}`;
-        stagesOkChip.className = "hud-footer-chip chip-red";
-      } else {
-        stagesOkChip.textContent = `${reachedCount}/10 Stages OK`;
-        stagesOkChip.className = "hud-footer-chip chip-green";
-      }
-      const llmMs = timings["bedrock_call"] || 0;
-      document.getElementById('hud-llm-latency').textContent = `LLM: ${(llmMs / 1000).toFixed(2)}s`;
-
-      // HUD 4: Security Verdict
-      document.getElementById('hud-verdict-tag').textContent = s;
-      const cedarPassed = data.cedar_validation ? data.cedar_validation.passed : true;
-      const cedarValEl = document.getElementById('hud-cedar-val');
-      cedarValEl.textContent = data.cedar_validation ? (cedarPassed ? "PASS" : "FAIL") : "—";
-      cedarValEl.style.color = cedarPassed ? "var(--secondary)" : "var(--error)";
-
-      const anzPassed = data.analyzer_validation ? data.analyzer_validation.passed : true;
-      const anzValEl = document.getElementById('hud-anz-val');
-      const findings = (data.analyzer_validation && Array.isArray(data.analyzer_validation.findings)) ? data.analyzer_validation.findings.length : 0;
-      anzValEl.textContent = data.analyzer_validation ? (anzPassed ? `${findings} FINDINGS` : "NEW ACCESS") : "—";
-      anzValEl.style.color = anzPassed ? "var(--secondary)" : "var(--error)";
-
-      const verdictTextEl = document.getElementById('hud-verdict-text');
-      switch (s) {
-        case "APPLIED": verdictTextEl.textContent = "Enforced and verified"; verdictTextEl.className = "hud-footer-chip chip-green"; break;
-        case "COMPLETE": verdictTextEl.textContent = "Verified — not applied in this run"; verdictTextEl.className = "hud-footer-chip chip-green"; break;
-        case "DECLINED": verdictTextEl.textContent = "Declined — nothing applied"; verdictTextEl.className = "hud-footer-chip chip-tertiary"; break;
-        case "APPLIED_UNVERIFIED": verdictTextEl.textContent = "Applied, not verified — inspect role"; verdictTextEl.className = "hud-footer-chip chip-tertiary"; break;
-        case "BLOCKED": verdictTextEl.textContent = "Blocked — workload lockout prevented"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
-        case "CEDAR_INVALID": verdictTextEl.textContent = "Cedar validation rejected draft"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
-        case "ANALYZER_INVALID": verdictTextEl.textContent = "Access Analyzer rejected policy"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
-        case "APPLY_FAILED": verdictTextEl.textContent = "Apply failed"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
-        case "PROCESSING": verdictTextEl.textContent = "Run in progress…"; verdictTextEl.className = "hud-footer-chip chip-tertiary"; break;
-        default: verdictTextEl.textContent = s; verdictTextEl.className = "hud-footer-chip chip-muted"; break;
-      }
-
-      // Coverage %
-      const covPercentEl = document.getElementById('hud-coverage-percent');
-      if (obsCount > 0) {
-        const blockedList = getBlockedActionsList(data);
-        const coveredCount = obsCount - blockedList.length;
-        const pct = Math.round((coveredCount / obsCount) * 100);
-        covPercentEl.textContent = `${pct}% COVERAGE`;
-      } else {
-        covPercentEl.textContent = "100% COVERAGE";
-      }
-    }
-
-    // Populate Policy Diff and Tabs
-    function populateWorkbenchLeft(data, status) {
-      const s = (status || "").toUpperCase();
-      const reqObj = parsePolicy(data.requested_policy);
-      const iamObj = parsePolicy(data.iam_policy);
-
-      const reqCount = countActionsInPolicy(data.requested_policy);
-      const iamCount = countActionsInPolicy(data.iam_policy);
-
-      // Left column header & body
-      document.getElementById('diff-left-title').textContent = `ORIGINAL REQUESTED POLICY — ${reqCount} ACTIONS`;
-      document.getElementById('diff-left-body').textContent = reqObj ? JSON.stringify(reqObj, null, 2) : "(no requested policy recorded)";
-
-      // Right column header & body
-      const isApplied = s === "APPLIED";
-      document.getElementById('diff-right-title').textContent = isApplied 
-        ? `TIGHTENED IAM (STAGE 9 CONFIRMED) — ${iamCount} OBSERVED` 
-        : `TRANSLATED IAM (NOT APPLIED) — ${iamCount} ACTIONS`;
-      
-      if (iamObj) {
-        document.getElementById('diff-right-body').textContent = JSON.stringify(iamObj, null, 2);
-      } else {
-        document.getElementById('diff-right-body').textContent = s === "BLOCKED" 
-          ? "No IAM policy translated — pipeline blocked at Stage 4 (Coverage check)."
-          : (s === "CEDAR_INVALID" 
-            ? "No IAM policy translated — Cedar schema validation failed at Stage 5." 
-            : (s === "PROCESSING" ? "Run in progress… awaiting translation." : "(no translated policy available)"));
-      }
-
-      // Guard Quarantine Box
-      const guardRemovedList = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions : [];
-      document.getElementById('tab-stripped-count').textContent = guardRemovedList.length;
-      document.getElementById('guard-alert-heading').textContent = `[!] ${guardRemovedList.length} Actions Removed by Deterministic Guard (not observed in CloudTrail)`;
-      
-      const chipsContainer = document.getElementById('guard-chips-container');
-      chipsContainer.innerHTML = '';
-      if (guardRemovedList.length > 0) {
-        guardRemovedList.forEach(act => {
-          const span = document.createElement('span');
-          span.className = 'guard-action-chip';
-          const iconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-          iconSvg.setAttribute('width', '11');
-          iconSvg.setAttribute('height', '11');
-          iconSvg.style.color = 'var(--tertiary)';
-          const useEl = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-          useEl.setAttribute('href', '#icon-remove');
-          iconSvg.appendChild(useEl);
-          span.appendChild(iconSvg);
-          const textSpan = document.createElement('span');
-          textSpan.textContent = String(act);
-          span.appendChild(textSpan);
-          chipsContainer.appendChild(span);
-        });
-      } else {
-        const noneSpan = document.createElement('span');
-        noneSpan.style.color = 'var(--outline)';
-        noneSpan.style.fontSize = '11px';
-        noneSpan.textContent = 'None (all drafted actions were observed in CloudTrail baseline).';
-        chipsContainer.appendChild(noneSpan);
-      }
-
-      // Tab 2: Cedar Policy Code
-      const cedarText = data.cedar_policy || (s === "PROCESSING" ? "(run in progress…)" : "(no Cedar policy returned)");
-      document.getElementById('cedar-policy-code').textContent = cedarText;
-      const cedarValPassed = data.cedar_validation ? data.cedar_validation.passed : true;
-      const cedarStatusEl = document.getElementById('cedar-view-status');
-      cedarStatusEl.textContent = cedarValPassed ? "PASS" : "FAIL";
-      cedarStatusEl.style.color = cedarValPassed ? "var(--secondary)" : "var(--error)";
-
-      // Tab 3: Stripped Actions Table
-      const strippedTbody = document.getElementById('stripped-table-body');
-      strippedTbody.innerHTML = '';
-      if (guardRemovedList.length > 0) {
-        guardRemovedList.forEach(act => {
-          const tr = document.createElement('tr');
-          
-          const tdAct = document.createElement('td');
-          tdAct.style.color = 'var(--tertiary)';
-          tdAct.textContent = String(act);
-
-          const tdCalls = document.createElement('td');
-          tdCalls.style.textAlign = 'right';
-          tdCalls.style.color = 'var(--outline)';
-          tdCalls.textContent = '0 calls in 7d';
-
-          const tdStatus = document.createElement('td');
-          tdStatus.style.textAlign = 'center';
-          const chip = document.createElement('span');
-          chip.className = 'hud-footer-chip chip-tertiary';
-          chip.textContent = 'REMOVED';
-          tdStatus.appendChild(chip);
-
-          tr.appendChild(tdAct);
-          tr.appendChild(tdCalls);
-          tr.appendChild(tdStatus);
-          strippedTbody.appendChild(tr);
-        });
-      } else {
-        const tr = document.createElement('tr');
-        const td = document.createElement('td');
-        td.colSpan = 3;
-        td.style.color = 'var(--outline)';
-        td.style.textAlign = 'center';
-        td.style.padding = '12px';
-        td.textContent = 'No unobserved actions removed by the guard for this run.';
-        tr.appendChild(td);
-        strippedTbody.appendChild(tr);
-      }
-    }
-
-    // Populate CloudTrail Log Intelligence Section
-    function populateCloudTrailSection(data) {
-      const obsMap = data.observed_actions || {};
-      const entries = Object.entries(obsMap).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-      const totalCalls = entries.reduce((sum, curr) => sum + (Number(curr[1]) || 0), 0);
-      const distinctCount = entries.length;
-      const maxCount = entries.length > 0 ? Math.max(...entries.map(e => Number(e[1]) || 0)) : 1;
-
-      document.getElementById('ct-total-calls').textContent = totalCalls;
-      document.getElementById('ct-distinct-actions').textContent = distinctCount;
-
-      const mappings = data.action_mappings_applied || {};
-      const blockedList = getBlockedActionsList(data);
-      const tightObj = parsePolicy(data.iam_policy);
-      const tightActions = new Set();
-      if (tightObj && Array.isArray(tightObj.Statement)) {
-        tightObj.Statement.forEach(st => {
-          if (st && st.Action) {
-            if (typeof st.Action === 'string') tightActions.add(st.Action);
-            else if (Array.isArray(st.Action)) st.Action.forEach(x => tightActions.add(x));
-          }
-        });
-      }
-
-      const tbody = document.getElementById('cloudtrail-table-body');
-      tbody.innerHTML = '';
-
-      if (entries.length === 0) {
-        const tr = document.createElement('tr');
-        const td = document.createElement('td');
-        td.colSpan = 6;
-        td.style.textAlign = 'center';
-        td.style.color = 'var(--outline)';
-        td.style.padding = '16px';
-        td.textContent = 'No observed CloudTrail invocations recorded in 7-day lookback window.';
-        tr.appendChild(td);
-        tbody.appendChild(tr);
-        return;
-      }
-
-      entries.forEach(([act, count]) => {
-        const num = Number(count) || 0;
-        const pct = Math.max(Math.round((num / maxCount) * 100), 4);
-        const isBlocked = blockedList.includes(act);
-        const mappedTo = mappings[act] || (Object.entries(mappings).find(([k, v]) => v === act)?.[1]) || "—";
-        const isIncluded = tightActions.has(act) || (mappedTo !== "—" && tightActions.has(mappedTo));
-
-        const tr = document.createElement('tr');
-
-        const tdAct = document.createElement('td');
-        tdAct.style.fontWeight = '600';
-        tdAct.style.color = 'var(--on-surface)';
-        tdAct.textContent = String(act);
-
-        const tdNum = document.createElement('td');
-        tdNum.style.textAlign = 'right';
-        tdNum.style.color = 'var(--primary)';
-        tdNum.style.fontWeight = '700';
-        tdNum.textContent = String(num);
-
-        const tdBar = document.createElement('td');
-        const barWrap = document.createElement('div');
-        barWrap.className = 'prop-bar-container';
-        const barFill = document.createElement('div');
-        barFill.className = 'prop-bar-fill';
-        barFill.style.width = `${pct}%`;
-        barWrap.appendChild(barFill);
-        tdBar.appendChild(barWrap);
-
-        const tdStatus = document.createElement('td');
-        tdStatus.style.textAlign = 'center';
-        const statusChip = document.createElement('span');
-        statusChip.className = `hud-footer-chip ${isBlocked ? 'chip-red' : 'chip-green'}`;
-        statusChip.textContent = isBlocked ? '[✗] DROPPED' : '[✓] COVERED';
-        tdStatus.appendChild(statusChip);
-
-        const tdMap = document.createElement('td');
-        tdMap.style.color = mappedTo !== '—' ? 'var(--primary)' : 'var(--outline)';
-        tdMap.textContent = String(mappedTo);
-
-        const tdInc = document.createElement('td');
-        tdInc.style.textAlign = 'center';
-        const incChip = document.createElement('span');
-        incChip.className = `hud-footer-chip ${isIncluded ? 'chip-green' : 'chip-muted'}`;
-        incChip.textContent = isIncluded ? '[✓] INCLUDED' : '[—] EXCLUDED';
-        tdInc.appendChild(incChip);
-
-        tr.appendChild(tdAct);
-        tr.appendChild(tdNum);
-        tr.appendChild(tdBar);
-        tr.appendChild(tdStatus);
-        tr.appendChild(tdMap);
-        tr.appendChild(tdInc);
-
-        tbody.appendChild(tr);
-      });
-    }
-
-    // Populate Right Pane Inspector for Selected Stage
-    function renderStageInspector(stageIdx, data) {
-      currentActiveStageIndex = stageIdx;
-      const stageNum = stageIdx + 1;
-      const timings = getStageTimingsMap(data);
-
-      document.getElementById('dag-inspecting-chip').textContent = `● Inspecting: Stage ${stageNum}`;
-      document.getElementById('telemetry-stage-chip').textContent = `STAGE ${stageNum} DETAIL`;
-      document.getElementById('telemetry-role-arn').textContent = data.role_arn || "arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role";
-
-      // Highlight active node in DAG
-      document.querySelectorAll('.dag-node').forEach((node, idx) => {
-        node.classList.toggle('selected', idx === stageIdx);
-      });
-
-      const dynCard = document.getElementById('telemetry-dynamic-card');
-      dynCard.innerHTML = '';
-
-      const titleEl = document.createElement('div');
-      titleEl.className = 'info-card-title';
-      const descEl = document.createElement('div');
-      descEl.style.fontSize = '11px';
-      descEl.style.color = 'var(--outline)';
-      descEl.style.marginBottom = '6px';
-      const codeEl = document.createElement('pre');
-      codeEl.className = 'code-box';
-
-      switch (stageNum) {
-        case 1: { // Extract & publish
-          titleEl.textContent = 'STAGE 1: EXTRACT & PUBLISH (TERRAFORM PLAN)';
-          descEl.textContent = 'CLI parsed Terraform plan JSON and published analysis request to EventBridge → SQS.';
-          const req = data.requested_policy ? (typeof data.requested_policy === 'string' ? data.requested_policy : JSON.stringify(data.requested_policy, null, 2)) : "not recorded";
-          codeEl.textContent = req;
-          dynCard.appendChild(titleEl);
-          dynCard.appendChild(descEl);
-          dynCard.appendChild(codeEl);
-          break;
-        }
-
-        case 2: { // Usage lookup
-          const obsCount = data.observed_actions ? Object.keys(data.observed_actions).length : 0;
-          const dur = timings["cloudwatch_query"] ? `${timings["cloudwatch_query"]}ms` : "not recorded";
-          titleEl.textContent = 'STAGE 2: CLOUDWATCH LOGS INSIGHTS QUERY CONTEXT';
-          descEl.textContent = `Queried 7-day lookback window for assumed-role sessionIssuer ARN. Invocations matched: ${obsCount} distinct actions (latency: ${dur}).`;
-          codeEl.textContent = `Window: 7d lookback\nQuery Status: Complete\nTarget Role: ${data.role_arn || "<ROLE_ARN>"}`;
-          dynCard.appendChild(titleEl);
-          dynCard.appendChild(descEl);
-          dynCard.appendChild(codeEl);
-          break;
-        }
-
-        case 3: { // Draft
-          const model = data.model_used || "apac.amazon.nova-lite-v1:0";
-          const rationale = data.rationale || "not recorded";
-          const dur = timings["bedrock_call"] ? `${(timings["bedrock_call"] / 1000).toFixed(2)}s` : "not recorded";
-          const guardRemoved = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions.length : 0;
-
-          titleEl.textContent = 'STAGE 3: BEDROCK MODEL RATIONALE & GUARD';
-          descEl.innerHTML = `<div>Foundation Model: <strong style="color: var(--primary);">${escapeHtml(model)}</strong></div>` +
-                             `<div>Synthesis Latency: <strong>${escapeHtml(dur)}</strong></div>` +
-                             `<div>Deterministic Guard: <strong>${guardRemoved} unobserved actions stripped</strong></div>`;
-          
-          const ratTitle = document.createElement('div');
-          ratTitle.className = 'info-card-title';
-          ratTitle.style.marginTop = '8px';
-          ratTitle.textContent = 'MODEL RATIONALE:';
-
-          const ratBox = document.createElement('div');
-          ratBox.className = 'code-box';
-          ratBox.style.color = 'var(--on-surface)';
-          ratBox.style.fontStyle = 'italic';
-          ratBox.textContent = `"${rationale}"`;
-
-          dynCard.appendChild(titleEl);
-          dynCard.appendChild(descEl);
-          dynCard.appendChild(ratTitle);
-          dynCard.appendChild(ratBox);
-          break;
-        }
-
-        case 4: { // Coverage check
-          const covPassed = data.coverage_check ? data.coverage_check.passed : true;
-          const blocked = getBlockedActionsList(data);
-          titleEl.textContent = 'STAGE 4: COVERAGE & WORKLOAD SAFEGUARD';
-          descEl.innerHTML = `<div>Safeguard Verdict: <strong style="color: ${covPassed ? 'var(--secondary)' : 'var(--error)'};">${covPassed ? 'PASSED (100% COVERED)' : 'BLOCKED (DROPPED ACTIONS)'}</strong></div>`;
-          dynCard.appendChild(titleEl);
-          dynCard.appendChild(descEl);
-
-          if (blocked.length > 0) {
-            const bTitle = document.createElement('div');
-            bTitle.style.fontSize = '11px';
-            bTitle.style.color = 'var(--error)';
-            bTitle.style.marginTop = '4px';
-            bTitle.textContent = 'Blocked Actions:';
-            codeEl.style.color = 'var(--error)';
-            codeEl.textContent = JSON.stringify(blocked, null, 2);
-            dynCard.appendChild(bTitle);
-            dynCard.appendChild(codeEl);
-          } else {
-            const passMsg = document.createElement('div');
-            passMsg.style.fontSize = '11px';
-            passMsg.style.color = 'var(--secondary)';
-            passMsg.textContent = 'All observed CloudTrail actions remain covered by the synthesized permit statements.';
-            dynCard.appendChild(passMsg);
-          }
-          break;
-        }
-
-        case 5: { // Cedar validation
-          const val = data.cedar_validation || {};
-          const passed = val.passed !== false;
-          const msgs = Array.isArray(val.messages) ? val.messages : [];
-          titleEl.textContent = 'STAGE 5: CEDAR SCHEMA VALIDATION (STRICT)';
-          descEl.innerHTML = `<div>Mode: <strong>STRICT</strong></div>` +
-                             `<div>Validation Outcome: <strong style="color: ${passed ? 'var(--secondary)' : 'var(--error)'};">${passed ? 'PASS (SCHEMA VALID)' : 'FAIL (SCHEMA/SYNTAX ERROR)'}</strong></div>` +
-                             `<div style="font-size: 10px; color: var(--outline); margin-top: 4px;">The schema is generated from the draft's own actions, so this validates schema/syntax, not privilege escalation — Access Analyzer covers that.</div>`;
-          codeEl.style.color = passed ? 'var(--secondary)' : 'var(--error)';
-          codeEl.textContent = msgs.length > 0 ? msgs.join('\n') : "Schema validation succeeded with 0 errors.";
-          dynCard.appendChild(titleEl);
-          dynCard.appendChild(descEl);
-          dynCard.appendChild(codeEl);
-          break;
-        }
-
-        case 6: { // IAM translation
-          const mappings = data.action_mappings_applied ? JSON.stringify(data.action_mappings_applied, null, 2) : "{}";
-          const unmatched = Array.isArray(data.unmatched_actions) ? JSON.stringify(data.unmatched_actions, null, 2) : "[]";
-          titleEl.textContent = 'STAGE 6: CEDAR → IAM POLICY TRANSLATION';
-          descEl.textContent = 'Verified permit statements mapped to IAM Allow statements with action normalization.';
-
-          const mapTitle = document.createElement('div');
-          mapTitle.className = 'info-card-title';
-          mapTitle.style.marginTop = '6px';
-          mapTitle.textContent = 'ACTION MAPPINGS (CLOUDTRAIL → IAM):';
-
-          const mapBox = document.createElement('pre');
-          mapBox.className = 'code-box';
-          mapBox.textContent = mappings;
-
-          const unTitle = document.createElement('div');
-          unTitle.className = 'info-card-title';
-          unTitle.style.marginTop = '6px';
-          unTitle.textContent = 'UNMATCHED ACTIONS (EXCLUDED WITHOUT WIDENING):';
-
-          const unBox = document.createElement('pre');
-          unBox.className = 'code-box';
-          unBox.textContent = unmatched;
-
-          dynCard.appendChild(titleEl);
-          dynCard.appendChild(descEl);
-          dynCard.appendChild(mapTitle);
-          dynCard.appendChild(mapBox);
-          dynCard.appendChild(unTitle);
-          dynCard.appendChild(unBox);
-          break;
-        }
-
-        case 7: { // Access Analyzer
-          const anz = data.analyzer_validation || {};
-          const passed = anz.passed !== false;
-          const findings = Array.isArray(anz.findings) ? JSON.stringify(anz.findings, null, 2) : "[]";
-          const noNew = anz.check_no_new_access ? JSON.stringify(anz.check_no_new_access, null, 2) : "PASS";
-
-          titleEl.textContent = 'STAGE 7: IAM ACCESS ANALYZER INDEPENDENT SAFETY NET';
-          descEl.innerHTML = `<div>Validation: <strong style="color: ${passed ? 'var(--secondary)' : 'var(--error)'};">${passed ? 'PASS (0 BLOCKING FINDINGS)' : 'FAILED'}</strong></div>`;
-
-          const findTitle = document.createElement('div');
-          findTitle.className = 'info-card-title';
-          findTitle.textContent = 'VALIDATEPOLICY FINDINGS:';
-          const findBox = document.createElement('pre');
-          findBox.className = 'code-box';
-          findBox.textContent = findings;
-
-          const noNewTitle = document.createElement('div');
-          noNewTitle.className = 'info-card-title';
-          noNewTitle.style.marginTop = '6px';
-          noNewTitle.textContent = 'CHECK_NO_NEW_ACCESS RESULT:';
-          const noNewBox = document.createElement('pre');
-          noNewBox.className = 'code-box';
-          noNewBox.textContent = noNew;
-
-          dynCard.appendChild(titleEl);
-          dynCard.appendChild(descEl);
-          dynCard.appendChild(findTitle);
-          dynCard.appendChild(findBox);
-          dynCard.appendChild(noNewTitle);
-          dynCard.appendChild(noNewBox);
-          break;
-        }
-
-        case 8: { // Approval
-          const isApproved = data.status === "APPLIED" || data.status === "APPLIED_UNVERIFIED" || data.status === "APPLY_FAILED";
-          const isDeclined = data.status === "DECLINED";
-          titleEl.textContent = 'STAGE 8: CLI OPERATOR APPROVAL';
-          descEl.textContent = 'Approval is CLI-only. The dashboard is strictly read-only.';
-          codeEl.textContent = `$ cedar-sentinel analyze --apply\nReview tightened policy diff above.\nApply to role arn:aws:iam::<ACCOUNT_ID>:role/... ? [y/N]: ${isApproved ? 'y' : (isDeclined ? 'n' : '[waiting]')}\n\nOutcome: ${isApproved ? 'APPROVED' : (isDeclined ? 'DECLINED' : 'AWAITING DECISION')}`;
-          dynCard.appendChild(titleEl);
-          dynCard.appendChild(descEl);
-          dynCard.appendChild(codeEl);
-          break;
-        }
-
-        case 9: { // Apply & verify
-          titleEl.textContent = 'STAGE 9: IAM PUTROLEPOLICY & READ-BACK';
-          descEl.textContent = 'Atomic IAM enforcement lifecycle:';
-          codeEl.textContent = `1. iam:GetRolePolicy (snapshot before-policy)\n2. iam:PutRolePolicy (write tightened policy)\n3. iam:GetRolePolicy (read-back verification confirmed)`;
-          dynCard.appendChild(titleEl);
-          dynCard.appendChild(descEl);
-          dynCard.appendChild(codeEl);
-          break;
-        }
-
-        case 10: { // Audit record
-          titleEl.textContent = 'STAGE 10: PERSISTENT AVP AUDIT LOGGING';
-          descEl.textContent = 'Cedar policy + AI rationale persisted into the persistent Amazon Verified Permissions audit policy store.';
-          codeEl.textContent = `Store: <AVP_STORE_ID>\nAction: verifiedpermissions:CreatePolicy\nPrefix: [request_id: ${data.request_id || "not recorded"}]\nAudit Record: PERSISTED`;
-          dynCard.appendChild(titleEl);
-          dynCard.appendChild(descEl);
-          dynCard.appendChild(codeEl);
-          break;
-        }
-      }
-    }
-
-    // Replay Animation Sequence
-    function replayAnimation(data, status) {
-      if (animationTimer) {
-        clearTimeout(animationTimer);
-        animationTimer = null;
-      }
-
-      isReplayRunning = true;
-      const headerStatusPill = document.getElementById('header-status-pill');
-      headerStatusPill.classList.add('animating');
-
-      const stageStates = computeStageStates(status, data);
-      const timings = getStageTimingsMap(data);
-
-      // Reset DAG nodes
-      for (let i = 0; i < 10; i++) {
-        const num = i + 1;
-        const node = document.getElementById(`dag-node-${num}`);
-        const icon = document.getElementById(`node-icon-${num}`);
-        const dur = document.getElementById(`node-dur-${num}`);
-        const chip = document.getElementById(`node-chip-${num}`);
-
-        node.disabled = true;
-        node.classList.remove('selected');
-        icon.className = 'node-status-icon muted';
-        icon.innerHTML = '<span style="font-size: 10px;">—</span>';
-        dur.textContent = 'waiting...';
-        chip.textContent = '—';
-        chip.className = 'node-footer-right chip-muted';
-      }
-
-      if (isReducedMotion || (status || "").toUpperCase() === "PROCESSING") {
-        for (let i = 0; i < 10; i++) renderNodeFinalState(i, stageStates[i]);
-        renderStageInspector(9, data);
-        headerStatusPill.classList.remove('animating');
-        isReplayRunning = false;
-        return;
-      }
-
-      let currentStage = 0;
-
-      function step() {
-        if (currentStage >= 10) {
-          renderStageInspector(9, data);
-          headerStatusPill.classList.remove('animating');
-          isReplayRunning = false;
-          return;
-        }
-
-        const stageConfig = stageStates[currentStage];
-        const meta = STAGES_META[currentStage];
-        const num = currentStage + 1;
-
-        if (!stageConfig.reached && stageConfig.state === "muted") {
-          renderNodeFinalState(currentStage, stageConfig);
-          currentStage++;
-          animationTimer = setTimeout(step, 60);
-          return;
-        }
-
-        // Mark as running
-        const icon = document.getElementById(`node-icon-${num}`);
-        const dur = document.getElementById(`node-dur-${num}`);
-        icon.className = 'node-status-icon running';
-        icon.innerHTML = '<span style="font-size: 10px;">●</span>';
-        dur.textContent = 'running...';
-
-        renderStageInspector(currentStage, data);
-
-        // Auto-switch tabs based on stage
-        if (num === 3 && (data.guard_removed_actions || []).length > 0) {
-          switchTab('tab-stripped', 'view-stripped');
-        } else if (num === 5) {
-          switchTab('tab-cedar', 'view-cedar');
-        } else if (num === 6 || num === 9) {
-          switchTab('tab-diff', 'view-diff');
-        }
-
-        let realMs = meta.timingKey ? timings[meta.timingKey] : null;
-        let animMs = 450;
-        if (realMs !== null && realMs !== undefined) {
-          animMs = Math.min(Math.max(realMs, 350), 1800);
-        }
-
-        animationTimer = setTimeout(() => {
-          renderNodeFinalState(currentStage, stageConfig);
-          currentStage++;
-          step();
-        }, animMs);
-      }
-
-      step();
-    }
-
-    function renderNodeFinalState(idx, stageState) {
-      const num = idx + 1;
-      const node = document.getElementById(`dag-node-${num}`);
-      const icon = document.getElementById(`node-icon-${num}`);
-      const dur = document.getElementById(`node-dur-${num}`);
-      const chip = document.getElementById(`node-chip-${num}`);
-
-      dur.textContent = stageState.duration;
-      chip.textContent = stageState.chipText;
-      chip.className = `node-footer-right ${stageState.chipClass}`;
-
-      switch (stageState.state) {
-        case "done":
-          icon.className = 'node-status-icon done';
-          icon.innerHTML = '<svg width="13" height="13"><use href="#icon-check"/></svg>';
-          node.disabled = false;
-          break;
-        case "failed":
-        case "blocked":
-          icon.className = 'node-status-icon failed';
-          icon.innerHTML = '<svg width="13" height="13"><use href="#icon-alert"/></svg>';
-          node.disabled = false;
-          break;
-        case "warning":
-        case "declined":
-          icon.className = 'node-status-icon warning';
-          icon.innerHTML = '<svg width="13" height="13"><use href="#icon-alert"/></svg>';
-          node.disabled = false;
-          break;
-        default: // muted
-          icon.className = 'node-status-icon muted';
-          icon.innerHTML = '<span style="font-size: 10px;">—</span>';
-          node.disabled = true;
-          break;
-      }
-    }
-
-    function switchTab(tabId, viewId) {
-      document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.toggle('active', b.id === tabId);
-        b.setAttribute('aria-selected', b.id === tabId ? 'true' : 'false');
-      });
-      document.querySelectorAll('.tab-view').forEach(v => {
-        v.style.display = v.id === viewId ? 'block' : 'none';
-      });
-    }
-
-    // Bounded Polling for Live In-Flight Runs
-    function startBoundedPolling(requestId) {
-      if (pollingTimeout) {
-        clearTimeout(pollingTimeout);
-        pollingTimeout = null;
-      }
-      const startTime = Date.now();
-
-      function pollStep() {
-        if (document.hidden) return;
-        if (Date.now() - startTime > 60000) {
-          console.warn("Polling timeout reached (60s). Stopping live poll.");
-          return;
-        }
-        if (!currentRunMeta || (currentRunMeta.id !== requestId && currentRunMeta.source_request_id !== requestId)) {
-          return;
-        }
-
-        pollingTimeout = setTimeout(async () => {
-          if (document.hidden || !currentRunMeta || (currentRunMeta.id !== requestId && currentRunMeta.source_request_id !== requestId)) {
-            return;
-          }
-          try {
-            const resp = await fetch(`/api/runs/${encodeURIComponent(requestId)}`);
-            if (!resp.ok) return;
-            const updatedData = await resp.json();
-            const updatedStatus = (updatedData.status || '').toUpperCase();
-
-            if (updatedStatus !== 'PROCESSING') {
-              runCache.set(`/api/runs/${requestId}`, updatedData);
-              runCache.set(requestId, updatedData);
-              const updatedMeta = {
-                id: requestId,
-                label: `${updatedData.role_name || 'role'} — ${updatedStatus} (${requestId.substring(0, 8)})`,
-                status: updatedStatus,
-                file: `/api/runs/${requestId}`,
-                source_request_id: requestId,
-                synthetic: false
-              };
-              await loadRun(updatedMeta);
-            } else {
-              pollStep();
+          function countActionsInPolicy(policy) {
+            const obj = parsePolicy(policy);
+            if (!obj || !Array.isArray(obj.Statement)) return 0;
+            const acts = new Set();
+            for (const st of obj.Statement) {
+              if (!st) continue;
+              const a = st.Action;
+              if (typeof a === 'string') acts.add(a);
+              else if (Array.isArray(a)) a.forEach(x => acts.add(x));
             }
-          } catch (err) {
-            console.warn("Poll fetch error:", err);
+            return acts.size;
           }
-        }, 2000);
-      }
 
-      pollStep();
-    }
-
-    // Load Run
-    async function loadRun(runMeta) {
-      currentRunMeta = runMeta;
-      const status = (runMeta.status || "UNKNOWN").toUpperCase();
-      const statusPill = document.getElementById('header-status-pill');
-      const statusText = document.getElementById('header-status-text');
-      const commandText = document.getElementById('header-command-text');
-      const runTag = document.getElementById('header-run-tag');
-      const syntheticBanner = document.getElementById('synthetic-banner');
-      const errorAlert = document.getElementById('error-alert');
-
-      errorAlert.style.display = 'none';
-
-      // Update Header
-      statusPill.className = `status-pill status-${status}`;
-      statusText.textContent = `STATUS: ${status}`;
-      commandText.textContent = runMeta.command || (status === "APPLIED" ? "cedar-sentinel analyze --apply" : "cedar-sentinel analyze");
-      
-      const shortId = (runMeta.source_request_id || runMeta.id || "00000000").substring(0, 8);
-      runTag.textContent = `RUN #${shortId}`;
-
-      // Update URL query parameter
-      const url = new URL(window.location);
-      url.searchParams.set('run', runMeta.id);
-      window.history.replaceState({}, '', url);
-
-      // Check In-Memory Cache
-      const fileKey = isLiveMode ? `/api/runs/${runMeta.id || runMeta.source_request_id}` : runMeta.file;
-      let data = runCache.get(fileKey) || runCache.get(runMeta.id);
-
-      if (!data) {
-        try {
-          const fetchUrl = isLiveMode ? `/api/runs/${encodeURIComponent(runMeta.id || runMeta.source_request_id)}` : runMeta.file;
-          const resp = await fetch(fetchUrl);
-          if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
-          data = await resp.json();
-          runCache.set(fileKey, data);
-          runCache.set(runMeta.id, data);
-        } catch (err) {
-          showError(`Could not load ${fileKey} — ${err.message}`);
-          return;
-        }
-      }
-
-      currentRunData = data;
-
-      // Handle bounded polling if live in-flight run
-      if (isLiveMode && status === "PROCESSING") {
-        startBoundedPolling(runMeta.id || runMeta.source_request_id);
-      } else if (pollingTimeout) {
-        clearTimeout(pollingTimeout);
-        pollingTimeout = null;
-      }
-
-      // Handle synthetic banner
-      if (data.synthetic || runMeta.synthetic) {
-        syntheticBanner.style.display = 'block';
-        document.getElementById('synthetic-note-text').textContent = data.synthetic_note || runMeta.label || "crafted to demonstrate this state";
-      } else {
-        syntheticBanner.style.display = 'none';
-      }
-
-      // Populate Audit Store card
-      document.getElementById('audit-store-id').textContent = data.policy_store_id || "<AVP_STORE_ID>";
-      document.getElementById('audit-record-status').textContent = status === "APPLIED" ? (data.audit_failed ? "AUDIT_FAILED" : "RECORDED & PERSISTED") : "NOT WRITTEN (DRY-RUN / SKIPPED)";
-      document.getElementById('audit-record-status').style.color = status === "APPLIED" && !data.audit_failed ? "var(--secondary)" : "var(--outline)";
-      document.getElementById('audit-completed-at').textContent = data.completed_at || data.created_at || "not recorded";
-
-      // Compute browser file SHA-256
-      computeRunSha256(JSON.stringify(data)).then(sha => {
-        document.getElementById('audit-file-sha').textContent = sha;
-      });
-
-      // Populate HUD & Workbench
-      populateHud(data, status);
-      populateWorkbenchLeft(data, status);
-      populateCloudTrailSection(data);
-
-      // Check autoplay query param
-      const urlParams = new URLSearchParams(window.location.search);
-      const autoplay = urlParams.get('autoplay') !== '0';
-
-      if (autoplay) {
-        replayAnimation(data, status);
-      } else {
-        const stageStates = computeStageStates(status, data);
-        for (let i = 0; i < 10; i++) renderNodeFinalState(i, stageStates[i]);
-        renderStageInspector(9, data);
-      }
-    }
-
-    function showError(msg) {
-      const alert = document.getElementById('error-alert');
-      let extra = '';
-      if (window.location.protocol === 'file:') {
-        extra = '<br><br><em>Tip: You opened this page via file:// which blocks fetch requests in modern browsers. Run <code>python -m http.server</code> inside the dashboard directory and visit http://localhost:8000.</em>';
-      }
-      alert.innerHTML = `<strong>[ERROR]</strong> ${escapeHtml(msg)}${extra}`;
-      alert.style.display = 'block';
-    }
-
-    function escapeHtml(str) {
-      if (str === null || str === undefined) return "";
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-    // Mode Detection Probe: /api/health
-    async function checkHealth() {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1500);
-        const resp = await fetch('/api/health', {
-          signal: controller.signal,
-          headers: { 'Accept': 'application/json' }
-        });
-        clearTimeout(timeoutId);
-        if (!resp.ok) return null;
-        const ctype = resp.headers.get('content-type') || '';
-        if (!ctype.includes('application/json')) return null;
-        const data = await resp.json();
-        if (data && data.mode === 'live') return data;
-        return null;
-      } catch (e) {
-        return null;
-      }
-    }
-
-    // Populate dropdown with list of runs
-    function populateDropdown(manifestList, selectIdToPick = null) {
-      const select = document.getElementById('run-select');
-      select.innerHTML = '';
-
-      manifestList.forEach(rm => {
-        const opt = document.createElement('option');
-        opt.value = rm.id;
-        opt.textContent = rm.label || `${rm.status} — ${rm.id}`;
-        select.appendChild(opt);
-      });
-
-      const urlParams = new URLSearchParams(window.location.search);
-      const requestedId = selectIdToPick || urlParams.get('run');
-      let targetRun = manifestList.find(m => m.id === requestedId);
-      if (!targetRun) {
-        targetRun = manifestList.find(m => m.id === 'applied') || manifestList[0];
-      }
-
-      if (targetRun) {
-        select.value = targetRun.id;
-        loadRun(targetRun);
-      }
-    }
-
-    // Fetch live runs from /api/runs
-    async function fetchAndPopulateLiveRuns() {
-      try {
-        const resp = await fetch('/api/runs?limit=100');
-        if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
-        const data = await resp.json();
-        const runs = data.runs || [];
-
-        currentManifest = runs.map(r => ({
-          id: r.request_id,
-          label: `${r.role_name || 'role'} — ${r.status} (${(r.request_id || '').substring(0, 8)})`,
-          status: r.status,
-          file: `/api/runs/${r.request_id}`,
-          source_request_id: r.request_id,
-          role_name: r.role_name,
-          role_arn: r.role_arn,
-          completed_at: r.completed_at,
-          model_used: r.model_used,
-          synthetic: false
-        }));
-
-        if (currentManifest.length === 0) {
-          showError("No runs found in results table.");
-          return;
-        }
-
-        populateDropdown(currentManifest);
-      } catch (err) {
-        showError(`Could not load /api/runs — ${err.message}`);
-      }
-    }
-
-    // Fetch recorded runs manifest from runs/index.json
-    async function fetchAndPopulateRecordedRuns() {
-      try {
-        const resp = await fetch('runs/index.json');
-        if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
-        currentManifest = await resp.json();
-        populateDropdown(currentManifest);
-      } catch (err) {
-        showError(`Could not load runs/index.json — ${err.message}`);
-      }
-    }
-
-    // App Initialization
-    async function init() {
-      // Wire DAG node clicks
-      for (let i = 0; i < 10; i++) {
-        const node = document.getElementById(`dag-node-${i + 1}`);
-        node.addEventListener('click', () => {
-          if (!node.disabled && currentRunData) {
-            renderStageInspector(i, currentRunData);
+          function countWildcardsInPolicy(policy) {
+            const obj = parsePolicy(policy);
+            if (!obj || !Array.isArray(obj.Statement)) return 0;
+            let count = 0;
+            for (const st of obj.Statement) {
+              if (!st) continue;
+              const a = st.Action;
+              if (typeof a === 'string' && a.includes('*')) count++;
+              else if (Array.isArray(a)) count += a.filter(x => typeof x === 'string' && x.includes('*')).length;
+            }
+            return count;
           }
-        });
-      }
 
-      // Wire Workbench Tabs
-      document.getElementById('tab-diff').addEventListener('click', () => switchTab('tab-diff', 'view-diff'));
-      document.getElementById('tab-cedar').addEventListener('click', () => switchTab('tab-cedar', 'view-cedar'));
-      document.getElementById('tab-stripped').addEventListener('click', () => switchTab('tab-stripped', 'view-stripped'));
+          function getStageTimingsMap(data) {
+            const map = {};
+            if (Array.isArray(data.stage_timings)) {
+              for (const t of data.stage_timings) {
+                if (t && t.stage && t.start !== undefined && t.end !== undefined) {
+                  map[t.stage] = Math.round(t.end - t.start);
+                }
+              }
+            }
+            return map;
+          }
 
-      // Wire Replay Button
-      document.getElementById('btn-replay-run').addEventListener('click', () => {
-        if (currentRunData && currentRunMeta) {
-          replayAnimation(currentRunData, currentRunData.status || currentRunMeta.status);
-        }
-      });
+          function getTotalLambdaDuration(data) {
+            let total = 0;
+            if (Array.isArray(data.stage_timings)) {
+              for (const t of data.stage_timings) {
+                if (t && t.start !== undefined && t.end !== undefined) {
+                  total += Math.round(t.end - t.start);
+                }
+              }
+            }
+            return total;
+          }
 
-      // Wire Download JSON Button
-      document.getElementById('btn-download-run-json').addEventListener('click', () => {
-        if (!currentRunData) return;
-        const blob = new Blob([JSON.stringify(currentRunData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentRunMeta ? currentRunMeta.id : 'run'}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      });
+          function getBlockedActionsList(data) {
+            if (data.coverage_check && data.coverage_check.blocked_actions) {
+              const b = data.coverage_check.blocked_actions;
+              if (Array.isArray(b)) return b;
+              if (typeof b === 'string') {
+                try { return JSON.parse(b); } catch (e) { return [b]; }
+              }
+            }
+            return [];
+          }
 
-      // Wire Dropdown Change
-      const select = document.getElementById('run-select');
-      select.addEventListener('change', (e) => {
-        const selected = currentManifest.find(m => m.id === e.target.value);
-        if (selected) loadRun(selected);
-      });
+          // Compute SHA-256 of run JSON using native browser crypto.subtle
+          async function computeRunSha256(rawText) {
+            try {
+              const msgUint8 = new TextEncoder().encode(rawText);
+              const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+              const hashArray = Array.from(new Uint8Array(hashBuffer));
+              const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+              return `sha256:${hashHex}`;
+            } catch (e) {
+              return "sha256:not-available";
+            }
+          }
 
-      // Wire Client-Side Live Filter Input
-      const filterInput = document.getElementById('run-filter-input');
-      filterInput.addEventListener('input', (e) => {
-        const term = e.target.value.toLowerCase();
-        const filtered = currentManifest.filter(m => (m.label || '').toLowerCase().includes(term) || (m.id || '').toLowerCase().includes(term));
-        const currentSelectedId = select.value;
-        select.innerHTML = '';
-        filtered.forEach(rm => {
-          const opt = document.createElement('option');
-          opt.value = rm.id;
-          opt.textContent = rm.label || `${rm.status} — ${rm.id}`;
-          select.appendChild(opt);
-        });
-        if (filtered.some(m => m.id === currentSelectedId)) {
-          select.value = currentSelectedId;
-        }
-      });
+          // Compute Stage Statuses per Status Matrix
+          function computeStageStates(status, data) {
+            const s = (status || "").toUpperCase();
+            const timings = getStageTimingsMap(data);
+            const res = [];
 
-      // Wire Live Refresh Button
-      document.getElementById('btn-refresh-runs').addEventListener('click', async () => {
-        if (isLiveMode) {
-          await fetchAndPopulateLiveRuns();
-        }
-      });
+            function getTimingStr(key) {
+              if (!key || timings[key] === undefined) return "not recorded";
+              const ms = timings[key];
+              return ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms}ms`;
+            }
 
-      // Wire Tab Visibility Change (halt polling if tab hidden)
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden && pollingTimeout) {
-          clearTimeout(pollingTimeout);
-          pollingTimeout = null;
-        }
-      });
+            if (s === "PROCESSING") {
+              for (let i = 1; i <= 10; i++) {
+                res.push({
+                  state: "muted",
+                  duration: "not recorded",
+                  chipText: "—",
+                  chipClass: "chip-muted",
+                  reached: false,
+                  detail: "run still processing — waiting for Lambda completion..."
+                });
+              }
+              return res;
+            }
 
-      // Wire Nav Tab Links Scroll Spy
-      const navLinks = document.querySelectorAll('.nav-tab-link');
-      window.addEventListener('scroll', () => {
-        const scrollPos = window.scrollY + 120;
-        const sections = ['dag-section', 'diff-section', 'telemetry-section', 'cloudtrail-section'];
-        for (const secId of sections) {
-          const el = document.getElementById(secId);
-          if (el && el.offsetTop <= scrollPos && (el.offsetTop + el.offsetHeight) > scrollPos) {
-            navLinks.forEach(link => {
-              link.classList.toggle('active', link.getAttribute('href') === `#${secId}`);
+            // Stage 1 - 7 default done
+            const obsCount = data.observed_actions ? Object.keys(data.observed_actions).length : 0;
+            const reqCount = countActionsInPolicy(data.requested_policy);
+            const guardRemoved = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions.length : 0;
+            const mappingsCount = data.action_mappings_applied ? Object.keys(data.action_mappings_applied).length : 0;
+            const findingsCount = (data.analyzer_validation && Array.isArray(data.analyzer_validation.findings)) ? data.analyzer_validation.findings.length : 0;
+
+            let s1_7 = [
+              { state: "done", duration: "not recorded", chipText: `${reqCount} ACTIONS`, chipClass: "chip-green", reached: true },
+              { state: "done", duration: getTimingStr("cloudwatch_query"), chipText: `${obsCount} ACTIONS`, chipClass: "chip-green", reached: true },
+              { state: "done", duration: getTimingStr("bedrock_call"), chipText: `${guardRemoved} REMOVED`, chipClass: guardRemoved > 0 ? "chip-tertiary" : "chip-green", reached: true },
+              { state: "done", duration: getTimingStr("coverage_check"), chipText: "100% COVERED", chipClass: "chip-green", reached: true },
+              { state: "done", duration: getTimingStr("cedar_validation"), chipText: "VALID", chipClass: "chip-green", reached: true },
+              { state: "done", duration: getTimingStr("iam_translation"), chipText: `${mappingsCount} MAPPINGS`, chipClass: "chip-green", reached: true },
+              { state: "done", duration: getTimingStr("analyzer_validation"), chipText: `${findingsCount} FINDINGS`, chipClass: "chip-green", reached: true }
+            ];
+
+            // Handle failures in 1-7
+            if (s === "BLOCKED") {
+              s1_7[3] = { state: "blocked", duration: getTimingStr("coverage_check"), chipText: "BLOCKED", chipClass: "chip-red", reached: true };
+              for (let i = 4; i < 7; i++) s1_7[i] = { state: "muted", duration: "not recorded", chipText: "SKIPPED", chipClass: "chip-muted", reached: false };
+            } else if (s === "CEDAR_INVALID") {
+              s1_7[4] = { state: "failed", duration: getTimingStr("cedar_validation"), chipText: "INVALID", chipClass: "chip-red", reached: true };
+              for (let i = 5; i < 7; i++) s1_7[i] = { state: "muted", duration: "not recorded", chipText: "SKIPPED", chipClass: "chip-muted", reached: false };
+            } else if (s === "ANALYZER_INVALID") {
+              s1_7[6] = { state: "failed", duration: getTimingStr("analyzer_validation"), chipText: "REJECTED", chipClass: "chip-red", reached: true };
+            } else if (s === "ERROR") {
+              const lastStage = timings["bedrock_call"] ? 3 : (timings["cloudwatch_query"] ? 2 : 1);
+              for (let i = lastStage; i < 7; i++) {
+                if (i === lastStage) {
+                  s1_7[i] = { state: "failed", duration: "failed", chipText: "ERROR", chipClass: "chip-red", reached: true };
+                } else {
+                  s1_7[i] = { state: "muted", duration: "not recorded", chipText: "SKIPPED", chipClass: "chip-muted", reached: false };
+                }
+              }
+            }
+
+            // Stages 8 - 10
+            let s8 = { state: "muted", duration: "not recorded", chipText: "NOT REACHED", chipClass: "chip-muted", reached: false };
+            let s9 = { state: "muted", duration: "not recorded", chipText: "NOT REACHED", chipClass: "chip-muted", reached: false };
+            let s10 = { state: "muted", duration: "not recorded", chipText: "NOT REACHED", chipClass: "chip-muted", reached: false };
+
+            if (s === "APPLIED") {
+              s8 = { state: "done", duration: "not recorded", chipText: "APPROVED", chipClass: "chip-green", reached: true };
+              s9 = { state: "done", duration: "not recorded", chipText: "VERIFIED", chipClass: "chip-green", reached: true };
+              s10 = { state: "done", duration: "not recorded", chipText: data.audit_failed ? "AUDIT FAILED" : "RECORDED", chipClass: data.audit_failed ? "chip-red" : "chip-green", reached: true };
+            } else if (s === "COMPLETE") {
+              s8 = { state: "warning", duration: "not recorded", chipText: "AWAITING", chipClass: "chip-muted", reached: true };
+            } else if (s === "DECLINED") {
+              s8 = { state: "declined", duration: "not recorded", chipText: "DECLINED", chipClass: "chip-tertiary", reached: true };
+            } else if (s === "APPLIED_UNVERIFIED") {
+              s8 = { state: "done", duration: "not recorded", chipText: "APPROVED", chipClass: "chip-green", reached: true };
+              s9 = { state: "warning", duration: "not recorded", chipText: "UNVERIFIED", chipClass: "chip-tertiary", reached: true };
+            } else if (s === "APPLY_FAILED") {
+              s8 = { state: "done", duration: "not recorded", chipText: "APPROVED", chipClass: "chip-green", reached: true };
+              s9 = { state: "failed", duration: "not recorded", chipText: "FAILED", chipClass: "chip-red", reached: true };
+            }
+
+            res.push(...s1_7, s8, s9, s10);
+            return res;
+          }
+
+          // Populate HUD Cards
+          function populateHud(data, status) {
+            const s = (status || "").toUpperCase();
+            const obsMap = data.observed_actions || {};
+            const obsCount = Object.keys(obsMap).length;
+            const reqCount = countActionsInPolicy(data.requested_policy);
+            const tightCount = countActionsInPolicy(data.iam_policy);
+            const wildcardsCount = countWildcardsInPolicy(data.requested_policy);
+            const guardRemovedList = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions : [];
+            const totalDurMs = getTotalLambdaDuration(data);
+            const timings = getStageTimingsMap(data);
+
+            // HUD 1: Attack Surface Posture
+            document.getElementById('hud-obs-count').textContent = obsCount;
+            document.getElementById('hud-obs-subline').textContent = `Requested plan: ${reqCount} entries (${wildcardsCount} wildcard) → applied policy: ${tightCount} actions`;
+            document.getElementById('hud-wildcards-chip').textContent = `wildcards removed: ${wildcardsCount}`;
+            document.getElementById('hud-baseline-caption').textContent = `Baseline: ${reqCount} entries`;
+
+            // HUD 2: Guard Quarantine
+            document.getElementById('hud-guard-count').textContent = guardRemovedList.length;
+            const guardChip = document.getElementById('hud-guard-chip');
+            if (guardRemovedList.length > 0) {
+              guardChip.textContent = `${guardRemovedList.length} removed`;
+              guardChip.className = "hud-footer-chip chip-tertiary";
+            } else {
+              guardChip.textContent = "guard made no changes";
+              guardChip.className = "hud-footer-chip chip-muted";
+            }
+
+            // HUD 3: Pipeline Latency
+            const secStr = (totalDurMs / 1000).toFixed(2);
+            document.getElementById('hud-latency-num').textContent = `${secStr}s`;
+            const stagesConfig = computeStageStates(status, data);
+            const reachedCount = stagesConfig.filter(x => x.reached).length;
+            document.getElementById('hud-stages-tag').textContent = `${reachedCount}/10 STAGES`;
+
+            const failedStage = stagesConfig.find(x => x.state === "failed" || x.state === "blocked");
+            const stagesOkChip = document.getElementById('hud-stages-ok-chip');
+            if (failedStage) {
+              stagesOkChip.textContent = `${s} at Stage ${stagesConfig.indexOf(failedStage) + 1}`;
+              stagesOkChip.className = "hud-footer-chip chip-red";
+            } else {
+              stagesOkChip.textContent = `${reachedCount}/10 Stages OK`;
+              stagesOkChip.className = "hud-footer-chip chip-green";
+            }
+            const llmMs = timings["bedrock_call"] || 0;
+            document.getElementById('hud-llm-latency').textContent = `LLM: ${(llmMs / 1000).toFixed(2)}s`;
+
+            // HUD 4: Security Verdict
+            document.getElementById('hud-verdict-tag').textContent = s;
+            const cedarPassed = data.cedar_validation ? data.cedar_validation.passed : true;
+            const cedarValEl = document.getElementById('hud-cedar-val');
+            cedarValEl.textContent = data.cedar_validation ? (cedarPassed ? "PASS" : "FAIL") : "—";
+            cedarValEl.style.color = cedarPassed ? "var(--secondary)" : "var(--error)";
+
+            const anzPassed = data.analyzer_validation ? data.analyzer_validation.passed : true;
+            const anzValEl = document.getElementById('hud-anz-val');
+            const findings = (data.analyzer_validation && Array.isArray(data.analyzer_validation.findings)) ? data.analyzer_validation.findings.length : 0;
+            anzValEl.textContent = data.analyzer_validation ? (anzPassed ? `${findings} FINDINGS` : "NEW ACCESS") : "—";
+            anzValEl.style.color = anzPassed ? "var(--secondary)" : "var(--error)";
+
+            const verdictTextEl = document.getElementById('hud-verdict-text');
+            switch (s) {
+              case "APPLIED": verdictTextEl.textContent = "Enforced and verified"; verdictTextEl.className = "hud-footer-chip chip-green"; break;
+              case "COMPLETE": verdictTextEl.textContent = "Verified — not applied in this run"; verdictTextEl.className = "hud-footer-chip chip-green"; break;
+              case "DECLINED": verdictTextEl.textContent = "Declined — nothing applied"; verdictTextEl.className = "hud-footer-chip chip-tertiary"; break;
+              case "APPLIED_UNVERIFIED": verdictTextEl.textContent = "Applied, not verified — inspect role"; verdictTextEl.className = "hud-footer-chip chip-tertiary"; break;
+              case "BLOCKED": verdictTextEl.textContent = "Blocked — workload lockout prevented"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
+              case "CEDAR_INVALID": verdictTextEl.textContent = "Cedar validation rejected draft"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
+              case "ANALYZER_INVALID": verdictTextEl.textContent = "Access Analyzer rejected policy"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
+              case "APPLY_FAILED": verdictTextEl.textContent = "Apply failed"; verdictTextEl.className = "hud-footer-chip chip-red"; break;
+              case "PROCESSING": verdictTextEl.textContent = "Run in progress…"; verdictTextEl.className = "hud-footer-chip chip-tertiary"; break;
+              default: verdictTextEl.textContent = s; verdictTextEl.className = "hud-footer-chip chip-muted"; break;
+            }
+
+            // Coverage %
+            const covPercentEl = document.getElementById('hud-coverage-percent');
+            if (obsCount > 0) {
+              const blockedList = getBlockedActionsList(data);
+              const coveredCount = obsCount - blockedList.length;
+              const pct = Math.round((coveredCount / obsCount) * 100);
+              covPercentEl.textContent = `${pct}% COVERAGE`;
+            } else {
+              covPercentEl.textContent = "100% COVERAGE";
+            }
+          }
+
+          // Populate Policy Diff and Tabs
+          function populateWorkbenchLeft(data, status) {
+            const s = (status || "").toUpperCase();
+            const reqObj = parsePolicy(data.requested_policy);
+            const iamObj = parsePolicy(data.iam_policy);
+
+            const reqCount = countActionsInPolicy(data.requested_policy);
+            const iamCount = countActionsInPolicy(data.iam_policy);
+
+            // Left column header & body
+            document.getElementById('diff-left-title').textContent = `ORIGINAL REQUESTED POLICY — ${reqCount} ACTIONS`;
+            document.getElementById('diff-left-body').textContent = reqObj ? JSON.stringify(reqObj, null, 2) : "(no requested policy recorded)";
+
+            // Right column header & body
+            const isApplied = s === "APPLIED";
+            document.getElementById('diff-right-title').textContent = isApplied
+              ? `TIGHTENED IAM (STAGE 9 CONFIRMED) — ${iamCount} OBSERVED`
+              : `TRANSLATED IAM (NOT APPLIED) — ${iamCount} ACTIONS`;
+
+            if (iamObj) {
+              document.getElementById('diff-right-body').textContent = JSON.stringify(iamObj, null, 2);
+            } else {
+              document.getElementById('diff-right-body').textContent = s === "BLOCKED"
+                ? "No IAM policy translated — pipeline blocked at Stage 4 (Coverage check)."
+                : (s === "CEDAR_INVALID"
+                  ? "No IAM policy translated — Cedar schema validation failed at Stage 5."
+                  : (s === "PROCESSING" ? "Run in progress… awaiting translation." : "(no translated policy available)"));
+            }
+
+            // Guard Quarantine Box
+            const guardRemovedList = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions : [];
+            document.getElementById('tab-stripped-count').textContent = guardRemovedList.length;
+            document.getElementById('guard-alert-heading').textContent = `[!] ${guardRemovedList.length} Actions Removed by Deterministic Guard (not observed in CloudTrail)`;
+
+            const chipsContainer = document.getElementById('guard-chips-container');
+            chipsContainer.innerHTML = '';
+            if (guardRemovedList.length > 0) {
+              guardRemovedList.forEach(act => {
+                const span = document.createElement('span');
+                span.className = 'guard-action-chip';
+                const iconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                iconSvg.setAttribute('width', '11');
+                iconSvg.setAttribute('height', '11');
+                iconSvg.style.color = 'var(--tertiary)';
+                const useEl = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+                useEl.setAttribute('href', '#icon-remove');
+                iconSvg.appendChild(useEl);
+                span.appendChild(iconSvg);
+                const textSpan = document.createElement('span');
+                textSpan.textContent = String(act);
+                span.appendChild(textSpan);
+                chipsContainer.appendChild(span);
+              });
+            } else {
+              const noneSpan = document.createElement('span');
+              noneSpan.style.color = 'var(--outline)';
+              noneSpan.style.fontSize = '11px';
+              noneSpan.textContent = 'None (all drafted actions were observed in CloudTrail baseline).';
+              chipsContainer.appendChild(noneSpan);
+            }
+
+            // Tab 2: Cedar Policy Code
+            const cedarText = data.cedar_policy || (s === "PROCESSING" ? "(run in progress…)" : "(no Cedar policy returned)");
+            document.getElementById('cedar-policy-code').textContent = cedarText;
+            const cedarValPassed = data.cedar_validation ? data.cedar_validation.passed : true;
+            const cedarStatusEl = document.getElementById('cedar-view-status');
+            cedarStatusEl.textContent = cedarValPassed ? "PASS" : "FAIL";
+            cedarStatusEl.style.color = cedarValPassed ? "var(--secondary)" : "var(--error)";
+
+            // Tab 3: Stripped Actions Table
+            const strippedTbody = document.getElementById('stripped-table-body');
+            strippedTbody.innerHTML = '';
+            if (guardRemovedList.length > 0) {
+              guardRemovedList.forEach(act => {
+                const tr = document.createElement('tr');
+
+                const tdAct = document.createElement('td');
+                tdAct.style.color = 'var(--tertiary)';
+                tdAct.textContent = String(act);
+
+                const tdCalls = document.createElement('td');
+                tdCalls.style.textAlign = 'right';
+                tdCalls.style.color = 'var(--outline)';
+                tdCalls.textContent = '0 calls in 7d';
+
+                const tdStatus = document.createElement('td');
+                tdStatus.style.textAlign = 'center';
+                const chip = document.createElement('span');
+                chip.className = 'hud-footer-chip chip-tertiary';
+                chip.textContent = 'REMOVED';
+                tdStatus.appendChild(chip);
+
+                tr.appendChild(tdAct);
+                tr.appendChild(tdCalls);
+                tr.appendChild(tdStatus);
+                strippedTbody.appendChild(tr);
+              });
+            } else {
+              const tr = document.createElement('tr');
+              const td = document.createElement('td');
+              td.colSpan = 3;
+              td.style.color = 'var(--outline)';
+              td.style.textAlign = 'center';
+              td.style.padding = '12px';
+              td.textContent = 'No unobserved actions removed by the guard for this run.';
+              tr.appendChild(td);
+              strippedTbody.appendChild(tr);
+            }
+          }
+
+          // Populate CloudTrail Log Intelligence Section
+          function populateCloudTrailSection(data) {
+            const obsMap = data.observed_actions || {};
+            const entries = Object.entries(obsMap).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+            const totalCalls = entries.reduce((sum, curr) => sum + (Number(curr[1]) || 0), 0);
+            const distinctCount = entries.length;
+            const maxCount = entries.length > 0 ? Math.max(...entries.map(e => Number(e[1]) || 0)) : 1;
+
+            document.getElementById('ct-total-calls').textContent = totalCalls;
+            document.getElementById('ct-distinct-actions').textContent = distinctCount;
+
+            const mappings = data.action_mappings_applied || {};
+            const blockedList = getBlockedActionsList(data);
+            const tightObj = parsePolicy(data.iam_policy);
+            const tightActions = new Set();
+            if (tightObj && Array.isArray(tightObj.Statement)) {
+              tightObj.Statement.forEach(st => {
+                if (st && st.Action) {
+                  if (typeof st.Action === 'string') tightActions.add(st.Action);
+                  else if (Array.isArray(st.Action)) st.Action.forEach(x => tightActions.add(x));
+                }
+              });
+            }
+
+            const tbody = document.getElementById('cloudtrail-table-body');
+            tbody.innerHTML = '';
+
+            if (entries.length === 0) {
+              const tr = document.createElement('tr');
+              const td = document.createElement('td');
+              td.colSpan = 6;
+              td.style.textAlign = 'center';
+              td.style.color = 'var(--outline)';
+              td.style.padding = '16px';
+              td.textContent = 'No observed CloudTrail invocations recorded in 7-day lookback window.';
+              tr.appendChild(td);
+              tbody.appendChild(tr);
+              return;
+            }
+
+            entries.forEach(([act, count]) => {
+              const num = Number(count) || 0;
+              const pct = Math.max(Math.round((num / maxCount) * 100), 4);
+              const isBlocked = blockedList.includes(act);
+              const mappedTo = mappings[act] || (Object.entries(mappings).find(([k, v]) => v === act)?.[1]) || "—";
+              const isIncluded = tightActions.has(act) || (mappedTo !== "—" && tightActions.has(mappedTo));
+
+              const tr = document.createElement('tr');
+
+              const tdAct = document.createElement('td');
+              tdAct.style.fontWeight = '600';
+              tdAct.style.color = 'var(--on-surface)';
+              tdAct.textContent = String(act);
+
+              const tdNum = document.createElement('td');
+              tdNum.style.textAlign = 'right';
+              tdNum.style.color = 'var(--primary)';
+              tdNum.style.fontWeight = '700';
+              tdNum.textContent = String(num);
+
+              const tdBar = document.createElement('td');
+              const barWrap = document.createElement('div');
+              barWrap.className = 'prop-bar-container';
+              const barFill = document.createElement('div');
+              barFill.className = 'prop-bar-fill';
+              barFill.style.width = `${pct}%`;
+              barWrap.appendChild(barFill);
+              tdBar.appendChild(barWrap);
+
+              const tdStatus = document.createElement('td');
+              tdStatus.style.textAlign = 'center';
+              const statusChip = document.createElement('span');
+              statusChip.className = `hud-footer-chip ${isBlocked ? 'chip-red' : 'chip-green'}`;
+              statusChip.textContent = isBlocked ? '[✗] DROPPED' : '[✓] COVERED';
+              tdStatus.appendChild(statusChip);
+
+              const tdMap = document.createElement('td');
+              tdMap.style.color = mappedTo !== '—' ? 'var(--primary)' : 'var(--outline)';
+              tdMap.textContent = String(mappedTo);
+
+              const tdInc = document.createElement('td');
+              tdInc.style.textAlign = 'center';
+              const incChip = document.createElement('span');
+              incChip.className = `hud-footer-chip ${isIncluded ? 'chip-green' : 'chip-muted'}`;
+              incChip.textContent = isIncluded ? '[✓] INCLUDED' : '[—] EXCLUDED';
+              tdInc.appendChild(incChip);
+
+              tr.appendChild(tdAct);
+              tr.appendChild(tdNum);
+              tr.appendChild(tdBar);
+              tr.appendChild(tdStatus);
+              tr.appendChild(tdMap);
+              tr.appendChild(tdInc);
+
+              tbody.appendChild(tr);
             });
-            break;
           }
-        }
-      });
 
-      // Mode Detection Probe
-      const health = await checkHealth();
-      if (health) {
-        isLiveMode = true;
-        liveServerHealth = health;
+          // Populate Right Pane Inspector for Selected Stage
+          function renderStageInspector(stageIdx, data) {
+            currentActiveStageIndex = stageIdx;
+            const stageNum = stageIdx + 1;
+            const timings = getStageTimingsMap(data);
 
-        const liveBadge = document.getElementById('header-live-badge');
-        const liveBadgeText = document.getElementById('live-badge-text');
-        if (liveBadge && liveBadgeText) {
-          liveBadge.style.display = 'inline-flex';
-          liveBadgeText.textContent = `LIVE · local (${health.region || 'aws'} · ${health.identity || 'connected'})`;
-        }
+            document.getElementById('dag-inspecting-chip').textContent = `● Inspecting: Stage ${stageNum}`;
+            document.getElementById('telemetry-stage-chip').textContent = `STAGE ${stageNum} DETAIL`;
+            document.getElementById('telemetry-role-arn').textContent = data.role_arn || "arn:aws:iam::<ACCOUNT_ID>:role/cedar-sentinel-demo-role";
 
-        filterInput.style.display = 'inline-block';
-        document.getElementById('btn-refresh-runs').style.display = 'inline-flex';
+            // Highlight active node in DAG
+            document.querySelectorAll('.dag-node').forEach((node, idx) => {
+              node.classList.toggle('selected', idx === stageIdx);
+            });
 
-        const noticeText = document.getElementById('notice-bar-text');
-        if (noticeText) {
-          noticeText.textContent = 'live mode · read from your AWS account through a local server · showing recorded stage timings of the selected run';
-        }
+            const dynCard = document.getElementById('telemetry-dynamic-card');
+            dynCard.innerHTML = '';
 
-        await fetchAndPopulateLiveRuns();
-      } else {
-        isLiveMode = false;
-        await fetchAndPopulateRecordedRuns();
-    window.addEventListener('DOMContentLoaded', init);
-  </script>
+            const titleEl = document.createElement('div');
+            titleEl.className = 'info-card-title';
+            const descEl = document.createElement('div');
+            descEl.style.fontSize = '11px';
+            descEl.style.color = 'var(--outline)';
+            descEl.style.marginBottom = '6px';
+            const codeEl = document.createElement('pre');
+            codeEl.className = 'code-box';
+
+            switch (stageNum) {
+              case 1: { // Extract & publish
+                titleEl.textContent = 'STAGE 1: EXTRACT & PUBLISH (TERRAFORM PLAN)';
+                descEl.textContent = 'CLI parsed Terraform plan JSON and published analysis request to EventBridge → SQS.';
+                const req = data.requested_policy ? (typeof data.requested_policy === 'string' ? data.requested_policy : JSON.stringify(data.requested_policy, null, 2)) : "not recorded";
+                codeEl.textContent = req;
+                dynCard.appendChild(titleEl);
+                dynCard.appendChild(descEl);
+                dynCard.appendChild(codeEl);
+                break;
+              }
+
+              case 2: { // Usage lookup
+                const obsCount = data.observed_actions ? Object.keys(data.observed_actions).length : 0;
+                const dur = timings["cloudwatch_query"] ? `${timings["cloudwatch_query"]}ms` : "not recorded";
+                titleEl.textContent = 'STAGE 2: CLOUDWATCH LOGS INSIGHTS QUERY CONTEXT';
+                descEl.textContent = `Queried 7-day lookback window for assumed-role sessionIssuer ARN. Invocations matched: ${obsCount} distinct actions (latency: ${dur}).`;
+                codeEl.textContent = `Window: 7d lookback\nQuery Status: Complete\nTarget Role: ${data.role_arn || "<ROLE_ARN>"}`;
+                dynCard.appendChild(titleEl);
+                dynCard.appendChild(descEl);
+                dynCard.appendChild(codeEl);
+                break;
+              }
+
+              case 3: { // Draft
+                const model = data.model_used || "apac.amazon.nova-lite-v1:0";
+                const rationale = data.rationale || "not recorded";
+                const dur = timings["bedrock_call"] ? `${(timings["bedrock_call"] / 1000).toFixed(2)}s` : "not recorded";
+                const guardRemoved = Array.isArray(data.guard_removed_actions) ? data.guard_removed_actions.length : 0;
+
+                titleEl.textContent = 'STAGE 3: BEDROCK MODEL RATIONALE & GUARD';
+                descEl.innerHTML = `<div>Foundation Model: <strong style="color: var(--primary);">${escapeHtml(model)}</strong></div>` +
+                  `<div>Synthesis Latency: <strong>${escapeHtml(dur)}</strong></div>` +
+                  `<div>Deterministic Guard: <strong>${guardRemoved} unobserved actions stripped</strong></div>`;
+
+                const ratTitle = document.createElement('div');
+                ratTitle.className = 'info-card-title';
+                ratTitle.style.marginTop = '8px';
+                ratTitle.textContent = 'MODEL RATIONALE:';
+
+                const ratBox = document.createElement('div');
+                ratBox.className = 'code-box';
+                ratBox.style.color = 'var(--on-surface)';
+                ratBox.style.fontStyle = 'italic';
+                ratBox.textContent = `"${rationale}"`;
+
+                dynCard.appendChild(titleEl);
+                dynCard.appendChild(descEl);
+                dynCard.appendChild(ratTitle);
+                dynCard.appendChild(ratBox);
+                break;
+              }
+
+              case 4: { // Coverage check
+                const covPassed = data.coverage_check ? data.coverage_check.passed : true;
+                const blocked = getBlockedActionsList(data);
+                titleEl.textContent = 'STAGE 4: COVERAGE & WORKLOAD SAFEGUARD';
+                descEl.innerHTML = `<div>Safeguard Verdict: <strong style="color: ${covPassed ? 'var(--secondary)' : 'var(--error)'};">${covPassed ? 'PASSED (100% COVERED)' : 'BLOCKED (DROPPED ACTIONS)'}</strong></div>`;
+                dynCard.appendChild(titleEl);
+                dynCard.appendChild(descEl);
+
+                if (blocked.length > 0) {
+                  const bTitle = document.createElement('div');
+                  bTitle.style.fontSize = '11px';
+                  bTitle.style.color = 'var(--error)';
+                  bTitle.style.marginTop = '4px';
+                  bTitle.textContent = 'Blocked Actions:';
+                  codeEl.style.color = 'var(--error)';
+                  codeEl.textContent = JSON.stringify(blocked, null, 2);
+                  dynCard.appendChild(bTitle);
+                  dynCard.appendChild(codeEl);
+                } else {
+                  const passMsg = document.createElement('div');
+                  passMsg.style.fontSize = '11px';
+                  passMsg.style.color = 'var(--secondary)';
+                  passMsg.textContent = 'All observed CloudTrail actions remain covered by the synthesized permit statements.';
+                  dynCard.appendChild(passMsg);
+                }
+                break;
+              }
+
+              case 5: { // Cedar validation
+                const val = data.cedar_validation || {};
+                const passed = val.passed !== false;
+                const msgs = Array.isArray(val.messages) ? val.messages : [];
+                titleEl.textContent = 'STAGE 5: CEDAR SCHEMA VALIDATION (STRICT)';
+                descEl.innerHTML = `<div>Mode: <strong>STRICT</strong></div>` +
+                  `<div>Validation Outcome: <strong style="color: ${passed ? 'var(--secondary)' : 'var(--error)'};">${passed ? 'PASS (SCHEMA VALID)' : 'FAIL (SCHEMA/SYNTAX ERROR)'}</strong></div>` +
+                  `<div style="font-size: 10px; color: var(--outline); margin-top: 4px;">The schema is generated from the draft's own actions, so this validates schema/syntax, not privilege escalation — Access Analyzer covers that.</div>`;
+                codeEl.style.color = passed ? 'var(--secondary)' : 'var(--error)';
+                codeEl.textContent = msgs.length > 0 ? msgs.join('\n') : "Schema validation succeeded with 0 errors.";
+                dynCard.appendChild(titleEl);
+                dynCard.appendChild(descEl);
+                dynCard.appendChild(codeEl);
+                break;
+              }
+
+              case 6: { // IAM translation
+                const mappings = data.action_mappings_applied ? JSON.stringify(data.action_mappings_applied, null, 2) : "{}";
+                const unmatched = Array.isArray(data.unmatched_actions) ? JSON.stringify(data.unmatched_actions, null, 2) : "[]";
+                titleEl.textContent = 'STAGE 6: CEDAR → IAM POLICY TRANSLATION';
+                descEl.textContent = 'Verified permit statements mapped to IAM Allow statements with action normalization.';
+
+                const mapTitle = document.createElement('div');
+                mapTitle.className = 'info-card-title';
+                mapTitle.style.marginTop = '6px';
+                mapTitle.textContent = 'ACTION MAPPINGS (CLOUDTRAIL → IAM):';
+
+                const mapBox = document.createElement('pre');
+                mapBox.className = 'code-box';
+                mapBox.textContent = mappings;
+
+                const unTitle = document.createElement('div');
+                unTitle.className = 'info-card-title';
+                unTitle.style.marginTop = '6px';
+                unTitle.textContent = 'UNMATCHED ACTIONS (EXCLUDED WITHOUT WIDENING):';
+
+                const unBox = document.createElement('pre');
+                unBox.className = 'code-box';
+                unBox.textContent = unmatched;
+
+                dynCard.appendChild(titleEl);
+                dynCard.appendChild(descEl);
+                dynCard.appendChild(mapTitle);
+                dynCard.appendChild(mapBox);
+                dynCard.appendChild(unTitle);
+                dynCard.appendChild(unBox);
+                break;
+              }
+
+              case 7: { // Access Analyzer
+                const anz = data.analyzer_validation || {};
+                const passed = anz.passed !== false;
+                const findings = Array.isArray(anz.findings) ? JSON.stringify(anz.findings, null, 2) : "[]";
+                const noNew = anz.check_no_new_access ? JSON.stringify(anz.check_no_new_access, null, 2) : "PASS";
+
+                titleEl.textContent = 'STAGE 7: IAM ACCESS ANALYZER INDEPENDENT SAFETY NET';
+                descEl.innerHTML = `<div>Validation: <strong style="color: ${passed ? 'var(--secondary)' : 'var(--error)'};">${passed ? 'PASS (0 BLOCKING FINDINGS)' : 'FAILED'}</strong></div>`;
+
+                const findTitle = document.createElement('div');
+                findTitle.className = 'info-card-title';
+                findTitle.textContent = 'VALIDATEPOLICY FINDINGS:';
+                const findBox = document.createElement('pre');
+                findBox.className = 'code-box';
+                findBox.textContent = findings;
+
+                const noNewTitle = document.createElement('div');
+                noNewTitle.className = 'info-card-title';
+                noNewTitle.style.marginTop = '6px';
+                noNewTitle.textContent = 'CHECK_NO_NEW_ACCESS RESULT:';
+                const noNewBox = document.createElement('pre');
+                noNewBox.className = 'code-box';
+                noNewBox.textContent = noNew;
+
+                dynCard.appendChild(titleEl);
+                dynCard.appendChild(descEl);
+                dynCard.appendChild(findTitle);
+                dynCard.appendChild(findBox);
+                dynCard.appendChild(noNewTitle);
+                dynCard.appendChild(noNewBox);
+                break;
+              }
+
+              case 8: { // Approval
+                const isApproved = data.status === "APPLIED" || data.status === "APPLIED_UNVERIFIED" || data.status === "APPLY_FAILED";
+                const isDeclined = data.status === "DECLINED";
+                titleEl.textContent = 'STAGE 8: CLI OPERATOR APPROVAL';
+                descEl.textContent = 'Approval is CLI-only. The dashboard is strictly read-only.';
+                codeEl.textContent = `$ cedar-sentinel analyze --apply\nReview tightened policy diff above.\nApply to role arn:aws:iam::<ACCOUNT_ID>:role/... ? [y/N]: ${isApproved ? 'y' : (isDeclined ? 'n' : '[waiting]')}\n\nOutcome: ${isApproved ? 'APPROVED' : (isDeclined ? 'DECLINED' : 'AWAITING DECISION')}`;
+                dynCard.appendChild(titleEl);
+                dynCard.appendChild(descEl);
+                dynCard.appendChild(codeEl);
+                break;
+              }
+
+              case 9: { // Apply & verify
+                titleEl.textContent = 'STAGE 9: IAM PUTROLEPOLICY & READ-BACK';
+                descEl.textContent = 'Atomic IAM enforcement lifecycle:';
+                codeEl.textContent = `1. iam:GetRolePolicy (snapshot before-policy)\n2. iam:PutRolePolicy (write tightened policy)\n3. iam:GetRolePolicy (read-back verification confirmed)`;
+                dynCard.appendChild(titleEl);
+                dynCard.appendChild(descEl);
+                dynCard.appendChild(codeEl);
+                break;
+              }
+
+              case 10: { // Audit record
+                titleEl.textContent = 'STAGE 10: PERSISTENT AVP AUDIT LOGGING';
+                descEl.textContent = 'Cedar policy + AI rationale persisted into the persistent Amazon Verified Permissions audit policy store.';
+                codeEl.textContent = `Store: <AVP_STORE_ID>\nAction: verifiedpermissions:CreatePolicy\nPrefix: [request_id: ${data.request_id || "not recorded"}]\nAudit Record: PERSISTED`;
+                dynCard.appendChild(titleEl);
+                dynCard.appendChild(descEl);
+                dynCard.appendChild(codeEl);
+                break;
+              }
+            }
+          }
+
+          // Replay Animation Sequence
+          function replayAnimation(data, status) {
+            if (animationTimer) {
+              clearTimeout(animationTimer);
+              animationTimer = null;
+            }
+
+            isReplayRunning = true;
+            const headerStatusPill = document.getElementById('header-status-pill');
+            headerStatusPill.classList.add('animating');
+
+            const stageStates = computeStageStates(status, data);
+            const timings = getStageTimingsMap(data);
+
+            // Reset DAG nodes
+            for (let i = 0; i < 10; i++) {
+              const num = i + 1;
+              const node = document.getElementById(`dag-node-${num}`);
+              const icon = document.getElementById(`node-icon-${num}`);
+              const dur = document.getElementById(`node-dur-${num}`);
+              const chip = document.getElementById(`node-chip-${num}`);
+
+              node.disabled = true;
+              node.classList.remove('selected');
+              icon.className = 'node-status-icon muted';
+              icon.innerHTML = '<span style="font-size: 10px;">—</span>';
+              dur.textContent = 'waiting...';
+              chip.textContent = '—';
+              chip.className = 'node-footer-right chip-muted';
+            }
+
+            if (isReducedMotion || (status || "").toUpperCase() === "PROCESSING") {
+              for (let i = 0; i < 10; i++) renderNodeFinalState(i, stageStates[i]);
+              renderStageInspector(9, data);
+              headerStatusPill.classList.remove('animating');
+              isReplayRunning = false;
+              return;
+            }
+
+            let currentStage = 0;
+
+            function step() {
+              if (currentStage >= 10) {
+                renderStageInspector(9, data);
+                headerStatusPill.classList.remove('animating');
+                isReplayRunning = false;
+                return;
+              }
+
+              const stageConfig = stageStates[currentStage];
+              const meta = STAGES_META[currentStage];
+              const num = currentStage + 1;
+
+              if (!stageConfig.reached && stageConfig.state === "muted") {
+                renderNodeFinalState(currentStage, stageConfig);
+                currentStage++;
+                animationTimer = setTimeout(step, 60);
+                return;
+              }
+
+              // Mark as running
+              const icon = document.getElementById(`node-icon-${num}`);
+              const dur = document.getElementById(`node-dur-${num}`);
+              icon.className = 'node-status-icon running';
+              icon.innerHTML = '<span style="font-size: 10px;">●</span>';
+              dur.textContent = 'running...';
+
+              renderStageInspector(currentStage, data);
+
+              // Auto-switch tabs based on stage
+              if (num === 3 && (data.guard_removed_actions || []).length > 0) {
+                switchTab('tab-stripped', 'view-stripped');
+              } else if (num === 5) {
+                switchTab('tab-cedar', 'view-cedar');
+              } else if (num === 6 || num === 9) {
+                switchTab('tab-diff', 'view-diff');
+              }
+
+              let realMs = meta.timingKey ? timings[meta.timingKey] : null;
+              let animMs = 450;
+              if (realMs !== null && realMs !== undefined) {
+                animMs = Math.min(Math.max(realMs, 350), 1800);
+              }
+
+              animationTimer = setTimeout(() => {
+                renderNodeFinalState(currentStage, stageConfig);
+                currentStage++;
+                step();
+              }, animMs);
+            }
+
+            step();
+          }
+
+          function renderNodeFinalState(idx, stageState) {
+            const num = idx + 1;
+            const node = document.getElementById(`dag-node-${num}`);
+            const icon = document.getElementById(`node-icon-${num}`);
+            const dur = document.getElementById(`node-dur-${num}`);
+            const chip = document.getElementById(`node-chip-${num}`);
+
+            dur.textContent = stageState.duration;
+            chip.textContent = stageState.chipText;
+            chip.className = `node-footer-right ${stageState.chipClass}`;
+
+            switch (stageState.state) {
+              case "done":
+                icon.className = 'node-status-icon done';
+                icon.innerHTML = '<svg width="13" height="13"><use href="#icon-check"/></svg>';
+                node.disabled = false;
+                break;
+              case "failed":
+              case "blocked":
+                icon.className = 'node-status-icon failed';
+                icon.innerHTML = '<svg width="13" height="13"><use href="#icon-alert"/></svg>';
+                node.disabled = false;
+                break;
+              case "warning":
+              case "declined":
+                icon.className = 'node-status-icon warning';
+                icon.innerHTML = '<svg width="13" height="13"><use href="#icon-alert"/></svg>';
+                node.disabled = false;
+                break;
+              default: // muted
+                icon.className = 'node-status-icon muted';
+                icon.innerHTML = '<span style="font-size: 10px;">—</span>';
+                node.disabled = true;
+                break;
+            }
+          }
+
+          function switchTab(tabId, viewId) {
+            document.querySelectorAll('.tab-btn').forEach(b => {
+              b.classList.toggle('active', b.id === tabId);
+              b.setAttribute('aria-selected', b.id === tabId ? 'true' : 'false');
+            });
+            document.querySelectorAll('.tab-view').forEach(v => {
+              v.style.display = v.id === viewId ? 'block' : 'none';
+            });
+          }
+
+          // Bounded Polling for Live In-Flight Runs
+          function startBoundedPolling(requestId) {
+            if (pollingTimeout) {
+              clearTimeout(pollingTimeout);
+              pollingTimeout = null;
+            }
+            const startTime = Date.now();
+
+            function pollStep() {
+              if (document.hidden) return;
+              if (Date.now() - startTime > 60000) {
+                console.warn("Polling timeout reached (60s). Stopping live poll.");
+                return;
+              }
+              if (!currentRunMeta || (currentRunMeta.id !== requestId && currentRunMeta.source_request_id !== requestId)) {
+                return;
+              }
+
+              pollingTimeout = setTimeout(async () => {
+                if (document.hidden || !currentRunMeta || (currentRunMeta.id !== requestId && currentRunMeta.source_request_id !== requestId)) {
+                  return;
+                }
+                try {
+                  const resp = await fetch(`/api/runs/${encodeURIComponent(requestId)}`);
+                  if (!resp.ok) return;
+                  const updatedData = await resp.json();
+                  const updatedStatus = (updatedData.status || '').toUpperCase();
+
+                  if (updatedStatus !== 'PROCESSING') {
+                    runCache.set(`/api/runs/${requestId}`, updatedData);
+                    runCache.set(requestId, updatedData);
+                    const updatedMeta = {
+                      id: requestId,
+                      label: `${updatedData.role_name || 'role'} — ${updatedStatus} (${requestId.substring(0, 8)})`,
+                      status: updatedStatus,
+                      file: `/api/runs/${requestId}`,
+                      source_request_id: requestId,
+                      synthetic: false
+                    };
+                    await loadRun(updatedMeta);
+                  } else {
+                    pollStep();
+                  }
+                } catch (err) {
+                  console.warn("Poll fetch error:", err);
+                }
+              }, 2000);
+            }
+
+            pollStep();
+          }
+
+          // Load Run
+          async function loadRun(runMeta) {
+            currentRunMeta = runMeta;
+            const status = (runMeta.status || "UNKNOWN").toUpperCase();
+            const statusPill = document.getElementById('header-status-pill');
+            const statusText = document.getElementById('header-status-text');
+            const commandText = document.getElementById('header-command-text');
+            const runTag = document.getElementById('header-run-tag');
+            const syntheticBanner = document.getElementById('synthetic-banner');
+            const errorAlert = document.getElementById('error-alert');
+
+            errorAlert.style.display = 'none';
+
+            // Update Header
+            statusPill.className = `status-pill status-${status}`;
+            statusText.textContent = `STATUS: ${status}`;
+            commandText.textContent = runMeta.command || (status === "APPLIED" ? "cedar-sentinel analyze --apply" : "cedar-sentinel analyze");
+
+            const shortId = (runMeta.source_request_id || runMeta.id || "00000000").substring(0, 8);
+            runTag.textContent = `RUN #${shortId}`;
+
+            // Update URL query parameter
+            const url = new URL(window.location);
+            url.searchParams.set('run', runMeta.id);
+            window.history.replaceState({}, '', url);
+
+            // Check In-Memory Cache
+            const fileKey = isLiveMode ? `/api/runs/${runMeta.id || runMeta.source_request_id}` : runMeta.file;
+            let data = runCache.get(fileKey) || runCache.get(runMeta.id);
+
+            if (!data) {
+              try {
+                const fetchUrl = isLiveMode ? `/api/runs/${encodeURIComponent(runMeta.id || runMeta.source_request_id)}` : runMeta.file;
+                const resp = await fetch(fetchUrl);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+                data = await resp.json();
+                runCache.set(fileKey, data);
+                runCache.set(runMeta.id, data);
+              } catch (err) {
+                showError(`Could not load ${fileKey} — ${err.message}`);
+                return;
+              }
+            }
+
+            currentRunData = data;
+
+            // Handle bounded polling if live in-flight run
+            if (isLiveMode && status === "PROCESSING") {
+              startBoundedPolling(runMeta.id || runMeta.source_request_id);
+            } else if (pollingTimeout) {
+              clearTimeout(pollingTimeout);
+              pollingTimeout = null;
+            }
+
+            // Handle synthetic banner
+            if (data.synthetic || runMeta.synthetic) {
+              syntheticBanner.style.display = 'block';
+              document.getElementById('synthetic-note-text').textContent = data.synthetic_note || runMeta.label || "crafted to demonstrate this state";
+            } else {
+              syntheticBanner.style.display = 'none';
+            }
+
+            // Populate Audit Store card
+            document.getElementById('audit-store-id').textContent = data.policy_store_id || "<AVP_STORE_ID>";
+            document.getElementById('audit-record-status').textContent = status === "APPLIED" ? (data.audit_failed ? "AUDIT_FAILED" : "RECORDED & PERSISTED") : "NOT WRITTEN (DRY-RUN / SKIPPED)";
+            document.getElementById('audit-record-status').style.color = status === "APPLIED" && !data.audit_failed ? "var(--secondary)" : "var(--outline)";
+            document.getElementById('audit-completed-at').textContent = data.completed_at || data.created_at || "not recorded";
+
+            // Compute browser file SHA-256
+            computeRunSha256(JSON.stringify(data)).then(sha => {
+              document.getElementById('audit-file-sha').textContent = sha;
+            });
+
+            // Populate HUD & Workbench
+            populateHud(data, status);
+            populateWorkbenchLeft(data, status);
+            populateCloudTrailSection(data);
+
+            // Check autoplay query param
+            const urlParams = new URLSearchParams(window.location.search);
+            const autoplay = urlParams.get('autoplay') !== '0';
+
+            if (autoplay) {
+              replayAnimation(data, status);
+            } else {
+              const stageStates = computeStageStates(status, data);
+              for (let i = 0; i < 10; i++) renderNodeFinalState(i, stageStates[i]);
+              renderStageInspector(9, data);
+            }
+          }
+
+          function showError(msg) {
+            const alert = document.getElementById('error-alert');
+            let extra = '';
+            if (window.location.protocol === 'file:') {
+              extra = '<br><br><em>Tip: You opened this page via file:// which blocks fetch requests in modern browsers. Run <code>python -m http.server</code> inside the dashboard directory and visit http://localhost:8000.</em>';
+            }
+            alert.innerHTML = `<strong>[ERROR]</strong> ${escapeHtml(msg)}${extra}`;
+            alert.style.display = 'block';
+          }
+
+          function escapeHtml(str) {
+            if (str === null || str === undefined) return "";
+            return String(str)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
+          }
+
+          // Mode Detection Probe: /api/health
+          async function checkHealth() {
+            try {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 1500);
+              const resp = await fetch('/api/health', {
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json' }
+              });
+              clearTimeout(timeoutId);
+              if (!resp.ok) return null;
+              const ctype = resp.headers.get('content-type') || '';
+              if (!ctype.includes('application/json')) return null;
+              const data = await resp.json();
+              if (data && data.mode === 'live') return data;
+              return null;
+            } catch (e) {
+              return null;
+            }
+          }
+
+          // Populate dropdown with list of runs
+          function populateDropdown(manifestList, selectIdToPick = null) {
+            const select = document.getElementById('run-select');
+            select.innerHTML = '';
+
+            manifestList.forEach(rm => {
+              const opt = document.createElement('option');
+              opt.value = rm.id;
+              opt.textContent = rm.label || `${rm.status} — ${rm.id}`;
+              select.appendChild(opt);
+            });
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const requestedId = selectIdToPick || urlParams.get('run');
+            let targetRun = manifestList.find(m => m.id === requestedId);
+            if (!targetRun) {
+              targetRun = manifestList.find(m => m.id === 'applied') || manifestList[0];
+            }
+
+            if (targetRun) {
+              select.value = targetRun.id;
+              loadRun(targetRun);
+            }
+          }
+
+          // Fetch live runs from /api/runs
+          async function fetchAndPopulateLiveRuns() {
+            try {
+              const resp = await fetch('/api/runs?limit=100');
+              if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+              const data = await resp.json();
+              const runs = data.runs || [];
+
+              currentManifest = runs.map(r => ({
+                id: r.request_id,
+                label: `${r.role_name || 'role'} — ${r.status} (${(r.request_id || '').substring(0, 8)})`,
+                status: r.status,
+                file: `/api/runs/${r.request_id}`,
+                source_request_id: r.request_id,
+                role_name: r.role_name,
+                role_arn: r.role_arn,
+                completed_at: r.completed_at,
+                model_used: r.model_used,
+                synthetic: false
+              }));
+
+              if (currentManifest.length === 0) {
+                showError("No runs found in results table.");
+                return;
+              }
+
+              populateDropdown(currentManifest);
+            } catch (err) {
+              showError(`Could not load /api/runs — ${err.message}`);
+            }
+          }
+
+          // Fetch recorded runs manifest from runs/index.json
+          async function fetchAndPopulateRecordedRuns() {
+            try {
+              const resp = await fetch('runs/index.json');
+              if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+              currentManifest = await resp.json();
+              populateDropdown(currentManifest);
+            } catch (err) {
+              showError(`Could not load runs/index.json — ${err.message}`);
+            }
+          }
+
+          // App Initialization
+          async function init() {
+            // Wire DAG node clicks
+            for (let i = 0; i < 10; i++) {
+              const node = document.getElementById(`dag-node-${i + 1}`);
+              node.addEventListener('click', () => {
+                if (!node.disabled && currentRunData) {
+                  renderStageInspector(i, currentRunData);
+                }
+              });
+            }
+
+            // Wire Workbench Tabs
+            document.getElementById('tab-diff').addEventListener('click', () => switchTab('tab-diff', 'view-diff'));
+            document.getElementById('tab-cedar').addEventListener('click', () => switchTab('tab-cedar', 'view-cedar'));
+            document.getElementById('tab-stripped').addEventListener('click', () => switchTab('tab-stripped', 'view-stripped'));
+
+            // Wire Replay Button
+            document.getElementById('btn-replay-run').addEventListener('click', () => {
+              if (currentRunData && currentRunMeta) {
+                replayAnimation(currentRunData, currentRunData.status || currentRunMeta.status);
+              }
+            });
+
+            // Wire Download JSON Button
+            document.getElementById('btn-download-run-json').addEventListener('click', () => {
+              if (!currentRunData) return;
+              const blob = new Blob([JSON.stringify(currentRunData, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${currentRunMeta ? currentRunMeta.id : 'run'}.json`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            });
+
+            // Wire Dropdown Change
+            const select = document.getElementById('run-select');
+            select.addEventListener('change', (e) => {
+              const selected = currentManifest.find(m => m.id === e.target.value);
+              if (selected) loadRun(selected);
+            });
+
+            // Wire Client-Side Live Filter Input
+            const filterInput = document.getElementById('run-filter-input');
+            filterInput.addEventListener('input', (e) => {
+              const term = e.target.value.toLowerCase();
+              const filtered = currentManifest.filter(m => (m.label || '').toLowerCase().includes(term) || (m.id || '').toLowerCase().includes(term));
+              const currentSelectedId = select.value;
+              select.innerHTML = '';
+              filtered.forEach(rm => {
+                const opt = document.createElement('option');
+                opt.value = rm.id;
+                opt.textContent = rm.label || `${rm.status} — ${rm.id}`;
+                select.appendChild(opt);
+              });
+              if (filtered.some(m => m.id === currentSelectedId)) {
+                select.value = currentSelectedId;
+              }
+            });
+
+            // Wire Live Refresh Button
+            document.getElementById('btn-refresh-runs').addEventListener('click', async () => {
+              if (isLiveMode) {
+                await fetchAndPopulateLiveRuns();
+              }
+            });
+
+            // Wire Tab Visibility Change (halt polling if tab hidden)
+            document.addEventListener('visibilitychange', () => {
+              if (document.hidden && pollingTimeout) {
+                clearTimeout(pollingTimeout);
+                pollingTimeout = null;
+              }
+            });
+
+            // Wire Nav Tab Links Scroll Spy
+            const navLinks = document.querySelectorAll('.nav-tab-link');
+            window.addEventListener('scroll', () => {
+              const scrollPos = window.scrollY + 120;
+              const sections = ['dag-section', 'diff-section', 'telemetry-section', 'cloudtrail-section'];
+              for (const secId of sections) {
+                const el = document.getElementById(secId);
+                if (el && el.offsetTop <= scrollPos && (el.offsetTop + el.offsetHeight) > scrollPos) {
+                  navLinks.forEach(link => {
+                    link.classList.toggle('active', link.getAttribute('href') === `#${secId}`);
+                  });
+                  break;
+                }
+              }
+            });
+
+            // Mode Detection Probe
+            const health = await checkHealth();
+            if (health) {
+              isLiveMode = true;
+              liveServerHealth = health;
+
+              const liveBadge = document.getElementById('header-live-badge');
+              const liveBadgeText = document.getElementById('live-badge-text');
+              if (liveBadge && liveBadgeText) {
+                liveBadge.style.display = 'inline-flex';
+                liveBadgeText.textContent = `LIVE · local (${health.region || 'aws'} · ${health.identity || 'connected'})`;
+              }
+
+              filterInput.style.display = 'inline-block';
+              document.getElementById('btn-refresh-runs').style.display = 'inline-flex';
+
+              const noticeText = document.getElementById('notice-bar-text');
+              if (noticeText) {
+                noticeText.textContent = 'live mode · read from your AWS account through a local server · showing recorded stage timings of the selected run';
+              }
+
+              await fetchAndPopulateLiveRuns();
+            } else {
+              isLiveMode = false;
+              await fetchAndPopulateRecordedRuns();
+            }
+          }
+
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+          } else {
+            init();
+          }
+        </script>
 </body>
+
 </html>
