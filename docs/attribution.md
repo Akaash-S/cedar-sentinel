@@ -7,7 +7,10 @@ template, boilerplate, or public API is introduced — not retroactively.
 
 | Asset / Library | Source (URL) | License | Where used | Date added |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| Inter | https://fonts.google.com/specimen/Inter | SIL Open Font License 1.1 | dashboard/index.html | 2026-09-19 |
+| JetBrains Mono | https://fonts.google.com/specimen/JetBrains+Mono | SIL Open Font License 1.1 | dashboard/index.html | 2026-09-19 |
+| Plus Jakarta Sans | https://fonts.google.com/specimen/Plus+Jakarta+Sans | SIL Open Font License 1.1 | dashboard/index.html | 2026-09-19 |
+| Material Symbols / Lucide Vector Icons | https://fonts.google.com/icons / https://lucide.dev | Apache-2.0 / MIT | dashboard/index.html (inline SVG sprite) | 2026-09-19 |
 
 ---
 
