@@ -77,6 +77,55 @@ python cli/cedar_sentinel.py analyze \
 
 ---
 
+## Local Dashboard (Live Mode)
+
+Cedar Sentinel provides a local, read-only developer dashboard server that visualizes live pipeline runs directly from your AWS account or offline fixtures.
+
+```bash
+# Start local live dashboard (queries DynamoDB using local AWS credentials)
+python cli/cedar_sentinel.py dashboard
+
+# Start dashboard focused on a specific run ID without auto-opening the browser
+python cli/cedar_sentinel.py dashboard --run-id <REQUEST_ID> --no-open
+
+# Run offline against recorded run fixtures (zero AWS calls)
+python cli/cedar_sentinel.py dashboard --offline-dir dashboard/runs
+
+# Disable account ID and ARN masking (for internal developer debugging)
+python cli/cedar_sentinel.py dashboard --show-real-ids
+```
+
+### Safety & Architecture
+- **Read-Only & Loopback Only:** Binds exclusively to `127.0.0.1`. Rejects all write methods (HTTP 405) and enforces strict `Host` and `Origin` header validation against DNS rebinding.
+- **Default Redaction:** Automatically masks AWS account numbers (`<ACCOUNT_ID>`), AVP policy store IDs (`<AVP_STORE_ID>`), and CloudWatch log groups unless `--show-real-ids` is explicitly passed.
+- **Minimal IAM Permissions:** The developer's local AWS identity requires only:
+  ```json
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "CedarSentinelDashboardResultsRead",
+        "Effect": "Allow",
+        "Action": [
+          "dynamodb:Scan",
+          "dynamodb:GetItem"
+        ],
+        "Resource": "arn:aws:dynamodb:*:*:table/cedar-sentinel-results"
+      },
+      {
+        "Sid": "CedarSentinelDashboardIdentityCheck",
+        "Effect": "Allow",
+        "Action": [
+          "sts:GetCallerIdentity"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }
+  ```
+
+---
+
 ## Repeatable Demos & Demo Reset Script
 
 To reset the demo role back to its broad baseline (`s3:*`) for repeatable demonstrations:

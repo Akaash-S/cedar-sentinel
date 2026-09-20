@@ -1160,6 +1160,7 @@ def handle_analyze(args: argparse.Namespace) -> int:
     # Read-only render flow (Phase 2 & Phase 3 print-only)
     if status == "COMPLETE":
         _render_complete_result(result)
+        print(f"\nView this run: python cli/cedar_sentinel.py dashboard --run {request_id}")
         return 0
     elif status == "BLOCKED":
         return _render_blocked_result(result)
@@ -1177,6 +1178,27 @@ def handle_analyze(args: argparse.Namespace) -> int:
     else:
         print(f"\nUnknown status '{status}' for request_id={request_id}.", file=sys.stderr)
         return 1
+
+
+def handle_dashboard(args: argparse.Namespace) -> int:
+    """Handler for `dashboard` subcommand."""
+    try:
+        from cli.dashboard_server import DEFAULT_PORT, DEFAULT_TABLE_NAME, start_dashboard_server
+    except ImportError:
+        from dashboard_server import DEFAULT_PORT, DEFAULT_TABLE_NAME, start_dashboard_server
+
+    table_name = getattr(args, "table", None) or os.environ.get("RESULTS_TABLE_NAME", DEFAULT_TABLE_NAME)
+    start_dashboard_server(
+        port=getattr(args, "port", DEFAULT_PORT),
+        region=getattr(args, "region", None) or os.environ.get("AWS_REGION"),
+        table_name=table_name,
+        profile=getattr(args, "profile", None) or os.environ.get("AWS_PROFILE"),
+        run_id=getattr(args, "run_id", None),
+        no_open=getattr(args, "no_open", False),
+        show_real_ids=getattr(args, "show_real_ids", False),
+        offline_dir=getattr(args, "offline_dir", None),
+    )
+    return 0
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -1247,6 +1269,50 @@ def build_parser() -> argparse.ArgumentParser:
         help="Allow analysis of Cedar Sentinel's own Lambda execution role (for read-only testing only; never permits --apply)",
     )
     parser_analyze.set_defaults(func=handle_analyze)
+
+    # Subcommand: dashboard
+    parser_dashboard = subparsers.add_parser(
+        "dashboard",
+        help="Start local read-only dashboard server bound to 127.0.0.1",
+    )
+    parser_dashboard.add_argument(
+        "--port",
+        type=int,
+        default=8765,
+        help="Port to bind to on 127.0.0.1 (default: 8765)",
+    )
+    parser_dashboard.add_argument(
+        "--profile",
+        default=os.environ.get("AWS_PROFILE"),
+        help="AWS CLI profile name to use for credentials",
+    )
+    parser_dashboard.add_argument(
+        "--table",
+        default=None,
+        help="DynamoDB results table name (defaults to RESULTS_TABLE_NAME env var or cedar-sentinel-results)",
+    )
+    parser_dashboard.add_argument(
+        "--run",
+        dest="run_id",
+        default=None,
+        help="Deep link to specific run request_id on open",
+    )
+    parser_dashboard.add_argument(
+        "--no-open",
+        action="store_true",
+        help="Do not automatically open the browser on startup",
+    )
+    parser_dashboard.add_argument(
+        "--show-real-ids",
+        action="store_true",
+        help="Do not sanitize/mask real AWS account IDs and ARNs (warning: not safe for screen recording)",
+    )
+    parser_dashboard.add_argument(
+        "--offline-dir",
+        default=None,
+        help="Serve runs from local directory instead of connecting to AWS",
+    )
+    parser_dashboard.set_defaults(func=handle_dashboard)
 
     return parser
 

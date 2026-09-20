@@ -73,6 +73,7 @@ Lookback window: 7 days. Result: `{eventName: count}` map handed to Bedrock.
 | 2026-09-19 | **CLI Enforcement & Snapshotting (`--apply`, `previous_policy`)** | CLI workflow enforcing target role verification, inline policy overwrite check (`iam:ListRolePolicies`), snapshotting existing policy (`iam:GetRolePolicy`), executing `iam:PutRolePolicy` with throttling retry, and performing read-back verification. |
 | 2026-09-19 | **Demo Role Reset Script (`scripts/reset_demo_role.py`)** | Standalone script hard-coded for `cedar-sentinel-demo-role` that restores the broad baseline `s3:*` policy for repeatable demo testing. |
 | 2026-09-19 | **Sanitized Dashboard Run Exporter (`scripts/export_run.py`)** | Exports completed DynamoDB run data into sanitized `dashboard/runs/<name>.json` files with account IDs redacted and generates `dashboard/runs/index.json` for static dashboard replay. |
+| 2026-09-20 | **Local Live Dashboard Server (`cli/dashboard_server.py`)** | Local HTTP server bound to `127.0.0.1` serving `dashboard/index.html` and read-only endpoints (`/api/health`, `/api/runs`, `/api/runs/<uuid>`). Queries live DynamoDB using the developer's local AWS credentials with default ID redaction, bounded polling for in-flight `PROCESSING` runs, and seamless dual-mode frontend detection. |
 
 ---
 
@@ -130,6 +131,7 @@ The pipeline and CLI support the following 10 explicit status states:
 | 2026-09-19 | Lockout menu option `[2]` disabled with safety notice | Option `[2]` (force-apply draft Cedar policy) intentionally disabled in this build to prevent bypassing the safety net when dropped actions are detected. |
 | 2026-09-19 | Added persistent AVP audit store (`cedar-sentinel-audit-store`) | Added a persistent AVP policy store (distinct from the disposable verification store) where the CLI records approved Cedar policies via `CreatePolicy` exclusively upon confirmed `APPLIED` status. |
 | 2026-09-19 | Dashboard rebuilt as static recorded-run replay | The dashboard was redesigned from a proposed live read-only API endpoint to a static, zero-dependency recorded-run player (`dashboard/runs/`). DynamoDB results expire after 72 hours via TTL, which would cause an unauthenticated live endpoint to return empty data during later judging review and risk exposing raw account/role metadata. Static sanitized recorded runs ensure 100% reliable, zero-latency playback of all 10 pipeline statuses indefinitely. |
+| 2026-09-20 | Dual-mode dashboard & local live server added (`phase-03c`) | Enabled dual-mode operation for `dashboard/index.html`: static recorded-run playback when hosted on AWS Amplify (zero backend calls, zero console errors), and live querying of DynamoDB when served locally via `cedar_sentinel.py dashboard` on `127.0.0.1`. Live server uses local AWS credentials, performs read-only `Scan`/`GetItem`, applies default redaction of account IDs and AVP store IDs, and includes bounded polling for in-flight `PROCESSING` runs. |
 
 
 

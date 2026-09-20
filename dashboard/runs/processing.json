@@ -1,77 +1,16 @@
 {
-  "action_mappings_applied": [
-    {
-      "original": "s3:HeadObject",
-      "mapped": "s3:GetObject"
-    },
-    {
-      "mapped": "s3:ListAllMyBuckets",
-      "original": "s3:ListBuckets"
-    }
-  ],
-  "analyzer_validation": {
-    "check_no_new_access": {
-      "message": "The modified permissions grant less or equal access compared to your existing policy.",
-      "result": "PASS",
-      "reasons": []
-    },
-    "messages": [
-      "Access Analyzer validation passed (no errors, no new access)."
-    ],
-    "passed": true,
-    "findings": [],
-    "reason": null
-  },
+  "action_mappings_applied": [],
+  "analyzer_validation": null,
   "cedar_policy": "",
-  "cedar_validation": {
-    "passed": true,
-    "messages": [
-      "Policy passed STRICT Cedar schema validation."
-    ],
-    "policy_store_id": "<AVP_STORE_ID>"
-  },
-  "completed_at": "2026-09-19T14:34:49.511038+00:00",
-  "coverage_check": {
-    "blocked_actions": [],
-    "passed": true
-  },
-  "guard_removed_actions": [
-    "ec2:Describe*",
-    "ec2:List*",
-    "logs:CreateLogGroup",
-    "logs:DescribeLogGroups",
-    "logs:DescribeLogStreams",
-    "logs:FilterLogEvents",
-    "logs:GetLogEvents",
-    "logs:GetQueryResults",
-    "logs:PutLogEvents",
-    "logs:StartQuery",
-    "logs:StopQuery"
-  ],
+  "cedar_validation": null,
+  "coverage_check": null,
+  "guard_removed_actions": [],
   "iam_policy": null,
-  "model_used": "apac.amazon.nova-lite-v1:0",
-  "observed_actions": {
-    "s3:GetObject": 1,
-    "s3:HeadObject": 1,
-    "s3:PutObject": 1,
-    "s3:GetBucketLocation": 2,
-    "s3:DeleteObject": 1,
-    "s3:ListBuckets": 3,
-    "s3:CreateBucket": 1
-  },
-  "previous_policy": {
-    "Version": "2012-10-17",
-    "Statement": [
-      {
-        "Sid": "DemoS3Access",
-        "Effect": "Allow",
-        "Action": "s3:*",
-        "Resource": "*"
-      }
-    ]
-  },
-  "rationale": "Tightened policy to include only observed CloudTrail actions for s3 service(s). [Deterministic guard excluded 11 unobserved action(s): ec2:Describe*, ec2:List*, logs:CreateLogGroup, logs:DescribeLogGroups, logs:DescribeLogStreams, logs:FilterLogEvents, logs:GetLogEvents, logs:GetQueryResults, logs:PutLogEvents, logs:StartQuery, logs:StopQuery]",
-  "request_id": "db48ddbc-b4dd-4978-947c-c81f2131b1ab",
+  "model_used": "",
+  "observed_actions": {},
+  "previous_policy": null,
+  "rationale": "",
+  "request_id": "c3d4e5f6-a7b8-49c0-8d1e-2f3a4b5c6d7e",
   "requested_policy": {
     "Version": "2012-10-17",
     "Statement": [
