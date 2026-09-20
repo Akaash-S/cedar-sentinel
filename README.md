@@ -104,15 +104,21 @@ python cli/cedar_sentinel.py dashboard --show-real-ids
     "Version": "2012-10-17",
     "Statement": [
       {
-        "Sid": "CedarSentinelDashboardReadOnly",
+        "Sid": "CedarSentinelDashboardResultsRead",
         "Effect": "Allow",
         "Action": [
           "dynamodb:Scan",
-          "dynamodb:GetItem",
-          "dynamodb:DescribeTable",
-          "sts:GetCallerIdentity"
+          "dynamodb:GetItem"
         ],
         "Resource": "arn:aws:dynamodb:*:*:table/cedar-sentinel-results"
+      },
+      {
+        "Sid": "CedarSentinelDashboardIdentityCheck",
+        "Effect": "Allow",
+        "Action": [
+          "sts:GetCallerIdentity"
+        ],
+        "Resource": "*"
       }
     ]
   }

@@ -226,11 +226,18 @@ class TestLocalDashboardHTTPServer(unittest.TestCase):
         self.assertIn("error", data)
 
     def test_host_header_validation(self):
-        """Asserts invalid Host header receives 403 Forbidden (DNS rebinding defense)."""
-        status, headers, body = self._make_request("GET", "/api/health", headers={"Host": "evil.example.com"})
-        self.assertEqual(status, 403)
-        data = json.loads(body.decode("utf-8"))
-        self.assertIn("Invalid Host", data.get("error", ""))
+        """Asserts invalid Host header and wrong ports receive 403 Forbidden (DNS rebinding defense)."""
+        # Invalid hosts
+        for bad_host in ("evil.example.com", f"127.0.0.1:{self.port + 1}", "localhost:9999", "evil.local"):
+            status, headers, body = self._make_request("GET", "/api/health", headers={"Host": bad_host})
+            self.assertEqual(status, 403, f"Host '{bad_host}' should have been 403 but got {status}")
+            data = json.loads(body.decode("utf-8"))
+            self.assertIn("Invalid Host", data.get("error", ""))
+
+        # Valid hosts with port and loopback
+        for good_host in (f"127.0.0.1:{self.port}", f"localhost:{self.port}", f"[::1]:{self.port}", "127.0.0.1", "localhost", "[::1]"):
+            status, headers, body = self._make_request("GET", "/api/health", headers={"Host": good_host})
+            self.assertEqual(status, 200, f"Host '{good_host}' should have been 200 but got {status}")
 
     def test_origin_header_validation(self):
         """Asserts cross-site Origin header receives 403 Forbidden."""

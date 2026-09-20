@@ -132,8 +132,10 @@ def create_handler(context: DashboardContext):
             allowed_hosts = {
                 f"127.0.0.1:{context.port}",
                 f"localhost:{context.port}",
+                f"[::1]:{context.port}",
                 "127.0.0.1",
                 "localhost",
+                "[::1]",
             }
             if host_header not in allowed_hosts:
                 self._send_error_json(403, "Forbidden: Invalid Host header")
@@ -145,8 +147,10 @@ def create_handler(context: DashboardContext):
                 allowed_origins = {
                     f"http://127.0.0.1:{context.port}",
                     f"http://localhost:{context.port}",
+                    f"http://[::1]:{context.port}",
                     "http://127.0.0.1",
                     "http://localhost",
+                    "http://[::1]",
                 }
                 if origin_clean not in allowed_origins:
                     self._send_error_json(403, "Forbidden: Cross-origin requests not allowed")
