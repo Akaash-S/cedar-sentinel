@@ -8,62 +8,45 @@ architecture in `00-master-blueprint.md` to avoid overclaiming.
 
 ---
 
-## 1. Continuous Tightening vs. One-Time Post-Hoc Auditing
+## 1. Deploy-Time Policy Tightening & Human Approval Workflow
 
-**The competition:** Tools like IAM Access Analyzer, Repokid, and Wiz generate a
-least-privilege snapshot when you run them, but nothing re-checks the role after that.
-Permissions drift back toward over-broad the next time someone edits the Terraform,
-and re-auditing depends on a human remembering to re-run the tool.
+**IAM Access Analyzer:** AWS IAM Access Analyzer already generates policies from CloudTrail activity and recommends removing unused permissions.
 
-**Cedar Sentinel:** Evaluates Terraform plans against fresh CloudTrail telemetry from
-the workload's operational history. It closes the loop across deploy cycles,
-catching permission drift automatically rather than requiring a scheduled or manual audit.
-
-**Demo strategy:** The video starts mid-stream from a pre-provisioned role
-(`cedar-sentinel-demo-role`) that already has a broad policy (`s3:*`) with real
-seeded CloudTrail usage history already in place. The CLI trigger (`python cli/cedar_sentinel.py analyze --plan-file ... --role-arn ... --apply --policy-name demo-broad-s3`)
-reads the seeded history and produces the "Before (Wildcard) vs. After (Cedar & IAM Least-Privilege)" diff on screen immediately.
+**Cedar Sentinel:** Builds on Access Analyzer rather than replacing it. It incorporates Access Analyzer's `ValidatePolicy` and `CheckNoNewAccess` APIs directly into its evaluation pipeline. What Cedar Sentinel adds is a developer-focused, deploy-time workflow:
+1. Intercepts the proposed IAM policy from a Terraform plan (`terraform show -json`).
+2. Correlates it with observed CloudTrail usage across the role's historical execution window.
+3. Generates a readable, schema-valid Cedar policy via Amazon Bedrock and Amazon Verified Permissions (AVP).
+4. Translates back to minimal IAM JSON, verifies no privilege escalation via Access Analyzer, and presents an interactive before/after diff for explicit developer sign-off (`[y/N]`).
+5. Snapshots the prior policy, enforces the update to the live IAM role, and logs the approved Cedar policy to a persistent AVP audit store.
 
 ---
 
-## 2. Native Cedar Policy Generation vs. Legacy IAM JSON
+## 2. Dual-Layer Verification (Cedar STRICT Schema + IAM Access Analyzer)
 
-**The competition:** Almost all existing solutions default strictly to traditional AWS
-IAM JSON documents, which become dense and difficult to audit as policies accumulate
-conditions and exceptions at scale.
-
-**Cedar Sentinel:** Synthesizes Cedar authorization policies natively for Amazon Verified
-Permissions before translating down to IAM JSON. Cedar's policy language is
-human-readable and formally analyzable — schema-validated in STRICT mode against AVP — which
-is the modern standard for fine-grained authorization.
+- **Cedar Schema Verification:** Synthesizes Cedar authorization policies and validates them in `STRICT` mode against Amazon Verified Permissions before translation.
+- **IAM Access Analyzer Safety Net:** Independent mathematical validation using AWS Automated Reasoning tools:
+  - `ValidatePolicy`: Flags invalid action syntax or malformed elements.
+  - `CheckNoNewAccess`: Guarantees the tightened policy never grants permissions outside the original requested baseline.
 
 ---
 
-## 3. Closed-Loop Safeguard Against Workload Lockouts & Privilege Escalations
+## 3. Workload Lockout Safeguards & Observed Action Guard
 
-**The competition:** Automated least-privilege generators risk stripping away
-operations that simply haven't appeared in recent telemetry — silently breaking application
-workloads on the next deploy — or introducing privilege escalation errors.
-
-**Cedar Sentinel:** Combines Bedrock's generative drafting with a multi-layered verification safety net:
-1. **100% Coverage Check:** Asserts that every action observed in the CloudTrail baseline remains permitted.
-2. **Cedar Formal Verification:** Amazon Verified Permissions validates the policy against a STRICT Cedar schema.
-3. **IAM Access Analyzer Independent Verification:** Calls `ValidatePolicy` (catching invalid IAM action syntax) and `CheckNoNewAccess` (catching any potential privilege escalation).
-4. **Human-in-the-Loop Dry-Run Approval:** Presents a complete before/after diff with applied action mappings and requires explicit developer sign-off (`[y/N]`) before applying anything to IAM.
-
-**Failure behavior:**
-- If the coverage check fails, the CLI hard-blocks the deployment with a three-way menu (`[1] Fall back to original policy`, `[2] Force-apply draft policy (Override)`, `[3] Re-evaluate with tighter prompt context`).
-- *Note on Option [2] Override:* Option `[2]` is intentionally disabled in this build with an explicit safety warning (`Override is intentionally disabled in this build: applying a policy that drops observed actions bypasses the lockout safeguard. Use [3] to re-evaluate or [1] to fall back.`).
+Automated least-privilege generation risks dropping actions that are necessary for workload operation. Cedar Sentinel mitigates this with:
+1. **Deterministic Guard:** Asserts that every action observed in CloudTrail telemetry is preserved in the tightened policy.
+2. **Human Approval Step:** Gives the developer full visibility into the diff before any live IAM changes occur.
+3. **Rollback Snapshot:** Automatically saves the previous policy state to DynamoDB before applying changes.
 
 ---
 
-## Summary table (for the writeup)
+## Summary Table
 
-| Differentiator | Competitor approach | Cedar Sentinel approach |
+| Capability | IAM Access Analyzer Alone | Cedar Sentinel Pipeline |
 |---|---|---|
-| Timing | One-time, on-demand snapshot | Continuous, per-deploy-cycle evaluation |
-| Policy format | AWS IAM JSON | Cedar (Verified Permissions), then translated to IAM |
-| Lockout & Escalation risk | Usage-window blind spots can silently break workloads or escalate access | Deterministic 100%-coverage check + Cedar verification + Access Analyzer `CheckNoNewAccess` + human dry-run approval |
+| Trigger | Console / scheduled finding | Deploy-time workflow (`terraform show -json`) |
+| Policy Validation | `ValidatePolicy` / `CheckNoNewAccess` | Cedar STRICT schema validation + Access Analyzer |
+| Workload Safety | Recommendations | Deterministic observed-action guard + diff approval |
+| Rollback & Audit | Manual copy-paste | Automated DynamoDB snapshot + AVP audit store |
 
 ---
 
