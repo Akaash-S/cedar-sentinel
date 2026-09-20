@@ -1,0 +1,39 @@
+{
+  "format_version": "1.1",
+  "terraform_version": "1.9.0",
+  "resource_changes": [
+    {
+      "address": "aws_iam_role_policy.cedar_sentinel_demo",
+      "module_address": null,
+      "mode": "managed",
+      "type": "aws_iam_role_policy",
+      "name": "cedar_sentinel_demo",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "name": "demo-broad-s3",
+          "role": "cedar-sentinel-video-role",
+          "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Sid\":\"DemoS3Access\",\"Effect\":\"Allow\",\"Action\":[\"s3:*\"],\"Resource\":\"*\"},{\"Sid\":\"DemoEC2Access\",\"Effect\":\"Allow\",\"Action\":[\"ec2:Describe*\",\"ec2:List*\"],\"Resource\":\"*\"},{\"Sid\":\"DemoLogsAccess\",\"Effect\":\"Allow\",\"Action\":[\"logs:CreateLogGroup\",\"logs:CreateLogStream\",\"logs:PutLogEvents\",\"logs:DescribeLogGroups\",\"logs:DescribeLogStreams\",\"logs:GetLogEvents\",\"logs:FilterLogEvents\",\"logs:StartQuery\",\"logs:GetQueryResults\",\"logs:StopQuery\"],\"Resource\":\"*\"},{\"Sid\":\"DemoDynamoAccess\",\"Effect\":\"Allow\",\"Action\":[\"dynamodb:*\"],\"Resource\":\"*\"}]}"
+        },
+        "after_unknown": {},
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    }
+  ],
+  "configuration": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "aws_iam_role_policy.cedar_sentinel_demo",
+          "mode": "managed",
+          "type": "aws_iam_role_policy",
+          "name": "cedar_sentinel_demo",
+          "provider_config_key": "aws"
+        }
+      ]
+    }
+  }
+}
