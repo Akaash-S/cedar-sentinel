@@ -84,10 +84,21 @@ Status: DECLINED                                1. Snapshot previous_policy
 
 ### Safety Layer Rejection Breakdown (50 Runs)
 1. **Layer 1 (Deterministic AST Guard):** **2 interventions** (automatically pruned hallucinated or unobserved actions before Cedar validation).
-2. **Layer 2 (Coverage Lockout Check):** **9 rejections** (blocked Plan 5 when the unrequested observed write action was dropped by the model, preventing application lockout).
+2. **Layer 2 (Coverage Lockout Check):** **9 rejections** (blocked Plan 5 across 9/10 iterations when the unrequested observed write action was dropped by the model, preventing application lockout).
 3. **Layer 3 (Cedar Formal Verification in AVP):** **0 rejections** (all generated Cedar syntax conformed strictly to the registered Cedar schema).
-4. **Layer 4 (IAM Access Analyzer Automated Reasoning):** **10 rejections** (rejected Plan 2 due to resource scope constraints during identity policy validation).
+4. **Layer 4 (IAM Access Analyzer Automated Reasoning):** **10 rejections** (blocked Plan 2 across 10/10 iterations due to ARN account syntax error `INVALID_ARN_ACCOUNT`).
 5. **Layer 5 (Human Approval):** **0 rejections** (interactive sign-off gate).
+
+### Plan 2 Rejection Root Cause Analysis
+During the 50-run suite, `plan_2_microservice` (DynamoDB & SQS) triggered Layer 4 rejection in 10 out of 10 runs with the exact finding:
+```
+Access Analyzer check failed (VALIDATION_ERROR):
+['Access Analyzer validation error: The resource ARN account ID <ACCOUNT_ID> is not valid. Provide a 12-digit account ID. (INVALID_ARN_ACCOUNT)',
+ 'Access Analyzer validation error: The resource ARN account ID <ACCOUNT_ID> is not valid. Provide a 12-digit account ID. (INVALID_ARN_ACCOUNT)']
+```
+* **Exact Finding Code:** `INVALID_ARN_ACCOUNT`
+* **Root Cause:** In `TEST_PLANS`, the resource ARNs for DynamoDB and SQS (`arn:aws:dynamodb:ap-south-1:<ACCOUNT_ID>:table/orders` and `arn:aws:sqs:ap-south-1:<ACCOUNT_ID>:orders-queue`) contained the redaction placeholder string `<ACCOUNT_ID>`. While the test runner substituted dummy account `123456789012` into `role_arn`, the requested policy document retained the literal `<ACCOUNT_ID>` string. When AWS Access Analyzer evaluated the generated policy via `ValidatePolicy`, its real cloud parser strictly rejected the non-digit account ID as malformed ARN syntax.
+* **Significance:** This failure confirms that Layer 4 serves as an effective independent safety net: even if an upstream step produces a policy, Access Analyzer blocks any policy containing invalid AWS ARN syntax before it can ever reach human review or live application.
 
 ---
 

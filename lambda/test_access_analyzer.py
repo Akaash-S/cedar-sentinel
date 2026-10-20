@@ -8,12 +8,14 @@ import json
 import os
 import sys
 import unittest
+import pytest
 
 from handler import stage_access_analyzer
 
 REGION = os.environ.get("AWS_REGION", "ap-south-1")
 
 
+@pytest.mark.live
 class TestAccessAnalyzerSafetyNet(unittest.TestCase):
 
     def test_a_invalid_action_name_triggers_validation_error(self):
