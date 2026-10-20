@@ -6,6 +6,7 @@
 [![Track](https://img.shields.io/badge/Track-Ship%20It%20(Solo)-blue)](#)
 [![Status](https://img.shields.io/badge/Status-Submitted%20--%20v1.0-brightgreen)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/Akaash-S/cedar-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/Akaash-S/cedar-sentinel/actions/workflows/ci.yml)
 [![Amplify Dashboard](https://img.shields.io/badge/Dashboard-Live%20on%20AWS%20Amplify-FF9900?logo=aws-amplify)](https://main.d3i4xcsmv7sca9.amplifyapp.com)
 
 ---
@@ -50,31 +51,41 @@ Cedar Sentinel bridges the gap between infrastructure-as-code and runtime activi
 
 > **Core Distinction:** Cedar and Amazon Verified Permissions **verify** policy syntax and schema correctness; AWS IAM **enforces** live permissions at runtime.
 
-```
-Terraform Plan JSON
-        │
-        ▼
-   Python CLI ────────► EventBridge ─────► SQS ─────► Lambda Pipeline Processor
-   (--apply)                                            │
-                                                        ├─ 1. CloudWatch Logs Insights (7-day usage query)
-                                                        ├─ 2. Amazon Bedrock (Nova Lite reasoning)
-                                                        ├─ 3. Lockout Coverage Guard (deterministic)
-                                                        ├─ 4. Cedar Formal Verification (AVP STRICT schema)
-                                                        ├─ 5. IAM Translation & Action Normalization
-                                                        └─ 6. IAM Access Analyzer (ValidatePolicy + CheckNoNewAccess)
-                                                        │
-                                                        ▼
-                                                  DynamoDB Table
-                                                        │
-   CLI Interactive Diff & Approval ◄────────────────────┘
-        │
-        ├─ [N] Decline ──► Writes DECLINED status (no IAM changes)
-        │
-        └─ [y] Approve ──► Snapshot previous_policy
-                       ──► iam:PutRolePolicy (with backoff)
-                       ──► Eventual-consistency read-back verification
-                       ──► Record audit policy in persistent AVP store
-                       └── Status: APPLIED
+```mermaid
+flowchart TD
+    A[Terraform Plan JSON\nterraform show -json] --> B[Python CLI\ncedar_sentinel.py --apply]
+    B -->|EventBridge: cedar.sentinel| C[Amazon SQS Queue]
+    C --> D[AWS Lambda Pipeline Processor\nPython 3.12]
+    
+    subgraph LambdaPipeline["Lambda Serverless Pipeline (Read-Only Execution Role)"]
+        direction TB
+        L1["Stage 1: CloudWatch Logs Insights\n(7-day historical usage query)"]
+        L2["Stage 2: Amazon Bedrock\n(Nova Lite reasoning & Cedar synthesis)"]
+        L3["Stage 3: Deterministic Coverage Check\n(Application lockout prevention)"]
+        L4["Stage 4: Amazon Verified Permissions\n(STRICT Cedar schema verification)"]
+        L5["Stage 5: Cedar → IAM Translation\n(Action name normalization)"]
+        L6["Stage 6: AWS IAM Access Analyzer\n(ValidatePolicy + CheckNoNewAccess)"]
+        
+        L1 --> L2 --> L3 --> L4 --> L5 --> L6
+    end
+    
+    D --> LambdaPipeline
+    LambdaPipeline --> E[(Amazon DynamoDB\nResults Table)]
+    
+    E --> F[CLI Interactive Diff & Developer Sign-Off]
+    
+    F -->|"[N] Decline"| G[Status: DECLINED\nZero IAM changes made]
+    F -->|"[y] Approve"| H[Client-Side Human-in-the-Loop Enforcement]
+    
+    subgraph ClientApply["Local Developer CLI (Local IAM Credentials)"]
+        direction TB
+        H1["1. Snapshot previous_policy to DynamoDB"] --> H2["2. iam:PutRolePolicy\n(Exponential retry backoff)"]
+        H2 --> H3["3. Eventual consistency read-back verification"]
+        H3 --> H4["4. Record audit policy in persistent AVP store"]
+        H4 --> H5["5. Status: APPLIED"]
+    end
+    
+    H --> ClientApply
 ```
 
 ---
@@ -95,14 +106,21 @@ Terraform Plan JSON
 
 ---
 
-## 5. Safety Model
+## 5. Safety Model & The 5 Defensive Layers
 
-- **Workload Lockout Safeguard:** The deterministic guard guarantees that every action observed in CloudTrail telemetry remains permitted in the synthesized policy.
-- **Privilege Escalation Prevention:** AWS IAM Access Analyzer `CheckNoNewAccess` asserts mathematically that the new policy grants zero permissions outside the requested baseline.
-- **Strict Forbid Refusal:** The translator strictly refuses to convert Cedar `forbid` statements into IAM Allow blocks, preventing unintended lockout configurations.
-- **Lambda Role Protection:** The CLI strictly refuses to modify Cedar Sentinel's own execution role.
+Cedar Sentinel enforces security through 5 progressive, defense-in-depth safety layers before any IAM policy can ever be applied:
+
+1. **Layer 1: Deterministic AST & Prompt Guard** ([`lambda/handler.py:stage_2_bedrock_reasoning`](file:///d:/Projects/CedarSentinel/lambda/handler.py)): Inspects model output against requested baseline and observed telemetry, automatically stripping hallucinated or unobserved actions.
+2. **Layer 2: Deterministic Coverage & Lockout Guard** ([`lambda/handler.py:stage_coverage_check`](file:///d:/Projects/CedarSentinel/lambda/handler.py)): Asserts that every single action observed in CloudTrail telemetry remains permitted in the generated policy. If an observed action was dropped, the pipeline enters `BLOCKED` status and halts immediately, preventing production application lockouts.
+3. **Layer 3: Cedar Formal Schema Verification in AVP** ([`lambda/handler.py:stage_cedar_validation`](file:///d:/Projects/CedarSentinel/lambda/handler.py)): Validates Cedar syntax and STRICT schema compatibility against Amazon Verified Permissions. *(AVP serves as a policy verification and audit layer, not a runtime authorization gate; live AWS permissions are enforced exclusively by IAM).*
+4. **Layer 4: IAM Access Analyzer Automated Reasoning** ([`lambda/handler.py:stage_access_analyzer`](file:///d:/Projects/CedarSentinel/lambda/handler.py)): Runs AWS IAM Access Analyzer `ValidatePolicy` (validating IAM syntax and ARN compliance) and `CheckNoNewAccess` (mathematically proving against privilege escalation relative to baseline).
+5. **Layer 5: Interactive Human Approval Gate** ([`cli/cedar_sentinel.py:execute_enforcement_flow`](file:///d:/Projects/CedarSentinel/cli/cedar_sentinel.py)): Displays an interactive colorized before/after diff in the developer CLI and halts for explicit `[y/N]` confirmation.
+
+### Core Architectural Guarantees
+- **Zero IAM Write Permissions in Lambda:** The Lambda execution role has zero `iam:Put*`, `iam:Create*`, `iam:Attach*`, or `iam:Delete*` permissions. It is mathematically impossible for the serverless processor to modify live IAM roles.
+- **Client-Side Enforcement:** Applying changes (`iam:PutRolePolicy`) is executed strictly client-side by the developer CLI using local AWS credentials, and only after interactive human sign-off.
 - **Rollback Snapshotting:** Automatically records `previous_policy` in DynamoDB prior to updating live IAM roles.
-- **Human-in-the-Loop:** Live IAM changes require explicit developer confirmation (`[y/N]`) after reviewing the full policy diff.
+- **Self-Analysis Protection:** The CLI strictly refuses to modify Cedar Sentinel's own execution role unless explicit override flags are supplied.
 
 ---
 
@@ -231,9 +249,15 @@ python cli/cedar_sentinel.py dashboard --offline-dir dashboard/runs
 
 ## 13. Test Suite & Verification
 
-Run the full automated test suite (38 unit tests):
+Run the automated test suite (38 unit tests):
 
 ```bash
+# Run 34 offline unit tests (zero AWS credentials required)
+pytest -m "not live" -v
+
+# Run full suite including live AWS tests (when AWS credentials are configured)
+pytest -v
+
 # CLI Unit Tests (26 tests)
 python -m unittest discover cli/ -v
 
@@ -247,20 +271,25 @@ python scripts/validate_runs.py
 python experiments/run_experiments.py
 ```
 
-### Verified Suite & Cost Metrics
-- **Automated Unit Tests:** **38 unit tests** (26 CLI + 12 Lambda), 100% passing with clean mock isolation.
-- **Bedrock Nova Lite Cost per Run:** **~$0.0001 USD** ($0.000106 USD per policy analysis; ~$0.1057 per 1,000 policy generations).
-- **CloudWatch Insights Speedup:** 5.1× latency reduction (3.76s down to 0.74s) via adaptive backoff polling.
-- See [experiments/README.md](experiments/README.md) for full empirical analysis and 50-run data.
+### Verified Test Suite & Latency / Cost Metrics
+- **Automated Unit Tests:** **38 unit tests** (26 CLI + 12 Lambda), 100% passing. (34 pure offline unit tests + 4 live IAM Access Analyzer tests marked `@pytest.mark.live`).
+- **In-Lambda Processing Latency (Happy Path):** **5.52 s – 5.55 s** total internal execution time (measured in live Lambda runs recorded in `dashboard/runs/complete.json` [5.52 s] and `dashboard/runs/applied.json` [5.55 s]).
+- **Laptop-Driven Experiment Latency (50 Live AWS Runs across 5 Plans):** **Median 11.58 s (~11.6 s)**, **P95 21.54 s (~21.5 s)** over network via `boto3`.
+- **Bedrock Nova Lite Token & Cost per Run:** **~$0.0001 USD** ($0.000106 USD per policy analysis; ~$0.1057 per 1,000 policy generations with avg 261.4 input and 374.9 output tokens).
+- See [experiments/README.md](experiments/README.md) for the complete empirical analysis and raw 50-run dataset.
 
 ---
 
 ## 14. Limitations & Mitigations
 
-- **Schema Validation Scope:** Amazon Verified Permissions validates Cedar syntax and schema compatibility; full automated reasoning over Cedar logic is roadmap work.
-- **Resource Wildcards:** Phase 3 focuses on tightening action sets (`Action: [...]`); resource ARNs are preserved from the requested policy.
-- **Action Mapping Coverage:** Covers common CloudTrail-to-IAM disparities (e.g. S3 list/get APIs); unmapped actions fall back safely to requested scoping.
-- See [docs/limitations-and-mitigations.md](docs/limitations-and-mitigations.md) for full details.
+1. **Experimental & Evaluation Scope:** Tested on a small number of real CloudTrail events and 50 live experiment runs across 5 distinct IAM plans; no high-concurrency load testing has been conducted.
+2. **Amplify Dashboard is Static Replay:** The publicly deployed AWS Amplify dashboard ([main.d3i4xcsmv7sca9.amplifyapp.com](https://main.d3i4xcsmv7sca9.amplifyapp.com)) is a static replay of 10 sanitized runs from `dashboard/runs/`. Real-time interactive analysis runs via the local developer CLI and dashboard server (`python cli/cedar_sentinel.py dashboard`).
+3. **Cedar / AVP is an Audit & Verification Layer:** Amazon Verified Permissions validates Cedar syntax and schema compatibility in `STRICT` mode and serves as an immutable policy audit store. It is **not a runtime authorization gate** (runtime authorization in AWS is enforced solely by AWS IAM).
+4. **Lambda Execution Role Zero IAM Write Permissions:** The Lambda processor has zero `iam:Put*`, `iam:Create*`, `iam:Attach*`, or `iam:Delete*` permissions. Applying policy modifications strictly requires developer CLI invocation with human `[y/N]` approval.
+5. **Plan 2 Access Analyzer Rejection Analysis:** In the 50-run experiment suite, Plan 2 (DynamoDB & SQS) was rejected by Access Analyzer in 10/10 runs with finding code `INVALID_ARN_ACCOUNT`. This was caused by the test fixture containing the placeholder `<ACCOUNT_ID>` in resource ARNs (`arn:aws:dynamodb:ap-south-1:<ACCOUNT_ID>:table/orders`), which Access Analyzer's real API strictly rejected as invalid 12-digit account syntax. This verified that Layer 4 effectively prevents policies with malformed ARNs from being approved.
+6. **Resource Wildcards:** The pipeline tightens IAM `Action` sets down to observed API calls, but preserves requested resource ARNs (e.g. `Resource: "*"` or specific bucket ARNs). Dynamic ARN synthesis from CloudTrail `requestParameters` is future work.
+7. **Action Normalization Coverage:** Covers major S3, DynamoDB, SQS, and CloudWatch Logs CloudTrail-to-IAM API disparities. Arbitrary unmapped actions are handled defensively without widening to `*`.
+- See [docs/limitations-and-mitigations.md](docs/limitations-and-mitigations.md) for full architectural documentation.
 
 ---
 
