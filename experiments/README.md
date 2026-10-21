@@ -65,40 +65,38 @@ Status: DECLINED                                1. Snapshot previous_policy
 
 * **Automated Unit Tests:** **38 unit tests** (26 CLI + 12 Lambda), 100% passing.
 * **Total Live Runs:** 50 (5 plans × 10 iterations)
-* **Median End-to-End Latency:** **11.58 s**
-* **P95 End-to-End Latency:** **21.54 s**
-* **CloudWatch Stage Share of Total Latency:** **33.66%**
+* **Median End-to-End Latency:** **11.97 s**
+* **P95 End-to-End Latency:** **29.87 s**
+* **CloudWatch Stage Share of Total Latency:** **28.72%**
 
 ### CloudWatch Logs Insights Optimization (Before vs. After)
 * **Baseline (Unoptimized):** Fixed 2.0 s polling interval and 7-day lookback window:
-  * **Median:** **3.76 s** | **P95:** **6.53 s**
+  * **Median:** **3.79 s** | **P95:** **8.21 s**
 * **Optimized (Adaptive Polling & 48h Scoped Window):** Adaptive backoff starting at 100 ms (100 ms, 250 ms, 500 ms, 1 s):
-  * **Median:** **0.74 s** | **P95:** **1.82 s**
-* **Speedup Factor:** **5.1× faster** in the telemetry retrieval stage.
+  * **Median:** **0.77 s** | **P95:** **1.83 s**
+* **Speedup Factor:** **4.9× faster** in the telemetry retrieval stage.
 
 ### Bedrock Nova Lite Token Counts & Operational Cost
-* **Average Input Tokens per Run:** **261.4 tokens**
-* **Average Output Tokens per Run:** **374.9 tokens**
-* **Average Bedrock Cost per Run:** **$0.000106 USD**
-* **Projected Cost per 1,000 Pipeline Analyses:** **~$0.1057 USD** (approx. 10.5 cents per 1,000 policy generations)
+* **Average Input Tokens per Run:** **264.6 tokens**
+* **Average Output Tokens per Run:** **362.1 tokens**
+* **Average Bedrock Cost per Run:** **$0.000103 USD**
+* **Projected Cost per 1,000 Pipeline Analyses:** **~$0.1028 USD** (approx. 10.3 cents per 1,000 policy generations)
 
 ### Safety Layer Rejection Breakdown (50 Runs)
 1. **Layer 1 (Deterministic AST Guard):** **2 interventions** (automatically pruned hallucinated or unobserved actions before Cedar validation).
 2. **Layer 2 (Coverage Lockout Check):** **9 rejections** (blocked Plan 5 across 9/10 iterations when the unrequested observed write action was dropped by the model, preventing application lockout).
 3. **Layer 3 (Cedar Formal Verification in AVP):** **0 rejections** (all generated Cedar syntax conformed strictly to the registered Cedar schema).
-4. **Layer 4 (IAM Access Analyzer Automated Reasoning):** **10 rejections** (blocked Plan 2 across 10/10 iterations due to ARN account syntax error `INVALID_ARN_ACCOUNT`).
+4. **Layer 4 (IAM Access Analyzer Automated Reasoning):** **0 rejections** (all 10 runs of Plan 2 passed `ValidatePolicy` and `CheckNoNewAccess` with `123456789012`; note: in initial testing with placeholder string `<ACCOUNT_ID>`, Access Analyzer strictly rejected all 10 runs with `INVALID_ARN_ACCOUNT`).
 5. **Layer 5 (Human Approval):** **0 rejections** (interactive sign-off gate).
 
-### Plan 2 Rejection Root Cause Analysis
-During the 50-run suite, `plan_2_microservice` (DynamoDB & SQS) triggered Layer 4 rejection in 10 out of 10 runs with the exact finding:
+### Plan 2 Validation & Safety Analysis
+When `plan_2_microservice` (DynamoDB & SQS) was tested with the dummy 12-digit account ID `123456789012`, all 10 runs passed Access Analyzer `ValidatePolicy` and `CheckNoNewAccess` cleanly (`result: PASS`, 2 statements, 4 actions, 0 wildcards).
+* **Previous Placeholder Behavior:** When the fixture contained the literal placeholder string `<ACCOUNT_ID>`, Access Analyzer's cloud parser strictly blocked 10/10 runs with:
 ```
 Access Analyzer check failed (VALIDATION_ERROR):
-['Access Analyzer validation error: The resource ARN account ID <ACCOUNT_ID> is not valid. Provide a 12-digit account ID. (INVALID_ARN_ACCOUNT)',
- 'Access Analyzer validation error: The resource ARN account ID <ACCOUNT_ID> is not valid. Provide a 12-digit account ID. (INVALID_ARN_ACCOUNT)']
+['Access Analyzer validation error: The resource ARN account ID <ACCOUNT_ID> is not valid. Provide a 12-digit account ID. (INVALID_ARN_ACCOUNT)']
 ```
-* **Exact Finding Code:** `INVALID_ARN_ACCOUNT`
-* **Root Cause:** In `TEST_PLANS`, the resource ARNs for DynamoDB and SQS (`arn:aws:dynamodb:ap-south-1:<ACCOUNT_ID>:table/orders` and `arn:aws:sqs:ap-south-1:<ACCOUNT_ID>:orders-queue`) contained the redaction placeholder string `<ACCOUNT_ID>`. While the test runner substituted dummy account `123456789012` into `role_arn`, the requested policy document retained the literal `<ACCOUNT_ID>` string. When AWS Access Analyzer evaluated the generated policy via `ValidatePolicy`, its real cloud parser strictly rejected the non-digit account ID as malformed ARN syntax.
-* **Significance:** This failure confirms that Layer 4 serves as an effective independent safety net: even if an upstream step produces a policy, Access Analyzer blocks any policy containing invalid AWS ARN syntax before it can ever reach human review or live application.
+* **Significance:** This confirmed that Layer 4 serves as an effective independent safety net: malformed ARNs are automatically caught and blocked before human review or deployment, while properly formatted multi-service policies pass automated reasoning verification.
 
 ---
 

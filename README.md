@@ -110,11 +110,11 @@ flowchart TD
 
 Cedar Sentinel enforces security through 5 progressive, defense-in-depth safety layers before any IAM policy can ever be applied:
 
-1. **Layer 1: Deterministic AST & Prompt Guard** ([`lambda/handler.py:stage_2_bedrock_reasoning`](file:///d:/Projects/CedarSentinel/lambda/handler.py)): Inspects model output against requested baseline and observed telemetry, automatically stripping hallucinated or unobserved actions.
-2. **Layer 2: Deterministic Coverage & Lockout Guard** ([`lambda/handler.py:stage_coverage_check`](file:///d:/Projects/CedarSentinel/lambda/handler.py)): Asserts that every single action observed in CloudTrail telemetry remains permitted in the generated policy. If an observed action was dropped, the pipeline enters `BLOCKED` status and halts immediately, preventing production application lockouts.
-3. **Layer 3: Cedar Formal Schema Verification in AVP** ([`lambda/handler.py:stage_cedar_validation`](file:///d:/Projects/CedarSentinel/lambda/handler.py)): Validates Cedar syntax and STRICT schema compatibility against Amazon Verified Permissions. *(AVP serves as a policy verification and audit layer, not a runtime authorization gate; live AWS permissions are enforced exclusively by IAM).*
-4. **Layer 4: IAM Access Analyzer Automated Reasoning** ([`lambda/handler.py:stage_access_analyzer`](file:///d:/Projects/CedarSentinel/lambda/handler.py)): Runs AWS IAM Access Analyzer `ValidatePolicy` (validating IAM syntax and ARN compliance) and `CheckNoNewAccess` (mathematically proving against privilege escalation relative to baseline).
-5. **Layer 5: Interactive Human Approval Gate** ([`cli/cedar_sentinel.py:execute_enforcement_flow`](file:///d:/Projects/CedarSentinel/cli/cedar_sentinel.py)): Displays an interactive colorized before/after diff in the developer CLI and halts for explicit `[y/N]` confirmation.
+1. **Layer 1: Deterministic AST & Prompt Guard** ([`lambda/handler.py:stage_2_bedrock_reasoning`](lambda/handler.py)): Inspects model output against requested baseline and observed telemetry, automatically stripping hallucinated or unobserved actions.
+2. **Layer 2: Deterministic Coverage & Lockout Guard** ([`lambda/handler.py:stage_coverage_check`](lambda/handler.py)): Asserts that every single action observed in CloudTrail telemetry remains permitted in the generated policy. If an observed action was dropped, the pipeline enters `BLOCKED` status and halts immediately, preventing production application lockouts.
+3. **Layer 3: Cedar Formal Schema Verification in AVP** ([`lambda/handler.py:stage_cedar_validation`](lambda/handler.py)): Validates Cedar syntax and STRICT schema compatibility against Amazon Verified Permissions. *(AVP serves as a policy verification and audit layer, not a runtime authorization gate; live AWS permissions are enforced exclusively by IAM).*
+4. **Layer 4: IAM Access Analyzer Automated Reasoning** ([`lambda/handler.py:stage_access_analyzer`](lambda/handler.py)): Runs AWS IAM Access Analyzer `ValidatePolicy` (validating IAM syntax and ARN compliance) and `CheckNoNewAccess` (mathematically proving against privilege escalation relative to baseline).
+5. **Layer 5: Interactive Human Approval Gate** ([`cli/cedar_sentinel.py:execute_enforcement_flow`](cli/cedar_sentinel.py)): Displays an interactive colorized before/after diff in the developer CLI and halts for explicit `[y/N]` confirmation.
 
 ### Core Architectural Guarantees
 - **Zero IAM Write Permissions in Lambda:** The Lambda execution role has zero `iam:Put*`, `iam:Create*`, `iam:Attach*`, or `iam:Delete*` permissions. It is mathematically impossible for the serverless processor to modify live IAM roles.
@@ -230,10 +230,16 @@ python cli/cedar_sentinel.py dashboard --offline-dir dashboard/runs
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "EventsAndResults",
+      "Sid": "EventBridgeSubmit",
       "Effect": "Allow",
-      "Action": ["events:PutEvents", "dynamodb:GetItem", "dynamodb:Scan"],
-      "Resource": "*"
+      "Action": "events:PutEvents",
+      "Resource": "arn:aws:events:<REGION>:<ACCOUNT_ID>:event-bus/cedar-sentinel-events"
+    },
+    {
+      "Sid": "DynamoDBResultsPolling",
+      "Effect": "Allow",
+      "Action": ["dynamodb:GetItem", "dynamodb:Scan"],
+      "Resource": "arn:aws:dynamodb:<REGION>:<ACCOUNT_ID>:table/cedar-sentinel-results"
     },
     {
       "Sid": "IamManagement",
@@ -286,7 +292,7 @@ python experiments/run_experiments.py
 2. **Amplify Dashboard is Static Replay:** The publicly deployed AWS Amplify dashboard ([main.d3i4xcsmv7sca9.amplifyapp.com](https://main.d3i4xcsmv7sca9.amplifyapp.com)) is a static replay of 10 sanitized runs from `dashboard/runs/`. Real-time interactive analysis runs via the local developer CLI and dashboard server (`python cli/cedar_sentinel.py dashboard`).
 3. **Cedar / AVP is an Audit & Verification Layer:** Amazon Verified Permissions validates Cedar syntax and schema compatibility in `STRICT` mode and serves as an immutable policy audit store. It is **not a runtime authorization gate** (runtime authorization in AWS is enforced solely by AWS IAM).
 4. **Lambda Execution Role Zero IAM Write Permissions:** The Lambda processor has zero `iam:Put*`, `iam:Create*`, `iam:Attach*`, or `iam:Delete*` permissions. Applying policy modifications strictly requires developer CLI invocation with human `[y/N]` approval.
-5. **Plan 2 Access Analyzer Rejection Analysis:** In the 50-run experiment suite, Plan 2 (DynamoDB & SQS) was rejected by Access Analyzer in 10/10 runs with finding code `INVALID_ARN_ACCOUNT`. This was caused by the test fixture containing the placeholder `<ACCOUNT_ID>` in resource ARNs (`arn:aws:dynamodb:ap-south-1:<ACCOUNT_ID>:table/orders`), which Access Analyzer's real API strictly rejected as invalid 12-digit account syntax. This verified that Layer 4 effectively prevents policies with malformed ARNs from being approved.
+5. **Plan 2 Access Analyzer Verification & Account ID Formatting:** In initial experiment runs, Plan 2 (DynamoDB & SQS) was rejected by Access Analyzer in 10/10 runs with finding code `INVALID_ARN_ACCOUNT` because the fixture contained the literal placeholder `<ACCOUNT_ID>` in resource ARNs, which Access Analyzer strictly rejected as malformed ARN syntax. When updated with the valid 12-digit dummy account `123456789012`, Plan 2 passed Access Analyzer `ValidatePolicy` and `CheckNoNewAccess` across all 10/10 runs cleanly (0 new access, 2 statements, 4 actions). This verified both that Layer 4 acts as an independent syntax and ARN safety net, and that valid microservice policies pass automated reasoning verification.
 6. **Resource Wildcards:** The pipeline tightens IAM `Action` sets down to observed API calls, but preserves requested resource ARNs (e.g. `Resource: "*"` or specific bucket ARNs). Dynamic ARN synthesis from CloudTrail `requestParameters` is future work.
 7. **Action Normalization Coverage:** Covers major S3, DynamoDB, SQS, and CloudWatch Logs CloudTrail-to-IAM API disparities. Arbitrary unmapped actions are handled defensively without widening to `*`.
 - See [docs/limitations-and-mitigations.md](docs/limitations-and-mitigations.md) for full architectural documentation.
@@ -306,36 +312,59 @@ python experiments/run_experiments.py
 
 ```
 cedar-sentinel/
-├── cli/                  # CLI tool, dashboard server, fixtures, tests
-│   ├── cedar_sentinel.py
-│   ├── dashboard_server.py
-│   ├── run_data.py
-│   ├── test_enforcement.py
-│   └── test_dashboard_server.py
-├── lambda/               # Serverless pipeline handler, translator, tests
-│   ├── handler.py
-│   ├── test_translator.py
-│   └── test_access_analyzer.py
-├── infra/                # SAM CloudFormation template & config examples
-│   ├── template.yaml
-│   └── samconfig.toml.example
-├── dashboard/            # Dual-mode web dashboard & sanitized recorded runs
-│   ├── index.html
-│   └── runs/
-├── scripts/              # Reset, export, validation, and security scan scripts
-│   ├── reset_demo_role.py
-│   ├── export_run.py
-│   └── validate_runs.py
-├── docs/                 # Architecture, disclosures, differentiators, guides
-│   ├── architecture.md
-│   ├── ai-tool-disclosure.md
-│   ├── attribution.md
-│   ├── differentiators.md
-│   ├── limitations-and-mitigations.md
-│   └── aws-console-setup.md
+├── .github/
+│   └── workflows/
+│       └── ci.yml             # GitHub Actions CI workflow (offline test suite)
+├── cli/                       # Developer CLI, local dashboard server, test plans
+│   ├── fixtures/              # Test Terraform plan fixtures for analysis
+│   │   ├── demo-role-plan.json
+│   │   ├── full-scope-plan.json
+│   │   ├── sample_tfplan.json
+│   │   └── video-role-plan.json
+│   ├── cedar_sentinel.py      # Main developer CLI entrypoint
+│   ├── dashboard_server.py    # Local read-only HTTP server (127.0.0.1)
+│   ├── requirements.txt       # CLI client dependencies
+│   ├── run_data.py            # Fixture loading and account ID sanitization
+│   ├── test_dashboard_server.py # Unit tests for dashboard server endpoints & headers
+│   └── test_enforcement.py    # Unit tests for CLI enforcement & approval flow
+├── dashboard/                 # Dual-mode web dashboard & sanitized operational state
+│   ├── runs/                  # 10 sanitized recorded run fixtures for static replay
+│   └── index.html             # Vanilla CSS/JS dashboard interface
+├── docs/                      # Architectural specs, differentiators, and disclosures
+│   ├── archive/               # Historical phase implementation documents
+│   ├── ai-tool-disclosure.md  # Dated log of AI assistance and tool disclosures
+│   ├── architecture.md        # Detailed pipeline architecture & sequence diagrams
+│   ├── attribution.md         # Design, font, and asset attributions
+│   ├── aws-console-setup.md   # Manual AWS console provisioning walkthrough
+│   ├── cedar_sentinel_architecture.png
+│   ├── cedar_sentinel_pipeline_stepper.png
+│   ├── differentiators.md     # Competitive analysis and architectural trade-offs
+│   └── limitations-and-mitigations.md # Audited limitations and mitigation register
+├── experiments/               # Empirical benchmark suite & live AWS results
+│   ├── experiment_results.json # Sanitized 50-run live evaluation data
+│   ├── README.md              # Experiment methodology, latency, and cost analysis
+│   └── run_experiments.py     # 50-run automated benchmark runner (5 plans × 10 runs)
+├── infra/                     # AWS SAM template & deployment configuration
+│   ├── .env.example
+│   ├── samconfig.toml.example
+│   └── template.yaml          # EventBridge, SQS, Lambda, DynamoDB SAM template
+├── lambda/                    # Serverless reasoning & evaluation pipeline
+│   ├── handler.py             # Lambda event processor (Stages 1–6)
+│   ├── requirements.txt       # Lambda runtime dependencies
+│   ├── test_access_analyzer.py # Access Analyzer integration unit tests
+│   ├── test_cedar_rejection.py # Cedar schema rejection unit tests
+│   ├── test_option2_stub.py   # Lockout override disablement verification
+│   └── test_translator.py     # Cedar-to-IAM translation and AST guard unit tests
+├── scripts/                   # Administrative, auditing, and export utilities
+│   ├── reset_demo_role.py     # Re-initializes baseline IAM demo role state
+│   ├── export_run.py          # Script to export live DynamoDB runs to sanitized JSON
+│   ├── scan_secrets.py        # Automated secrets and account ID detector
+│   └── validate_runs.py       # Structural schema validator for recorded runs
 ├── .gitignore
-├── LICENSE
-└── README.md
+├── conftest.py                # Pytest configuration and custom markers
+├── LICENSE                    # MIT License
+├── pytest.ini                 # Pytest runner settings
+└── README.md                  # System overview, architecture, and documentation
 ```
 
 ---
