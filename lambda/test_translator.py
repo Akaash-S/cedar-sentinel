@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Unit tests for Stage 5: Cedar to IAM Policy Translation & Action Normalization.
-Verifies all Section 2.5 requirements in instructions/phase-03-enforcement.md.
+Verifies all Section 2.5 requirements in docs/archive/phase-03-enforcement.md.
 """
 
 import json

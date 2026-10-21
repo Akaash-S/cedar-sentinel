@@ -20,7 +20,7 @@ import re
 import sys
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -36,23 +36,32 @@ if hasattr(sys.stderr, "reconfigure"):
 import boto3
 from botocore.exceptions import ClientError
 
-# Ensure lambda and cli modules can be imported
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(REPO_ROOT, "lambda"))
-sys.path.insert(0, os.path.join(REPO_ROOT, "cli"))
+import importlib.util
 
-from handler import (
-    BEDROCK_MAX_TOKENS,
-    CLOUDTRAIL_TO_IAM_ACTION_MAP,
-    _extract_cedar_actions,
-    _now_iso,
-    _sanitize_and_guard_cedar_policy,
-    stage_access_analyzer,
-    stage_cedar_validation,
-    stage_coverage_check,
-    stage_iam_translation,
-)
-from run_data import sanitize_value
+# Ensure repository root is on sys.path
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+_handler_path = os.path.join(REPO_ROOT, "lambda", "handler.py")
+_spec = importlib.util.spec_from_file_location("handler", _handler_path)
+if _spec is None or _spec.loader is None:
+    raise ImportError(f"Could not load module spec from {_handler_path}")
+_handler_mod = importlib.util.module_from_spec(_spec)
+sys.modules["handler"] = _handler_mod
+_spec.loader.exec_module(_handler_mod)
+
+BEDROCK_MAX_TOKENS = _handler_mod.BEDROCK_MAX_TOKENS
+CLOUDTRAIL_TO_IAM_ACTION_MAP = _handler_mod.CLOUDTRAIL_TO_IAM_ACTION_MAP
+_extract_cedar_actions = _handler_mod._extract_cedar_actions
+_now_iso = _handler_mod._now_iso
+_sanitize_and_guard_cedar_policy = _handler_mod._sanitize_and_guard_cedar_policy
+stage_access_analyzer = _handler_mod.stage_access_analyzer
+stage_cedar_validation = _handler_mod.stage_cedar_validation
+stage_coverage_check = _handler_mod.stage_coverage_check
+stage_iam_translation = _handler_mod.stage_iam_translation
+
+from cli.run_data import sanitize_value
 
 REGION = os.environ.get("AWS_REGION", "ap-south-1")
 BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "apac.amazon.nova-lite-v1:0")
@@ -102,13 +111,13 @@ TEST_PLANS = [
                     "Sid": "DynamoDBAll",
                     "Effect": "Allow",
                     "Action": "dynamodb:*",
-                    "Resource": "arn:aws:dynamodb:ap-south-1:<ACCOUNT_ID>:table/orders",
+                    "Resource": "arn:aws:dynamodb:ap-south-1:123456789012:table/orders",
                 },
                 {
                     "Sid": "SQSAll",
                     "Effect": "Allow",
                     "Action": "sqs:*",
-                    "Resource": "arn:aws:sqs:ap-south-1:<ACCOUNT_ID>:orders-queue",
+                    "Resource": "arn:aws:sqs:ap-south-1:123456789012:orders-queue",
                 },
             ],
         },
@@ -469,12 +478,16 @@ def count_policy_metrics(policy_doc: Dict[str, Any]) -> Tuple[int, int, int]:
 # Main Experiment Runner
 # ─────────────────────────────────────────────────────────────────
 
-def run_experiment_suite(num_iterations: int = 10) -> Dict[str, Any]:
+def run_experiment_suite(num_iterations: int = 10, target_plan_id: Optional[str] = None) -> Dict[str, Any]:
+    plans_to_run = [p for p in TEST_PLANS if target_plan_id is None or p["id"] == target_plan_id]
+    if not plans_to_run:
+        raise ValueError(f"Unknown plan ID: {target_plan_id}. Available: {[p['id'] for p in TEST_PLANS]}")
+
     print("=" * 70)
     print("  CEDAR SENTINEL EXPERIMENTS SUITE")
     print(f"  Region       : {REGION}")
     print(f"  Bedrock Model: {BEDROCK_MODEL_ID}")
-    print(f"  Plans        : {len(TEST_PLANS)} plans x {num_iterations} iterations = {len(TEST_PLANS) * num_iterations} runs")
+    print(f"  Plans        : {len(plans_to_run)} plan(s) x {num_iterations} iterations = {len(plans_to_run) * num_iterations} runs")
     print("=" * 70)
 
     logs_client = boto3.client("logs", region_name=REGION)
@@ -496,14 +509,14 @@ def run_experiment_suite(num_iterations: int = 10) -> Dict[str, Any]:
         "layer_5_human_approval": {"count": 0, "reasons": []},
     }
 
-    total_runs = len(TEST_PLANS) * num_iterations
+    total_runs = len(plans_to_run) * num_iterations
     run_idx = 0
 
-    for plan in TEST_PLANS:
+    for plan in plans_to_run:
         plan_id = plan["id"]
         plan_name = plan["name"]
         role_arn = plan["role_arn"].replace("<ACCOUNT_ID>", "123456789012")
-        requested_doc = plan["requested_policy"]
+        requested_doc = json.loads(json.dumps(plan["requested_policy"]).replace("<ACCOUNT_ID>", "123456789012"))
         observed_actions = plan["observed_actions"]
 
         stmt_before, act_before, wc_before = count_policy_metrics(requested_doc)
@@ -658,6 +671,24 @@ def run_experiment_suite(num_iterations: int = 10) -> Dict[str, Any]:
                 f"Tokens=({token_meta['input_tokens']} in / {token_meta['output_tokens']} out, ${token_meta['cost_usd']:.5f})"
             )
 
+    out_file = os.path.join(os.path.dirname(__file__), "experiment_results.json")
+    if target_plan_id and os.path.exists(out_file):
+        try:
+            with open(out_file, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+            existing_runs = existing_data.get("raw_runs", [])
+            new_run_map = {(r["plan_id"], r["iteration"]): r for r in all_results}
+            merged_runs = []
+            for r in existing_runs:
+                key = (r["plan_id"], r["iteration"])
+                if key in new_run_map:
+                    merged_runs.append(new_run_map[key])
+                else:
+                    merged_runs.append(r)
+            all_results = merged_runs
+        except Exception as e:
+            print(f"Warning: could not merge with existing results ({e}), using new runs only.")
+
     # ─────────────────────────────────────────────────────────────
     # Aggregate Metrics Calculation
     # ─────────────────────────────────────────────────────────────
@@ -670,8 +701,8 @@ def run_experiment_suite(num_iterations: int = 10) -> Dict[str, Any]:
     p95_e2e = all_e2e[min(p95_index, n - 1)]
 
     # CloudWatch Logs Insights Latencies
-    cw_unopt_sorted = sorted(cw_unoptimized_times)
-    cw_opt_sorted = sorted(cw_optimized_times)
+    cw_unopt_sorted = sorted(r["cw_latency_unoptimized_seconds"] for r in all_results)
+    cw_opt_sorted = sorted(r["cw_latency_optimized_seconds"] for r in all_results)
 
     med_cw_unopt = cw_unopt_sorted[len(cw_unopt_sorted) // 2]
     p95_cw_unopt = cw_unopt_sorted[min(int(0.95 * len(cw_unopt_sorted)), len(cw_unopt_sorted) - 1)]
@@ -680,7 +711,7 @@ def run_experiment_suite(num_iterations: int = 10) -> Dict[str, Any]:
     p95_cw_opt = cw_opt_sorted[min(int(0.95 * len(cw_opt_sorted)), len(cw_opt_sorted) - 1)]
 
     # Share of total latency spent in CloudWatch Logs stage
-    cw_share_pct = (sum(cw_unoptimized_times) / sum(all_e2e)) * 100.0
+    cw_share_pct = (sum(r["cw_latency_unoptimized_seconds"] for r in all_results) / sum(all_e2e)) * 100.0
 
     # Token aggregates
     avg_in_tokens = sum(r["bedrock_input_tokens"] for r in all_results) / n
@@ -688,9 +719,44 @@ def run_experiment_suite(num_iterations: int = 10) -> Dict[str, Any]:
     total_cost_usd = sum(r["bedrock_cost_usd"] for r in all_results)
     avg_cost_usd = total_cost_usd / n
 
+    safety_rejections = {
+        "layer_1_deterministic_ast_guard": {
+            "count": sum(1 for r in all_results if len(r.get("guard_removed_actions", [])) > 0),
+            "reasons": [
+                f"{r['plan_id']}: Pruned {len(r['guard_removed_actions'])} unobserved action(s): {r['guard_removed_actions']}"
+                for r in all_results if len(r.get("guard_removed_actions", [])) > 0
+            ],
+        },
+        "layer_2_coverage_lockout_check": {
+            "count": sum(1 for r in all_results if r.get("status") == "BLOCKED"),
+            "reasons": [
+                f"{r['plan_id']}: Blocked due to dropped observed action(s)"
+                for r in all_results if r.get("status") == "BLOCKED"
+            ],
+        },
+        "layer_3_cedar_strict_verification": {
+            "count": sum(1 for r in all_results if r.get("status") == "CEDAR_INVALID"),
+            "reasons": [
+                f"{r['plan_id']}: Cedar AVP schema verification rejected draft"
+                for r in all_results if r.get("status") == "CEDAR_INVALID"
+            ],
+        },
+        "layer_4_access_analyzer": {
+            "count": sum(1 for r in all_results if r.get("status") == "ANALYZER_INVALID"),
+            "reasons": [
+                f"{r['plan_id']}: Access Analyzer check failed ({r.get('verdict')})"
+                for r in all_results if r.get("status") == "ANALYZER_INVALID"
+            ],
+        },
+        "layer_5_human_approval": {
+            "count": 0,
+            "reasons": [],
+        },
+    }
+
     summary = {
-        "total_runs": total_runs,
-        "plans_evaluated": len(TEST_PLANS),
+        "total_runs": len(all_results),
+        "plans_evaluated": len(set(r["plan_id"] for r in all_results)),
         "iterations_per_plan": num_iterations,
         "median_e2e_latency_seconds": round(median_e2e, 4),
         "p95_e2e_latency_seconds": round(p95_e2e, 4),
@@ -725,14 +791,13 @@ def run_experiment_suite(num_iterations: int = 10) -> Dict[str, Any]:
     # Ensure output is 100% sanitized
     sanitized_output = sanitize_value(output_payload)
 
-    out_file = os.path.join(os.path.dirname(__file__), "experiment_results.json")
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(sanitized_output, f, indent=2)
 
     print("\n" + "=" * 70)
     print("  EXPERIMENT SUMMARY REPORT")
     print("=" * 70)
-    print(f"Total Runs Executed        : {total_runs}")
+    print(f"Total Runs Executed        : {len(all_results)}")
     print(f"Median End-to-End Latency  : {summary['median_e2e_latency_seconds']} s")
     print(f"P95 End-to-End Latency     : {summary['p95_e2e_latency_seconds']} s")
     print(f"CloudWatch Stage Latency Share: {summary['cloudwatch_logs_stage']['share_of_total_latency_percent']}%")
@@ -750,4 +815,9 @@ def run_experiment_suite(num_iterations: int = 10) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    run_experiment_suite(num_iterations=10)
+    import argparse
+    parser = argparse.ArgumentParser(description="Cedar Sentinel Experiments Suite")
+    parser.add_argument("--plan", type=str, default=None, help="Target plan ID to run (e.g. plan_2_microservice)")
+    parser.add_argument("--iterations", type=int, default=10, help="Iterations per plan (default: 10)")
+    args = parser.parse_args()
+    run_experiment_suite(num_iterations=args.iterations, target_plan_id=args.plan)
