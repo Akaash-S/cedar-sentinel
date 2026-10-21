@@ -24,9 +24,9 @@ architecture in `00-master-blueprint.md` to avoid overclaiming.
 ## 2. Dual-Layer Verification (Cedar STRICT Schema + IAM Access Analyzer)
 
 - **Cedar Schema Verification:** Synthesizes Cedar authorization policies and validates them in `STRICT` mode against Amazon Verified Permissions before translation.
-- **IAM Access Analyzer Safety Net:** Independent mathematical validation using AWS Automated Reasoning tools:
+- **IAM Access Analyzer Safety Net:** Independent validation using AWS Automated Reasoning tools:
   - `ValidatePolicy`: Flags invalid action syntax or malformed elements.
-  - `CheckNoNewAccess`: Guarantees the tightened policy never grants permissions outside the original requested baseline.
+  - `CheckNoNewAccess`: Proves the tightened policy grants no new access relative to the baseline policy.
 
 ---
 
