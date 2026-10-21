@@ -36,23 +36,32 @@ if hasattr(sys.stderr, "reconfigure"):
 import boto3
 from botocore.exceptions import ClientError
 
-# Ensure lambda and cli modules can be imported
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(REPO_ROOT, "lambda"))
-sys.path.insert(0, os.path.join(REPO_ROOT, "cli"))
+import importlib.util
 
-from handler import (
-    BEDROCK_MAX_TOKENS,
-    CLOUDTRAIL_TO_IAM_ACTION_MAP,
-    _extract_cedar_actions,
-    _now_iso,
-    _sanitize_and_guard_cedar_policy,
-    stage_access_analyzer,
-    stage_cedar_validation,
-    stage_coverage_check,
-    stage_iam_translation,
-)
-from run_data import sanitize_value
+# Ensure repository root is on sys.path
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+_handler_path = os.path.join(REPO_ROOT, "lambda", "handler.py")
+_spec = importlib.util.spec_from_file_location("handler", _handler_path)
+if _spec is None or _spec.loader is None:
+    raise ImportError(f"Could not load module spec from {_handler_path}")
+_handler_mod = importlib.util.module_from_spec(_spec)
+sys.modules["handler"] = _handler_mod
+_spec.loader.exec_module(_handler_mod)
+
+BEDROCK_MAX_TOKENS = _handler_mod.BEDROCK_MAX_TOKENS
+CLOUDTRAIL_TO_IAM_ACTION_MAP = _handler_mod.CLOUDTRAIL_TO_IAM_ACTION_MAP
+_extract_cedar_actions = _handler_mod._extract_cedar_actions
+_now_iso = _handler_mod._now_iso
+_sanitize_and_guard_cedar_policy = _handler_mod._sanitize_and_guard_cedar_policy
+stage_access_analyzer = _handler_mod.stage_access_analyzer
+stage_cedar_validation = _handler_mod.stage_cedar_validation
+stage_coverage_check = _handler_mod.stage_coverage_check
+stage_iam_translation = _handler_mod.stage_iam_translation
+
+from cli.run_data import sanitize_value
 
 REGION = os.environ.get("AWS_REGION", "ap-south-1")
 BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "apac.amazon.nova-lite-v1:0")
